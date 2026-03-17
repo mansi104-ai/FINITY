@@ -9,10 +9,54 @@ export interface AgentStatus {
   message?: string;
 }
 
+export interface ResearchResource {
+  title: string;
+  source: string;
+  url?: string;
+  publishedAt: string;
+  snippet?: string;
+  sentimentLabel?: "bullish" | "bearish" | "neutral";
+}
+
+export interface ResearchSearchAttempt {
+  query: string;
+  phase: "from_scratch" | "reiteration";
+  source: string;
+  status: "success" | "failed" | "skipped";
+  resultCount: number;
+  startedAt: string;
+  endedAt: string;
+  note?: string;
+}
+
+export interface ResearchTimeline {
+  from: string;
+  to: string;
+  generatedAt: string;
+}
+
+export interface ResearchStats {
+  searchesFromScratch: number;
+  reiterations: number;
+  totalSearches: number;
+  successfulSearches: number;
+}
+
 export interface SentimentResult {
   label: "bullish" | "bearish" | "neutral";
   score: number;
   confidence: number;
+  resources?: ResearchResource[];
+  timeline?: ResearchTimeline;
+  searchStats?: ResearchStats;
+  searchAttempts?: ResearchSearchAttempt[];
+  reasoning?: string[];
+  synthesis?: {
+    bullish: number;
+    bearish: number;
+    neutral: number;
+    total: number;
+  };
 }
 
 export interface PredictionResult {
@@ -30,10 +74,20 @@ export interface RiskResult {
   recommendedPositionSizePct: number;
 }
 
+export interface DecisionTraceEntry {
+  stage: string;
+  detail: string;
+  outcome: string;
+}
+
 export interface FinalRecommendation {
   action: "buy" | "sell" | "hold";
   reason: string;
   suggestedAmount: number;
+  buyScore?: number;
+  buyThreshold?: number;
+  verdict?: "buy_now" | "wait" | "avoid";
+  decisionTrace?: DecisionTraceEntry[];
 }
 
 export interface AgentReport {

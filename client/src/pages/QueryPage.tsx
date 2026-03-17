@@ -9,8 +9,13 @@ import AgentStatusCard from "../components/AgentStatusCard";
 import ReportCard from "../components/ReportCard";
 
 function extractTicker(query: string): string {
-  const match = query.toUpperCase().match(/\b[A-Z]{1,5}\b/);
-  return match?.[0] ?? "AAPL";
+  const dollarMatch = query.toUpperCase().match(/\$([A-Z][A-Z0-9.-]{0,14})\b/);
+  if (dollarMatch?.[1]) {
+    return dollarMatch[1];
+  }
+
+  const symbolMatch = query.toUpperCase().match(/\b[A-Z][A-Z0-9.-]{0,14}\b/);
+  return symbolMatch?.[0] ?? "";
 }
 
 export default function QueryPage() {
@@ -18,8 +23,8 @@ export default function QueryPage() {
   const [email, setEmail] = useState("demo@finity.ai");
   const [password, setPassword] = useState("Passw0rd!");
 
-  const [query, setQuery] = useState("Should I buy NVDA this week?");
-  const [ticker, setTicker] = useState("NVDA");
+  const [query, setQuery] = useState("");
+  const [ticker, setTicker] = useState("");
   const [version, setVersion] = useState(1);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
@@ -51,9 +56,10 @@ export default function QueryPage() {
     setError("");
 
     try {
+      const normalizedTicker = ticker.trim().toUpperCase();
       const response = await sendQuery({
         query,
-        ticker: ticker || placeholderTicker,
+        ticker: normalizedTicker || undefined,
         version
       });
       setResult(response);
@@ -141,9 +147,10 @@ export default function QueryPage() {
                 className="input"
                 id="ticker"
                 value={ticker}
-                placeholder={placeholderTicker}
-                onChange={(event) => setTicker(event.target.value.toUpperCase())}
+                placeholder={placeholderTicker || "e.g. AAPL, TSLA, RELIANCE.NS"}
+                onChange={(event) => setTicker(event.target.value.toUpperCase().replace(/[^A-Z0-9.-]/g, ""))}
               />
+              <small className="text-muted">Leave blank if your query already contains the ticker symbol.</small>
             </div>
             <div className="form-row">
               <label className="label" htmlFor="version">

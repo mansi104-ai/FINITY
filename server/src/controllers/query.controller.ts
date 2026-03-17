@@ -8,13 +8,65 @@ import type { AgentReport } from "../models/Report.model";
 
 const querySchema = z.object({
   query: z.string().min(4),
-  ticker: z.string().min(1).max(5).optional(),
+  ticker: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z][A-Z0-9.-]{0,14}$/, "Ticker must look like AAPL or RELIANCE.NS")
+    .optional(),
   version: z.number().int().min(1).max(4).default(4)
 });
 
-function inferTicker(rawQuery: string): string {
-  const match = rawQuery.toUpperCase().match(/\b[A-Z]{1,5}\b/);
-  return match?.[0] ?? "AAPL";
+const COMPANY_SYMBOL_MAP: Record<string, string> = {
+  apple: "AAPL",
+  microsoft: "MSFT",
+  google: "GOOGL",
+  alphabet: "GOOGL",
+  amazon: "AMZN",
+  tesla: "TSLA",
+  nvidia: "NVDA",
+  meta: "META",
+  netflix: "NFLX"
+};
+
+const STOP_WORDS = new Set([
+  "SHOULD",
+  "BUY",
+  "SELL",
+  "HOLD",
+  "THIS",
+  "STOCK",
+  "WEEK",
+  "MONTH",
+  "YEAR",
+  "NOW",
+  "FOR",
+  "THE",
+  "AND",
+  "OR",
+  "IS",
+  "IT",
+  "A",
+  "AN",
+  "OF",
+  "TO"
+]);
+
+function inferTicker(rawQuery: string): string | undefined {
+  const dollarMatch = rawQuery.toUpperCase().match(/\$([A-Z][A-Z0-9.-]{0,14})\b/);
+  if (dollarMatch?.[1]) {
+    return dollarMatch[1];
+  }
+
+  const lower = rawQuery.toLowerCase();
+  for (const [company, symbol] of Object.entries(COMPANY_SYMBOL_MAP)) {
+    if (lower.includes(company)) {
+      return symbol;
+    }
+  }
+
+  const candidates = rawQuery.toUpperCase().match(/\b[A-Z][A-Z0-9.-]{0,14}\b/g) ?? [];
+  return candidates.find((token) => !STOP_WORDS.has(token));
 }
 
 export async function runQueryController(req: Request, res: Response) {
@@ -33,7 +85,13 @@ export async function runQueryController(req: Request, res: Response) {
   }
 
   const now = new Date().toISOString();
-  const ticker = parsed.data.ticker?.toUpperCase() ?? inferTicker(parsed.data.query);
+  const ticker = parsed.data.ticker ?? inferTicker(parsed.data.query);
+
+  if (!ticker) {
+    return res.status(400).json({
+      error: "Unable to infer ticker. Please provide a symbol like AAPL or TSLA."
+    });
+  }
 
   const queryRecord: QueryRecord = {
     id: uuidv4(),

@@ -11,6 +11,15 @@ export default function ReportCard({ report }: { report: AgentReport }) {
         <strong style={{ textTransform: "uppercase" }}>{report.recommendation.action}</strong> {report.ticker} with suggested amount ${report.recommendation.suggestedAmount.toFixed(2)}
       </p>
       <p className="text-muted">{report.recommendation.reason}</p>
+      {typeof report.recommendation.buyScore === "number" && (
+        <p style={{ marginTop: "0.3rem" }}>
+          Buy Score: <strong>{report.recommendation.buyScore.toFixed(2)}</strong>
+          {typeof report.recommendation.buyThreshold === "number" && (
+            <> / Threshold: {report.recommendation.buyThreshold.toFixed(2)}</>
+          )}
+          {report.recommendation.verdict && <> | Verdict: {report.recommendation.verdict}</>}
+        </p>
+      )}
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         {report.sentiment && <SentimentBadge sentiment={report.sentiment} />}
         <span className="badge" style={{ background: "#e7f5ff", color: "#1971c2" }}>
