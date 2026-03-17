@@ -1,3 +1,5 @@
+export type RiskProfile = "low" | "medium" | "high";
+
 export type AgentState = "queued" | "running" | "completed" | "failed";
 
 export interface AgentStatus {
@@ -46,4 +48,17 @@ export interface AgentReport {
   recommendation: FinalRecommendation;
   agentLogs: AgentStatus[];
   createdAt: string;
+}
+
+export interface QueryResponse {
+  ok: boolean;
+  reportId: string;
+  report: AgentReport;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  budget: number;
+  riskProfile: RiskProfile;
 }
