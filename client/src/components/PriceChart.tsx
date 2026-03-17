@@ -38,6 +38,16 @@ export default function PriceChart({ prediction }: { prediction: PredictionResul
         Current: ${prediction.currentPrice.toFixed(2)} | Predicted: ${prediction.predictedPrice.toFixed(2)} (
         {prediction.predictedReturnPct.toFixed(2)}%)
       </p>
+      <p className="text-muted" style={{ margin: "0.2rem 0 0" }}>
+        Source: {prediction.priceSource ?? "unknown"}
+        {typeof prediction.livePrice === "number" && <> | Live price: ${prediction.livePrice.toFixed(2)}</>}
+        {typeof prediction.previousClose === "number" && <> | Previous close: ${prediction.previousClose.toFixed(2)}</>}
+      </p>
+      {prediction.priceAsOf && (
+        <p className="text-muted" style={{ margin: "0.2rem 0 0" }}>
+          As of: {new Date(prediction.priceAsOf).toLocaleString()} ({prediction.marketState ?? "unknown"})
+        </p>
+      )}
     </section>
   );
 }

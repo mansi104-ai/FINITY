@@ -10,6 +10,7 @@ export interface AgentStatus {
 export interface ResearchResource {
   title: string;
   source: string;
+  sourceType?: "news" | "government" | "internal";
   url?: string;
   publishedAt: string;
   snippet?: string;
@@ -55,6 +56,14 @@ export interface SentimentResult {
     neutral: number;
     total: number;
   };
+  queryIntent?: string[];
+  directAnswer?: string;
+  researchOnlyAction?: "buy" | "hold" | "sell";
+  policySignals?: {
+    tariffMentions: number;
+    regulationMentions: number;
+    governmentResources: number;
+  };
 }
 
 export interface PredictionResult {
@@ -64,6 +73,11 @@ export interface PredictionResult {
   predictedReturnPct: number;
   history: number[];
   forecast: number[];
+  previousClose?: number;
+  livePrice?: number;
+  priceAsOf?: string;
+  priceSource?: "live" | "synthetic";
+  marketState?: "open" | "closed" | "unknown";
 }
 
 export interface RiskResult {

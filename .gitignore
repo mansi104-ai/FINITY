@@ -39,3 +39,6 @@ client/out/
 Thumbs.db
 .idea/
 .vscode/
+
+node_modules
+client/next-env.d.ts
