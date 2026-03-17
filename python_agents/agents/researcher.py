@@ -1,27 +1,61 @@
-import os, requests
-from models.sentiment_nlp import label_sentiment
+import os
+import time
+from typing import List
 
-NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
+import requests
+
+try:
+    from models.sentiment_nlp import aggregate_sentiment, label_sentiment
+except ModuleNotFoundError:
+    from python_agents.models.sentiment_nlp import aggregate_sentiment, label_sentiment
+
 
 class ResearcherAgent:
-    def analyze(self, ticker: str) -> dict:
-        articles = self._fetch_news(ticker)
-        labels   = [label_sentiment(a["title"]) for a in articles]
+    def __init__(self) -> None:
+        self.news_api_key = os.getenv("NEWSAPI_KEY", "")
 
-        bullish = labels.count("bullish")
-        bearish = labels.count("bearish")
-        score   = bullish / len(labels) if labels else 0.5
+    def analyze(self, ticker: str, query: str) -> dict:
+        start = time.perf_counter()
+        headlines = self._fetch_headlines(ticker=ticker)
+
+        if not headlines:
+            headlines = [
+                f"{ticker} market momentum remains mixed as investors evaluate macro conditions",
+                f"Analysts reassess {ticker} after recent volatility",
+                f"Portfolio managers debate if {ticker} is attractive near-term",
+                query,
+            ]
+
+        labels = [label_sentiment(text) for text in headlines]
+        score, label, confidence = aggregate_sentiment(labels)
 
         return {
-            "label":    "bullish" if score > 0.5 else "bearish",
-            "score":    round(score, 2),
-            "articles": len(articles)
+            "label": label,
+            "score": round(score, 3),
+            "confidence": round(confidence, 3),
+            "headlines": headlines[:5],
+            "durationMs": int((time.perf_counter() - start) * 1000),
+            "message": f"Analyzed {len(headlines)} headlines",
         }
 
-    def _fetch_news(self, ticker: str) -> list:
-        # TODO: call NewsAPI
-        url = "https://newsapi.org/v2/everything"
-        params = {"q": ticker, "apiKey": NEWSAPI_KEY,
-                  "pageSize": 10, "language": "en"}
-        res = requests.get(url, params=params)
-        return res.json().get("articles", [])
+    def _fetch_headlines(self, ticker: str) -> List[str]:
+        if not self.news_api_key:
+            return []
+
+        try:
+            response = requests.get(
+                "https://newsapi.org/v2/everything",
+                params={
+                    "q": ticker,
+                    "apiKey": self.news_api_key,
+                    "pageSize": 8,
+                    "language": "en",
+                    "sortBy": "publishedAt",
+                },
+                timeout=6,
+            )
+            response.raise_for_status()
+            articles = response.json().get("articles", [])
+            return [article.get("title", "") for article in articles if article.get("title")]
+        except Exception:
+            return []

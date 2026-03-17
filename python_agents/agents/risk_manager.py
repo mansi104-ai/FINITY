@@ -1,44 +1,39 @@
-from risk.var_calculator import calculate_var
-import os
-from anthropic import Anthropic
+import time
 
-client = Anthropic()
+try:
+    from risk.var_calculator import calculate_var
+except ModuleNotFoundError:
+    from python_agents.risk.var_calculator import calculate_var
+
 
 class RiskManagerAgent:
-    RISK_LIMITS = {
-        "conservative": 0.05,
-        "moderate":     0.10,
-        "aggressive":   0.20
+    POSITION_MAP = {
+        "low": 0.06,
+        "medium": 0.1,
+        "high": 0.16,
     }
 
-    def evaluate(self, ticker, budget, risk_profile, prediction) -> dict:
-        var        = calculate_var(ticker, budget)
-        limit      = self.RISK_LIMITS.get(risk_profile, 0.10)
-        safe_amount = budget * limit
-        blocked    = var["var_pct"] > limit * 1.5
+    def evaluate(self, ticker: str, budget: float, risk_profile: str, prediction: dict) -> dict:
+        start = time.perf_counter()
+        var = calculate_var(ticker=ticker, position_value=budget)
 
-        advice = self._generate_advice(
-            ticker, budget, safe_amount, prediction, var, blocked
-        )
+        max_position_pct = self.POSITION_MAP.get(risk_profile, 0.1) * 100
+        risk_level = self._risk_level(var_pct=var["var_pct"], base_limit=max_position_pct)
+
+        var_penalty = min(var["var_pct"] / 100 * 2.2, 0.08)
+        recommended_pct = max(2.0, max_position_pct * (1 - var_penalty))
 
         return {
-            "var":          var,
-            "safe_amount":  round(safe_amount, 2),
-            "blocked":      blocked,
-            "advice":       advice
+            "valueAtRiskPct": round(var["var_pct"], 2),
+            "level": risk_level,
+            "recommendedPositionSizePct": round(recommended_pct, 2),
+            "message": "VaR computed with 90-day historical returns",
+            "durationMs": int((time.perf_counter() - start) * 1000),
         }
 
-    def _generate_advice(self, ticker, budget, safe_amount,
-                         prediction, var, blocked) -> str:
-        # TODO: call Claude API to generate advice
-        prompt = f"""
-        Ticker: {ticker}, Budget: ${budget}, Safe amount: ${safe_amount}
-        Prediction: {prediction}, VaR: {var}, Blocked: {blocked}
-        Write a 3-sentence investment advice in plain English.
-        """
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return message.content[0].text
+    def _risk_level(self, var_pct: float, base_limit: float) -> str:
+        if var_pct < base_limit * 0.45:
+            return "low"
+        if var_pct < base_limit * 0.8:
+            return "medium"
+        return "high"
