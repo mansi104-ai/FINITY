@@ -67,6 +67,7 @@ function signToken(user: UserRecord, sessionId: string, type: TokenType): string
 async function issueSessionTokens(user: UserRecord): Promise<{ accessToken: string; refreshToken: string }> {
   const now = new Date();
   const sessionId = randomUUID();
+  // Access and refresh tokens share one session id so revocation invalidates the whole session.
   const refreshToken = signToken(user, sessionId, "refresh");
   const refreshTokenHash = toTokenHash(refreshToken);
   const expiresAt = new Date(now.getTime() + env.refreshTokenTtlDays * 24 * 60 * 60 * 1000).toISOString();
@@ -121,6 +122,7 @@ authRoutes.post("/register", async (req, res) => {
   };
 
   await saveUser(user);
+  // Registration immediately creates a live session so the frontend can continue without a second login step.
   const tokens = await issueSessionTokens(user);
 
   return res.status(201).json({ ...tokens, user: toSafeUser(user) });
@@ -178,10 +180,12 @@ authRoutes.post("/refresh", async (req, res) => {
     }
 
     if (session.refreshTokenHash !== toTokenHash(parsed.data.refreshToken)) {
+      // A refresh token mismatch usually means replay or a stale client token, so revoke the session defensively.
       revokeSession(session.id);
       return res.status(401).json({ error: "Refresh token mismatch" });
     }
 
+    // Rotate refresh tokens on every refresh so an old leaked token cannot be reused indefinitely.
     const rotatedRefreshToken = signToken(user, session.id, "refresh");
     const now = new Date().toISOString();
     await saveSession({
@@ -223,6 +227,7 @@ authRoutes.post("/logout-all", authMiddleware, async (req, res) => {
     ...user,
     tokenVersion: user.tokenVersion + 1
   };
+  // Bumping tokenVersion invalidates all previously signed access/refresh tokens for the user.
   await saveUser(updated);
   await revokeAllSessionsForUser(updated.id);
 

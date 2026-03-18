@@ -20,6 +20,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const token = authHeader.split(" ")[1];
 
   try {
+    // Every protected request must present a valid short-lived access token.
     const payload = jwt.verify(token, env.jwtSecret, {
       issuer: env.jwtIssuer,
       audience: "finity-clients"
@@ -39,6 +40,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       return res.status(401).json({ error: "Token version mismatch" });
     }
 
+    // The token signature alone is not enough; the backing session must still be active in storage.
     const session = await getSessionById(payload.sid);
     if (!session || session.userId !== user.id || session.revokedAt || +new Date(session.expiresAt) <= Date.now()) {
       return res.status(401).json({ error: "Session expired or revoked" });

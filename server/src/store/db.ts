@@ -14,6 +14,7 @@ let mongoDbPromise: Promise<Db | null> | null = null;
 let indexesReady = false;
 
 async function getMongoDb(): Promise<Db | null> {
+  // Production uses MongoDB when configured; local/dev can still run without external infrastructure.
   if (!env.mongodbUri) {
     return null;
   }

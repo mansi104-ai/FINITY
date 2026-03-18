@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Rehydrate auth state from the browser so route changes keep the user signed in.
     const hydrate = async () => {
       const savedAccessToken = api.getAccessToken();
       const savedRefreshToken = api.getRefreshToken();
@@ -53,9 +54,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        // A successful profile call confirms the restored session is still valid.
         await refreshProfile();
         setToken(api.getAccessToken());
       } catch {
+        // Clear any stale tokens so the UI does not loop on an expired session.
         persistSession(null);
         setToken(null);
         setUser(null);
@@ -71,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await api.login(email, password);
     setToken(result.accessToken);
     setUser(result.user);
+    // Persist both tokens because the client auto-refreshes access tokens in the background.
     persistSession({ accessToken: result.accessToken, refreshToken: result.refreshToken });
   }, []);
 
