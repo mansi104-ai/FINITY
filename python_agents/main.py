@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env.local
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env.local'))
 
 try:
     from orchestrator.crew import FinanceCrew
