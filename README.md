@@ -75,7 +75,7 @@ docker compose up --build
 
 ## Notes
 
-- This implementation uses in-memory backend storage for rapid prototyping.
+- Backend auth, users, reports, and queries can persist in MongoDB when `MONGODB_URI` is set; otherwise the server falls back to in-memory storage for rapid prototyping.
 - Auth uses short-lived access tokens + refresh token rotation with per-session revocation.
 - News and market calls gracefully fall back to synthetic/local logic when external APIs are unavailable.
 - Set `USE_LIVE_MARKET_DATA=true` for live yfinance pulls.

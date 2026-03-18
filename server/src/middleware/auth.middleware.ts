@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config";
-import { db } from "../store/db";
+import { getSessionById, getUserById } from "../store/db";
 
 export type AuthPayload = {
   sub: string;
@@ -11,7 +11,7 @@ export type AuthPayload = {
   typ: "access" | "refresh";
 };
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Missing or invalid authorization header" });
@@ -29,7 +29,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
       return res.status(401).json({ error: "Invalid token type" });
     }
 
-    const user = db.users.get(payload.sub);
+    const user = await getUserById(payload.sub);
 
     if (!user) {
       return res.status(401).json({ error: "Session user not found" });
@@ -39,7 +39,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
       return res.status(401).json({ error: "Token version mismatch" });
     }
 
-    const session = db.authSessions.get(payload.sid);
+    const session = await getSessionById(payload.sid);
     if (!session || session.userId !== user.id || session.revokedAt || +new Date(session.expiresAt) <= Date.now()) {
       return res.status(401).json({ error: "Session expired or revoked" });
     }

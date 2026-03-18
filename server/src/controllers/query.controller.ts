@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import type { Request, Response } from "express";
-import { db } from "../store/db";
+import { getUserById, saveQuery, saveReport } from "../store/db";
 import { runPythonAgents } from "../utils/pythonBridge";
 import type { QueryRecord } from "../models/Query.model";
 import type { AgentReport } from "../models/Report.model";
@@ -80,7 +80,7 @@ export async function runQueryController(req: Request, res: Response) {
     return res.status(400).json({ error: "Invalid query payload", details: parsed.error.flatten() });
   }
 
-  const user = db.users.get(req.authUser.id);
+  const user = await getUserById(req.authUser.id);
   if (!user) {
     return res.status(404).json({ error: "User not found" });
   }
@@ -108,7 +108,7 @@ export async function runQueryController(req: Request, res: Response) {
     updatedAt: now
   };
 
-  db.queries.set(queryRecord.id, queryRecord);
+  await saveQuery(queryRecord);
 
   try {
     const pythonResult = await runPythonAgents({
@@ -134,8 +134,8 @@ export async function runQueryController(req: Request, res: Response) {
       createdAt: new Date().toISOString()
     };
 
-    db.reports.set(report.id, report);
-    db.queries.set(queryRecord.id, {
+    await saveReport(report);
+    await saveQuery({
       ...queryRecord,
       status: "completed",
       updatedAt: new Date().toISOString()
@@ -147,7 +147,7 @@ export async function runQueryController(req: Request, res: Response) {
       report
     });
   } catch (error) {
-    db.queries.set(queryRecord.id, {
+    await saveQuery({
       ...queryRecord,
       status: "failed",
       updatedAt: new Date().toISOString()

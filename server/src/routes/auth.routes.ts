@@ -8,7 +8,15 @@ import { env } from "../config";
 import { authMiddleware } from "../middleware/auth.middleware";
 import type { AuthSessionRecord } from "../models/AuthSession.model";
 import { toSafeUser, type UserRecord } from "../models/User.model";
-import { db, findUserByEmail, revokeAllSessionsForUser, revokeSession } from "../store/db";
+import {
+  findUserByEmail,
+  getSessionById,
+  getUserById,
+  revokeAllSessionsForUser,
+  revokeSession,
+  saveSession,
+  saveUser,
+} from "../store/db";
 
 type TokenType = "access" | "refresh";
 
@@ -56,7 +64,7 @@ function signToken(user: UserRecord, sessionId: string, type: TokenType): string
   });
 }
 
-function issueSessionTokens(user: UserRecord): { accessToken: string; refreshToken: string } {
+async function issueSessionTokens(user: UserRecord): Promise<{ accessToken: string; refreshToken: string }> {
   const now = new Date();
   const sessionId = randomUUID();
   const refreshToken = signToken(user, sessionId, "refresh");
@@ -72,7 +80,7 @@ function issueSessionTokens(user: UserRecord): { accessToken: string; refreshTok
     expiresAt
   };
 
-  db.authSessions.set(session.id, session);
+  await saveSession(session);
 
   return {
     accessToken: signToken(user, sessionId, "access"),
@@ -95,7 +103,7 @@ authRoutes.post("/register", async (req, res) => {
   }
 
   const email = parsed.data.email.toLowerCase();
-  const existing = findUserByEmail(email);
+  const existing = await findUserByEmail(email);
   if (existing) {
     return res.status(409).json({ error: "Email already exists" });
   }
@@ -112,8 +120,8 @@ authRoutes.post("/register", async (req, res) => {
     createdAt: new Date().toISOString()
   };
 
-  db.users.set(user.id, user);
-  const tokens = issueSessionTokens(user);
+  await saveUser(user);
+  const tokens = await issueSessionTokens(user);
 
   return res.status(201).json({ ...tokens, user: toSafeUser(user) });
 });
@@ -125,7 +133,7 @@ authRoutes.post("/login", async (req, res) => {
     return res.status(400).json({ error: "Invalid login payload", details: parsed.error.flatten() });
   }
 
-  const user = findUserByEmail(parsed.data.email.toLowerCase());
+  const user = await findUserByEmail(parsed.data.email.toLowerCase());
   if (!user) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
@@ -135,11 +143,11 @@ authRoutes.post("/login", async (req, res) => {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
-  const tokens = issueSessionTokens(user);
+  const tokens = await issueSessionTokens(user);
   return res.status(200).json({ ...tokens, user: toSafeUser(user) });
 });
 
-authRoutes.post("/refresh", (req, res) => {
+authRoutes.post("/refresh", async (req, res) => {
   const parsed = refreshSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid refresh payload", details: parsed.error.flatten() });
@@ -155,7 +163,7 @@ authRoutes.post("/refresh", (req, res) => {
       return res.status(401).json({ error: "Invalid token type" });
     }
 
-    const user = db.users.get(payload.sub);
+    const user = await getUserById(payload.sub);
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
@@ -164,7 +172,7 @@ authRoutes.post("/refresh", (req, res) => {
       return res.status(401).json({ error: "Session version mismatch" });
     }
 
-    const session = db.authSessions.get(payload.sid);
+    const session = await getSessionById(payload.sid);
     if (!session || session.userId !== user.id || !isSessionActive(session)) {
       return res.status(401).json({ error: "Session is invalid or expired" });
     }
@@ -176,7 +184,7 @@ authRoutes.post("/refresh", (req, res) => {
 
     const rotatedRefreshToken = signToken(user, session.id, "refresh");
     const now = new Date().toISOString();
-    db.authSessions.set(session.id, {
+    await saveSession({
       ...session,
       refreshTokenHash: toTokenHash(rotatedRefreshToken),
       updatedAt: now
@@ -192,21 +200,21 @@ authRoutes.post("/refresh", (req, res) => {
   }
 });
 
-authRoutes.post("/logout", authMiddleware, (req, res) => {
+authRoutes.post("/logout", authMiddleware, async (req, res) => {
   if (!req.auth) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  revokeSession(req.auth.sessionId);
+  await revokeSession(req.auth.sessionId);
   return res.status(200).json({ ok: true });
 });
 
-authRoutes.post("/logout-all", authMiddleware, (req, res) => {
+authRoutes.post("/logout-all", authMiddleware, async (req, res) => {
   if (!req.authUser) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const user = db.users.get(req.authUser.id);
+  const user = await getUserById(req.authUser.id);
   if (!user) {
     return res.status(404).json({ error: "User not found" });
   }
@@ -215,8 +223,8 @@ authRoutes.post("/logout-all", authMiddleware, (req, res) => {
     ...user,
     tokenVersion: user.tokenVersion + 1
   };
-  db.users.set(updated.id, updated);
-  revokeAllSessionsForUser(updated.id);
+  await saveUser(updated);
+  await revokeAllSessionsForUser(updated.id);
 
   return res.status(200).json({ ok: true });
 });
