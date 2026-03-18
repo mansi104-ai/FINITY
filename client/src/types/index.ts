@@ -151,16 +151,3 @@ export interface QueryResponse {
   reportId: string;
   report: AgentReport;
 }
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  budget: number;
-  riskProfile: RiskProfile;
-}
-
-export interface AuthSessionResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: AuthUser;
-}

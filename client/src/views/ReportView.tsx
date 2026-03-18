@@ -10,19 +10,13 @@ import ReportCard from "../components/ReportCard";
 import RiskMeter from "../components/RiskMeter";
 import TodayTrendCard from "../components/TodayTrendCard";
 import { getReport } from "../services/api";
-import { useAuth } from "../context/AuthContext";
 import type { AgentReport } from "../types";
 
 export default function ReportView({ reportId }: { reportId: string }) {
-  const { token } = useAuth();
   const [report, setReport] = useState<AgentReport | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
-
     const run = async () => {
       try {
         const result = await getReport(reportId);
@@ -33,15 +27,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
     };
 
     void run();
-  }, [reportId, token]);
-
-  if (!token) {
-    return (
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <p>Please login from Query page to view this report.</p>
-      </section>
-    );
-  }
+  }, [reportId]);
 
   if (error) {
     return (

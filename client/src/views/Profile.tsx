@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
 import type { RiskProfile } from "../types";
+
+const LOCAL_SETTINGS_KEY = "finity-local-settings";
 
 function currency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -13,71 +14,61 @@ function currency(value: number): string {
 }
 
 export default function Profile() {
-  const { user, token, refreshProfile, saveProfile } = useAuth();
   const [budget, setBudget] = useState(10000);
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("medium");
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user) {
-      setBudget(user.budget);
-      setRiskProfile(user.riskProfile);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!token) {
+    if (typeof window === "undefined") {
       return;
     }
-
-    void refreshProfile();
-  }, [refreshProfile, token]);
-
-  const onSave = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-
-    try {
-      await saveProfile(Number(budget), riskProfile);
-      setMessage("Profile updated successfully.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update profile");
+    const saved = window.localStorage.getItem(LOCAL_SETTINGS_KEY);
+    if (!saved) {
+      return;
     }
-  };
+    try {
+      const parsed = JSON.parse(saved) as { budget?: number; riskProfile?: RiskProfile };
+      if (typeof parsed.budget === "number") {
+        setBudget(parsed.budget);
+      }
+      if (parsed.riskProfile) {
+        setRiskProfile(parsed.riskProfile);
+      }
+    } catch {
+      window.localStorage.removeItem(LOCAL_SETTINGS_KEY);
+    }
+  }, []);
 
-  if (!token) {
-    return (
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>Profile</h2>
-        <p>Please login first from Query page.</p>
-      </section>
-    );
-  }
+  const onSave = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify({ budget, riskProfile }));
+    }
+    setMessage("Local preferences saved for direct query mode.");
+  };
 
   return (
     <section className="grid page-shell">
       <article className="hero-panel">
         <div>
-          <p className="eyebrow">Trader Profile</p>
-          <h1 className="hero-title">Capital and risk settings for your workspace.</h1>
+          <p className="eyebrow">Workspace Preferences</p>
+          <h1 className="hero-title">Capital and risk settings for your public workspace.</h1>
           <p className="hero-copy">
-            These settings define the base capital profile the allocator uses when converting signals into position sizes.
+            These settings are stored in your browser and reused by the public query flow so you can run briefs without authentication.
           </p>
         </div>
         <div className="hero-strip">
           <div className="metric-card">
             <span className="metric-label">Saved budget</span>
-            <strong>{currency(user?.budget ?? budget)}</strong>
+            <strong>{currency(budget)}</strong>
           </div>
           <div className="metric-card">
             <span className="metric-label">Risk mode</span>
-            <strong>{user?.riskProfile ?? riskProfile}</strong>
+            <strong>{riskProfile}</strong>
           </div>
           <div className="metric-card">
             <span className="metric-label">Profile state</span>
-            <strong>{message ? "Updated" : "Ready"}</strong>
+            <strong>{message ? "Saved" : "Ready"}</strong>
           </div>
         </div>
       </article>
@@ -87,7 +78,7 @@ export default function Profile() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Settings</p>
-              <h3>Portfolio profile</h3>
+              <h3>Local portfolio profile</h3>
             </div>
           </div>
           <form onSubmit={onSave}>
@@ -123,11 +114,10 @@ export default function Profile() {
             </div>
 
             <button className="button button-primary" type="submit">
-              Save Profile
+              Save Preferences
             </button>
           </form>
-          {message && <p style={{ color: "#7dff9b" }}>{message}</p>}
-          {error && <p style={{ color: "#ff9f9f" }}>{error}</p>}
+          {message && <p style={{ color: "#207f4b" }}>{message}</p>}
         </article>
 
         <article className="card panel-dark">
@@ -151,8 +141,8 @@ export default function Profile() {
             <div className="brief-item">
               <span className="brief-index">03</span>
               <div>
-                <strong>Per-query override</strong>
-                <p className="text-muted">You can still override budget inside the query workflow for one-off trade ideas.</p>
+                <strong>Public mode</strong>
+                <p className="text-muted">Preferences stay in your browser so you can query immediately without an account.</p>
               </div>
             </div>
           </div>

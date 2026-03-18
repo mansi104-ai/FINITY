@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { sendQuery } from "../services/api";
-import { useAuth } from "../context/AuthContext";
-import type { QueryResponse } from "../types";
+import type { QueryResponse, RiskProfile } from "../types";
 import AgentStatusCard from "../components/AgentStatusCard";
 import ReportCard from "../components/ReportCard";
 import WorkspaceGuide from "../components/WorkspaceGuide";
+
+const LOCAL_SETTINGS_KEY = "finity-local-settings";
 
 function extractTicker(query: string): string {
   const dollarMatch = query.toUpperCase().match(/\$([A-Z][A-Z0-9.-]{0,14})\b/);
@@ -28,12 +29,10 @@ function currency(value: number): string {
 }
 
 export default function QueryPage() {
-  const { token, user, loading, login, register, logout } = useAuth();
-  const [email, setEmail] = useState("demo@finity.ai");
-  const [password, setPassword] = useState("Passw0rd!");
   const [query, setQuery] = useState("");
   const [ticker, setTicker] = useState("");
   const [budget, setBudget] = useState(10000);
+  const [riskProfile, setRiskProfile] = useState<RiskProfile>("medium");
   const [version, setVersion] = useState(2);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
@@ -43,28 +42,27 @@ export default function QueryPage() {
   const allocationHint = useMemo(() => Math.round(budget * 0.08), [budget]);
 
   useEffect(() => {
-    if (user?.budget) {
-      setBudget(user.budget);
+    if (typeof window === "undefined") {
+      return;
     }
-  }, [user]);
 
-  const handleRegister = async () => {
-    setError("");
-    try {
-      await register(email, password);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+    const saved = window.localStorage.getItem(LOCAL_SETTINGS_KEY);
+    if (!saved) {
+      return;
     }
-  };
 
-  const handleLogin = async () => {
-    setError("");
     try {
-      await login(email, password);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const parsed = JSON.parse(saved) as { budget?: number; riskProfile?: RiskProfile };
+      if (typeof parsed.budget === "number") {
+        setBudget(parsed.budget);
+      }
+      if (parsed.riskProfile) {
+        setRiskProfile(parsed.riskProfile);
+      }
+    } catch {
+      window.localStorage.removeItem(LOCAL_SETTINGS_KEY);
     }
-  };
+  }, []);
 
   const handleRun = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,6 +75,7 @@ export default function QueryPage() {
         query,
         ticker: normalizedTicker || undefined,
         budget,
+        riskProfile,
         version,
       });
       setResult(response);
@@ -99,77 +98,19 @@ export default function QueryPage() {
         </div>
         <div className="hero-strip">
           <div className="metric-card">
-            <span className="metric-label">Default budget</span>
-            <strong>{currency(user?.budget ?? budget)}</strong>
+            <span className="metric-label">Working budget</span>
+            <strong>{currency(budget)}</strong>
           </div>
           <div className="metric-card">
             <span className="metric-label">Tactical size</span>
             <strong>{currency(allocationHint)}</strong>
           </div>
           <div className="metric-card">
-            <span className="metric-label">Trader tooling</span>
-            <strong>Graph + algorithms</strong>
+            <span className="metric-label">Access mode</span>
+            <strong>Direct query</strong>
           </div>
         </div>
       </article>
-
-      {!token && (
-        <article className="card panel-dark">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Authentication</p>
-              <h2>Secure multi-user access</h2>
-            </div>
-            <p className="text-muted">
-              Create an account or sign in to save reports, budgets, and position preferences.
-            </p>
-          </div>
-          <div className="grid grid-2">
-            <div>
-              <label className="label" htmlFor="email">
-                Email
-              </label>
-              <input className="input" id="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-            </div>
-            <div>
-              <label className="label" htmlFor="password">
-                Password
-              </label>
-              <input
-                className="input"
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
-          </div>
-          <div className="button-row">
-            <button className="button" onClick={handleLogin} type="button" disabled={loading}>
-              Login
-            </button>
-            <button className="button button-secondary" onClick={handleRegister} type="button" disabled={loading}>
-              Register
-            </button>
-          </div>
-        </article>
-      )}
-
-      {token && (
-        <article className="card account-bar">
-          <div>
-            <p className="eyebrow">Active session</p>
-            <h3 style={{ margin: "0.2rem 0" }}>{user?.email}</h3>
-            <p className="text-muted" style={{ margin: 0 }}>
-              Risk profile: <strong>{user?.riskProfile ?? "medium"}</strong> | Saved budget:{" "}
-              <strong>{currency(user?.budget ?? budget)}</strong>
-            </p>
-          </div>
-          <button className="button button-secondary" onClick={logout} type="button">
-            Logout
-          </button>
-        </article>
-      )}
 
       <div className="grid query-layout">
         <article className="card trade-ticket">
@@ -245,6 +186,22 @@ export default function QueryPage() {
               </div>
             </div>
 
+            <div className="form-row">
+              <label className="label" htmlFor="riskProfile">
+                Risk profile
+              </label>
+              <select
+                className="select"
+                id="riskProfile"
+                value={riskProfile}
+                onChange={(event) => setRiskProfile(event.target.value as RiskProfile)}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+
             <div className="ticket-summary">
               <div className="ticket-kpi">
                 <span className="metric-label">Deployment budget</span>
@@ -261,7 +218,7 @@ export default function QueryPage() {
             </div>
 
             <div className="button-row">
-              <button className="button button-primary" disabled={!token || running} type="submit">
+              <button className="button button-primary" disabled={!query.trim() || running} type="submit">
                 {running ? "Running market brief..." : "Run Analysis"}
               </button>
               {result && (
@@ -270,14 +227,15 @@ export default function QueryPage() {
                 </Link>
               )}
             </div>
-
-            {!token && <p className="text-muted">Please login first to run analysis.</p>}
           </form>
         </article>
 
         <article className="card market-brief">
           <p className="eyebrow">Session brief</p>
           <h3 style={{ marginTop: 0 }}>What you get after each run</h3>
+          <p className="text-muted">
+            This workspace is now public by default, so you can go straight from idea to analysis without registration.
+          </p>
           <div className="brief-list">
             <div className="brief-item">
               <span className="brief-index">01</span>

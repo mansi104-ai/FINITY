@@ -1,10 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import type { Request, Response } from "express";
-import { getUserById, saveQuery, saveReport } from "../store/db";
+import { saveQuery, saveReport } from "../store/db";
 import { runPythonAgents } from "../utils/pythonBridge";
 import type { QueryRecord } from "../models/Query.model";
 import type { AgentReport } from "../models/Report.model";
+import type { RiskProfile } from "../models/User.model";
 
 const querySchema = z.object({
   query: z.string().min(4),
@@ -15,6 +16,7 @@ const querySchema = z.object({
     .regex(/^[A-Z][A-Z0-9.-]{0,14}$/, "Ticker must look like AAPL or RELIANCE.NS")
     .optional(),
   budget: z.number().min(100).max(10_000_000).optional(),
+  riskProfile: z.enum(["low", "medium", "high"]).optional(),
   version: z.number().int().min(1).max(4).default(2)
 });
 
@@ -71,23 +73,15 @@ function inferTicker(rawQuery: string): string | undefined {
 }
 
 export async function runQueryController(req: Request, res: Response) {
-  if (!req.authUser) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
   const parsed = querySchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid query payload", details: parsed.error.flatten() });
   }
 
-  const user = await getUserById(req.authUser.id);
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
-  }
-
   const now = new Date().toISOString();
   const ticker = parsed.data.ticker ?? inferTicker(parsed.data.query);
-  const budget = parsed.data.budget ?? user.budget;
+  const budget = parsed.data.budget ?? 10_000;
+  const riskProfile = (parsed.data.riskProfile ?? "medium") as RiskProfile;
 
   if (!ticker) {
     return res.status(400).json({
@@ -97,12 +91,12 @@ export async function runQueryController(req: Request, res: Response) {
 
   const queryRecord: QueryRecord = {
     id: uuidv4(),
-    userId: user.id,
+    userId: "public",
     rawQuery: parsed.data.query,
     ticker,
     version: parsed.data.version,
     status: "running",
-    riskProfile: user.riskProfile,
+    riskProfile,
     budget,
     createdAt: now,
     updatedAt: now
@@ -121,7 +115,7 @@ export async function runQueryController(req: Request, res: Response) {
 
     const report: AgentReport = {
       id: uuidv4(),
-      userId: user.id,
+      userId: "public",
       query: queryRecord.rawQuery,
       ticker: queryRecord.ticker,
       version: queryRecord.version,

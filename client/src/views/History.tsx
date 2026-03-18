@@ -3,19 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getReports } from "../services/api";
-import { useAuth } from "../context/AuthContext";
 import type { AgentReport } from "../types";
 
 export default function History() {
-  const { token } = useAuth();
   const [reports, setReports] = useState<AgentReport[]>([]);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
-
     const run = async () => {
       try {
         const result = await getReports();
@@ -26,18 +20,9 @@ export default function History() {
     };
 
     void run();
-  }, [token]);
+  }, []);
 
   const buyCount = useMemo(() => reports.filter((report) => report.recommendation.action === "buy").length, [reports]);
-
-  if (!token) {
-    return (
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>History</h2>
-        <p>Please login from Query page to view report history.</p>
-      </section>
-    );
-  }
 
   return (
     <section className="grid page-shell">

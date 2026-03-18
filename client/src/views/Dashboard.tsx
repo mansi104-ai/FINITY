@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getReports } from "../services/api";
-import { useAuth } from "../context/AuthContext";
-import type { AgentReport } from "../types";
+import type { AgentReport, RiskProfile } from "../types";
 import ReportCard from "../components/ReportCard";
 import WorkspaceGuide from "../components/WorkspaceGuide";
+
+const LOCAL_SETTINGS_KEY = "finity-local-settings";
 
 function currency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -17,15 +18,12 @@ function currency(value: number): string {
 }
 
 export default function Dashboard() {
-  const { user, token, loading } = useAuth();
   const [reports, setReports] = useState<AgentReport[]>([]);
   const [error, setError] = useState<string>("");
+  const [budget, setBudget] = useState(10000);
+  const [riskProfile, setRiskProfile] = useState<RiskProfile>("medium");
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
-
     const run = async () => {
       try {
         const result = await getReports();
@@ -36,7 +34,28 @@ export default function Dashboard() {
     };
 
     void run();
-  }, [token]);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const saved = window.localStorage.getItem(LOCAL_SETTINGS_KEY);
+    if (!saved) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(saved) as { budget?: number; riskProfile?: RiskProfile };
+      if (typeof parsed.budget === "number") {
+        setBudget(parsed.budget);
+      }
+      if (parsed.riskProfile) {
+        setRiskProfile(parsed.riskProfile);
+      }
+    } catch {
+      window.localStorage.removeItem(LOCAL_SETTINGS_KEY);
+    }
+  }, []);
 
   const latest = useMemo(() => reports[0], [reports]);
   const buyCalls = useMemo(() => reports.filter((report) => report.recommendation.action === "buy").length, [reports]);
@@ -62,28 +81,20 @@ export default function Dashboard() {
           </div>
           <div className="metric-card">
             <span className="metric-label">Capital profile</span>
-            <strong>{user ? currency(user.budget) : "Connect account"}</strong>
+            <strong>{currency(budget)}</strong>
           </div>
         </div>
       </article>
 
       <div className="grid dashboard-grid">
         <article className="card panel-dark">
-          <p className="eyebrow">Account snapshot</p>
+          <p className="eyebrow">Workspace snapshot</p>
           <h2 style={{ marginTop: 0 }}>Control panel</h2>
-          {loading && <p>Checking session...</p>}
-          {!loading && !token && (
-            <p>
-              Login from the <Link href="/query">Query page</Link> to start generating market briefs.
-            </p>
-          )}
-          {user && (
-            <>
-              <p><strong>{user.email}</strong></p>
-              <p className="text-muted">Budget: {currency(user.budget)}</p>
-              <p className="text-muted">Risk profile: {user.riskProfile}</p>
-            </>
-          )}
+          <p>
+            FINITY now opens directly into public analysis mode, so you can run market briefs without creating an account first.
+          </p>
+          <p className="text-muted">Budget: {currency(budget)}</p>
+          <p className="text-muted">Risk profile: {riskProfile}</p>
           {error && <p style={{ color: "#ff9f9f" }}>{error}</p>}
           <Link className="button button-primary" href="/query">
             Open Query Console
