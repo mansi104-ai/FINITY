@@ -8,6 +8,7 @@ import PredictionDriverGraph from "../components/PredictionDriverGraph";
 import ResearchAuditCard from "../components/ResearchAuditCard";
 import ReportCard from "../components/ReportCard";
 import RiskMeter from "../components/RiskMeter";
+import TodayTrendCard from "../components/TodayTrendCard";
 import { getReport } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import type { AgentReport } from "../types";
@@ -87,6 +88,7 @@ export default function ReportView({ reportId }: { reportId: string }) {
       <div className="report-board">
         <div className="report-main-column">
           <ReportCard report={report} />
+          {report.prediction && <TodayTrendCard prediction={report.prediction} />}
           {report.risk && <RiskMeter risk={report.risk} />}
           {report.prediction && <AlgorithmWorkbench prediction={report.prediction} />}
           <PredictionDriverGraph report={report} />

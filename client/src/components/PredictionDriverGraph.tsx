@@ -189,7 +189,7 @@ export default function PredictionDriverGraph({ report }: { report: AgentReport 
                     y1={from.y}
                     x2={to.x}
                     y2={to.y}
-                    stroke={`rgba(0, 214, 201, ${0.2 + edge.relevance * 0.55})`}
+                    stroke={`rgba(36, 107, 255, ${0.18 + edge.relevance * 0.5})`}
                     strokeWidth={1.5 + edge.relevance * 2.5}
                   />
                 );
@@ -203,8 +203,8 @@ export default function PredictionDriverGraph({ report }: { report: AgentReport 
                       cx={node.x}
                       cy={node.y}
                       r={node.radius}
-                      fill={node.kind === "prediction" ? "rgba(0, 214, 201, 0.24)" : "rgba(86, 211, 100, 0.18)"}
-                      stroke={active ? "#f5b83d" : node.kind === "prediction" ? "#00d6c9" : "#56d364"}
+                      fill={node.kind === "prediction" ? "rgba(36, 107, 255, 0.18)" : "rgba(242, 179, 39, 0.18)"}
+                      stroke={active ? "#e66154" : node.kind === "prediction" ? "#246bff" : "#f2b327"}
                       strokeWidth={active ? 3 : 1.5}
                     />
                     <text x={node.x} y={node.y + node.radius + 16} className="graph-node-label" textAnchor="middle">

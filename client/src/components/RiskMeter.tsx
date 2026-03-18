@@ -3,9 +3,9 @@
 import type { RiskResult } from "../types";
 
 const levelColor: Record<RiskResult["level"], string> = {
-  low: "#56d364",
-  medium: "#f5b83d",
-  high: "#ff6b6b",
+  low: "#33b36b",
+  medium: "#f2b327",
+  high: "#e66154",
 };
 
 export default function RiskMeter({ risk }: { risk: RiskResult }) {

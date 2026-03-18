@@ -138,7 +138,11 @@ class MarketForecaster:
         data_source: str,
     ) -> dict:
         context = self._context_profile(ticker=ticker, query=query, sentiment_score=sentiment_score)
-        closes = history["Close"].astype(float).dropna().to_numpy()
+        normalized_history = history.copy()
+        normalized_history["Close"] = pd.to_numeric(normalized_history["Close"], errors="coerce")
+        normalized_history = normalized_history.dropna(subset=["Close"]).reset_index(drop=True)
+        closes = normalized_history["Close"].astype(float).to_numpy()
+        recent_dates = normalized_history["Date"] if "Date" in normalized_history else None
         if closes.size < 90:
             raise ValueError("Insufficient historical data for forecasting")
 
@@ -176,6 +180,12 @@ class MarketForecaster:
             uncertainty_pct=uncertainty_pct,
             trend=trend,
         )
+        today_trend = self._today_trend(
+            closes=closes,
+            recent_dates=recent_dates,
+            backtest=backtest,
+            overall_trend=trend,
+        )
         scenarios = self._build_scenarios(
             current_price=current_price,
             base_return_pct=predicted_return_pct,
@@ -193,6 +203,7 @@ class MarketForecaster:
             "volatilityBandPct": round(uncertainty_pct, 2),
             "supportLevel": round(support_level, 2),
             "resistanceLevel": round(resistance_level, 2),
+            "todayTrend": today_trend,
             "horizonLabel": context["horizon_label"],
             "queryAlignment": round(context["alignment"], 2),
             "predictionMethod": f"{context['asset_label']} rolling regression forecast with macro overlays",
@@ -428,6 +439,56 @@ class MarketForecaster:
         if predicted_return_pct < -threshold:
             return "bearish"
         return "sideways"
+
+    def _today_tape_trend_label(self, *, projected_move_pct: float, recent_vol_pct: float) -> str:
+        threshold = max(0.12, recent_vol_pct * 0.28)
+        if projected_move_pct > threshold:
+            return "up"
+        if projected_move_pct < -threshold:
+            return "down"
+        return "flat"
+
+    def _today_trend(
+        self,
+        *,
+        closes: np.ndarray,
+        recent_dates: pd.Series | None,
+        backtest: dict[str, float],
+        overall_trend: str,
+    ) -> dict:
+        lookback = int(min(5, max(len(closes) - 1, 1)))
+        recent_closes = closes[-(lookback + 1) :]
+        recent_returns = np.diff(recent_closes) / np.maximum(recent_closes[:-1], 1e-9)
+        short_momentum_pct = float((recent_closes[-1] / max(recent_closes[-3], 1e-9) - 1) * 100) if len(recent_closes) >= 3 else 0.0
+        medium_momentum_pct = float((recent_closes[-1] / max(recent_closes[0], 1e-9) - 1) * 100)
+        drift_pct = float(np.mean(recent_returns) * 100) if recent_returns.size else 0.0
+        projected_move_pct = short_momentum_pct * 0.45 + medium_momentum_pct * 0.35 + drift_pct * 0.2
+        recent_vol_pct = float(np.std(recent_returns) * 100) if recent_returns.size else 0.0
+        direction = self._today_tape_trend_label(projected_move_pct=projected_move_pct, recent_vol_pct=recent_vol_pct)
+
+        directional_accuracy = backtest["directional_accuracy_pct"] / 100
+        momentum_consistency = float(np.mean(np.sign(recent_returns) == np.sign(np.mean(recent_returns)))) if recent_returns.size else 0.5
+        agreement_bonus = 0.08 if (
+            (overall_trend == "bullish" and direction == "up")
+            or (overall_trend == "bearish" and direction == "down")
+            or (overall_trend == "sideways" and direction == "flat")
+        ) else 0.0
+        confidence = np.clip(0.34 + directional_accuracy * 0.32 + momentum_consistency * 0.22 + agreement_bonus, 0.3, 0.9)
+
+        last_session_date = None
+        if recent_dates is not None and not recent_dates.empty:
+            last_value = pd.to_datetime(recent_dates.iloc[-1], errors="coerce")
+            if pd.notna(last_value):
+                last_session_date = last_value.strftime("%Y-%m-%d")
+
+        return {
+            "direction": direction,
+            "projectedMovePct": round(float(projected_move_pct), 2),
+            "confidence": round(float(confidence), 2),
+            "basedOnDays": lookback,
+            "lastSessionDate": last_session_date,
+            "method": "Short-window tape trend using the last few daily closes only.",
+        }
 
     def _generate_forecast(self, *, current_price: float, predicted_price: float, horizon_days: int, uncertainty_pct: float, trend: str) -> list[float]:
         steps = max(4, min(8, horizon_days + 3))

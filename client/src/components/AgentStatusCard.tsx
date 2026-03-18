@@ -3,10 +3,10 @@
 import type { AgentStatus } from "../types";
 
 const palette: Record<AgentStatus["state"], string> = {
-  queued: "#8b97b3",
-  running: "#36cfc9",
-  completed: "#56d364",
-  failed: "#ff6b6b",
+  queued: "#7b86a5",
+  running: "#246bff",
+  completed: "#33b36b",
+  failed: "#e66154",
 };
 
 export default function AgentStatusCard({ statuses }: { statuses: AgentStatus[] }) {

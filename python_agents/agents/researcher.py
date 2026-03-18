@@ -1,5 +1,6 @@
 import os
 import time
+import math
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple
 
@@ -21,6 +22,7 @@ class ResearcherAgent:
     def analyze(self, ticker: str, query: str) -> dict:
         start_perf = time.perf_counter()
         run_started = self._now_utc()
+        horizon_context = self._query_horizon_context(query)
 
         search_queries = self._build_search_queries(ticker=ticker, query=query)
 
@@ -46,10 +48,16 @@ class ResearcherAgent:
             for resource in resources:
                 label = label_sentiment(resource["title"])
                 relevance = self._resource_relevance(resource=resource, ticker=ticker, query=query)
-                influence = self._resource_influence(resource=resource, relevance=relevance)
+                influence, recency_weight, age_hours = self._resource_influence(
+                    resource=resource,
+                    relevance=relevance,
+                    horizon_context=horizon_context,
+                )
                 resource["sentimentLevel"] = label
                 resource["relevanceScore"] = round(relevance, 3)
                 resource["influenceWeight"] = round(influence, 3)
+                resource["recencyWeight"] = round(recency_weight, 3)
+                resource["ageHours"] = round(age_hours, 1)
                 labels.append(label)
                 weights.append(influence)
 
@@ -59,7 +67,8 @@ class ResearcherAgent:
             reasoning = [
                 f"Live news research unavailable, so fallback synthetic research was generated for {ticker}.",
                 f"Forecast context used the query topic: {query.strip() or ticker}.",
-                f"Each resource was weighted by relevance and recency before aggregation.",
+                f"Each resource was weighted by exact timestamp recency, relevance, and source quality.",
+                f"For this {horizon_context['label']} query, fresher articles were prioritized with an hourly decay curve.",
                 f"Final researcher sentiment={level} (weighted score={score}, confidence={confidence}).",
             ]
             return {
@@ -80,7 +89,7 @@ class ResearcherAgent:
             phase = "from_scratch" if idx == 0 else "reiteration"
             search_started = self._now_utc()
 
-            items, error_note = self._search_news(search_query)
+            items, error_note = self._search_news(search_query, horizon_context=horizon_context)
             resources.extend(items)
             attempts.append(
                 {
@@ -105,10 +114,16 @@ class ResearcherAgent:
         for resource in resources:
             label = label_sentiment(f"{resource['title']} {resource.get('snippet', '')}")
             relevance = self._resource_relevance(resource=resource, ticker=ticker, query=query)
-            influence = self._resource_influence(resource=resource, relevance=relevance)
+            influence, recency_weight, age_hours = self._resource_influence(
+                resource=resource,
+                relevance=relevance,
+                horizon_context=horizon_context,
+            )
             resource["sentimentLevel"] = label
             resource["relevanceScore"] = round(relevance, 3)
             resource["influenceWeight"] = round(influence, 3)
+            resource["recencyWeight"] = round(recency_weight, 3)
+            resource["ageHours"] = round(age_hours, 1)
             labels.append(label)
             weights.append(influence)
 
@@ -145,7 +160,7 @@ class ResearcherAgent:
                 f"SELL={synthesis['sell']}, STRONG_SELL={synthesis['strong_sell']}."
             ),
             (
-                f"Weighted article influence was applied using relevance, recency, and source quality."
+                f"Weighted article influence used exact published timestamps, query-horizon recency decay, relevance, and source quality."
             ),
             (
                 f"Final researcher sentiment={level} (weighted score={score}, "
@@ -167,7 +182,7 @@ class ResearcherAgent:
             "message": f"Analyzed {len(resources)} research resources",
         }
 
-    def _search_news(self, search_query: str) -> Tuple[List[Dict], str]:
+    def _search_news(self, search_query: str, horizon_context: Dict | None = None) -> Tuple[List[Dict], str]:
         # Keywords to filter for financial/price-related content
         FINANCIAL_KEYWORDS = {
             "price", "stock", "trading", "market", "earnings", "revenue", "profit",
@@ -184,6 +199,8 @@ class ResearcherAgent:
         }
         
         try:
+            horizon_context = horizon_context or self._query_horizon_context("")
+            window_start = self._now_utc() - timedelta(days=horizon_context["search_window_days"])
             response = requests.get(
                 "https://newsapi.org/v2/everything",
                 params={
@@ -192,6 +209,7 @@ class ResearcherAgent:
                     "pageSize": 15,  # Get more to filter through
                     "language": "en",
                     "sortBy": "publishedAt",
+                    "from": self._iso(window_start),
                 },
                 timeout=6,
             )
@@ -389,16 +407,69 @@ class ResearcherAgent:
         sentiment_alignment = 0.08 if resource.get("sentimentLevel") in {"BUY", "STRONG_BUY", "SELL", "STRONG_SELL"} else 0.03
         return max(0.12, min(0.98, overlap_score * 0.72 + sentiment_alignment))
 
-    def _resource_influence(self, resource: Dict, relevance: float) -> float:
+    def _resource_influence(self, resource: Dict, relevance: float, horizon_context: Dict) -> Tuple[float, float, float]:
         published = self._parse_iso(resource.get("publishedAt", ""))
-        age_days = 4.0
+        age_hours = float(horizon_context["stale_after_hours"])
         if published:
-            age_days = max(0.0, (self._now_utc() - published).total_seconds() / (60 * 60 * 24))
+            age_hours = max(0.0, (self._now_utc() - published).total_seconds() / 3600)
 
-        recency_score = max(0.4, 1.12 - age_days * 0.08)
+        recency_score = 0.32 + 0.88 * math.exp(-age_hours / max(horizon_context["half_life_hours"], 1.0))
+        if age_hours <= 24:
+            recency_score += horizon_context["fresh_bonus"]
+        elif age_hours > horizon_context["stale_after_hours"]:
+            recency_score *= horizon_context["stale_penalty"]
+
         source_score = self._source_quality(resource.get("source", ""))
         sentiment_intensity = 1.08 if resource.get("sentimentLevel") in {"STRONG_BUY", "STRONG_SELL"} else 1.0
-        return max(0.1, min(2.2, relevance * recency_score * source_score * sentiment_intensity))
+        influence = max(0.1, min(2.2, relevance * recency_score * source_score * sentiment_intensity))
+        return influence, recency_score, age_hours
+
+    def _query_horizon_context(self, query: str) -> Dict:
+        text = (query or "").lower()
+        if any(term in text for term in {"today", "intraday", "right now", "by close"}):
+            return {
+                "label": "today",
+                "half_life_hours": 18.0,
+                "stale_after_hours": 60.0,
+                "search_window_days": 4,
+                "fresh_bonus": 0.14,
+                "stale_penalty": 0.5,
+            }
+        if any(term in text for term in {"tomorrow", "next session"}):
+            return {
+                "label": "next 1-2 sessions",
+                "half_life_hours": 28.0,
+                "stale_after_hours": 84.0,
+                "search_window_days": 5,
+                "fresh_bonus": 0.1,
+                "stale_penalty": 0.56,
+            }
+        if any(term in text for term in {"this week", "next week", "weekly"}):
+            return {
+                "label": "1 trading week",
+                "half_life_hours": 72.0,
+                "stale_after_hours": 240.0,
+                "search_window_days": 10,
+                "fresh_bonus": 0.06,
+                "stale_penalty": 0.68,
+            }
+        if any(term in text for term in {"this month", "next month", "30 days"}):
+            return {
+                "label": "1 trading month",
+                "half_life_hours": 168.0,
+                "stale_after_hours": 720.0,
+                "search_window_days": 30,
+                "fresh_bonus": 0.03,
+                "stale_penalty": 0.8,
+            }
+        return {
+            "label": "short-term",
+            "half_life_hours": 48.0,
+            "stale_after_hours": 168.0,
+            "search_window_days": 7,
+            "fresh_bonus": 0.08,
+            "stale_penalty": 0.62,
+        }
 
     def _source_quality(self, source_name: str) -> float:
         trusted = {

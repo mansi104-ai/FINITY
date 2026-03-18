@@ -18,6 +18,8 @@ export interface ResearchResource {
   sentimentLevel?: SentimentLevel;
   relevanceScore?: number;
   influenceWeight?: number;
+  recencyWeight?: number;
+  ageHours?: number;
 }
 
 export interface ResearchSearchAttempt {
@@ -63,6 +65,15 @@ export interface SentimentResult {
   };
 }
 
+export interface TodayTrendVerification {
+  direction: "up" | "down" | "flat";
+  projectedMovePct: number;
+  confidence: number;
+  basedOnDays: number;
+  lastSessionDate?: string | null;
+  method: string;
+}
+
 export interface PredictionResult {
   ticker: string;
   currentPrice: number;
@@ -73,6 +84,7 @@ export interface PredictionResult {
   volatilityBandPct: number;
   supportLevel: number;
   resistanceLevel: number;
+  todayTrend?: TodayTrendVerification;
   horizonLabel: string;
   queryAlignment: number;
   predictionMethod: string;

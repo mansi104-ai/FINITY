@@ -47,9 +47,14 @@ class MarketDataService:
             if frame.empty or "Close" not in frame:
                 return None
 
-            normalized = frame.reset_index(drop=True).copy()
+            normalized = frame.reset_index().copy()
+            date_column = next((column for column in normalized.columns if str(column).lower() in {"date", "datetime"}), None)
+            if date_column is None:
+                normalized["Date"] = pd.date_range(end=pd.Timestamp.utcnow().normalize(), periods=len(normalized), freq="B")
+            else:
+                normalized["Date"] = pd.to_datetime(normalized[date_column], errors="coerce")
             normalized["Close"] = normalized["Close"].astype(float)
-            normalized = normalized[["Close"]].dropna()
+            normalized = normalized[["Date", "Close"]].dropna(subset=["Close"]).reset_index(drop=True)
             if len(normalized) < 80:
                 return None
             return MarketHistory(frame=normalized, source="yfinance")
@@ -68,4 +73,5 @@ class MarketDataService:
             move = (drift[idx] + noise[idx] * 0.17) / 100
             prices.append(max(5.0, prices[-1] * (1 + move)))
 
-        return pd.DataFrame({"Close": prices})
+        dates = pd.bdate_range(end=pd.Timestamp.utcnow().normalize(), periods=len(prices))
+        return pd.DataFrame({"Date": dates, "Close": prices})

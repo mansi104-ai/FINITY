@@ -101,12 +101,12 @@ export default function PriceChart({ prediction }: { prediction: PredictionResul
         >
           <defs>
             <linearGradient id="historyFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(64, 192, 122, 0.35)" />
-              <stop offset="100%" stopColor="rgba(64, 192, 122, 0.02)" />
+              <stop offset="0%" stopColor="rgba(51, 179, 107, 0.32)" />
+              <stop offset="100%" stopColor="rgba(51, 179, 107, 0.04)" />
             </linearGradient>
             <linearGradient id="forecastFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(0, 214, 201, 0.28)" />
-              <stop offset="100%" stopColor="rgba(0, 214, 201, 0.03)" />
+              <stop offset="0%" stopColor="rgba(36, 107, 255, 0.28)" />
+              <stop offset="100%" stopColor="rgba(36, 107, 255, 0.04)" />
             </linearGradient>
           </defs>
 
@@ -118,15 +118,15 @@ export default function PriceChart({ prediction }: { prediction: PredictionResul
           <line x1={forecastOffset - 22} y1="0" x2={forecastOffset - 22} y2={height} className="chart-divider" />
           <path d={areaPath(historyPoints, height)} fill="url(#historyFill)" />
           <path d={areaPath(forecastPoints, height)} fill="url(#forecastFill)" />
-          <polyline fill="none" stroke="#56d364" strokeWidth="3.5" points={toPolyline(historyPoints)} />
-          <polyline fill="none" stroke="#00d6c9" strokeWidth="3.5" strokeDasharray="7 7" points={toPolyline(forecastPoints)} />
+          <polyline fill="none" stroke="#33b36b" strokeWidth="3.5" points={toPolyline(historyPoints)} />
+          <polyline fill="none" stroke="#246bff" strokeWidth="3.5" strokeDasharray="7 7" points={toPolyline(forecastPoints)} />
 
           {historyPoints.length > 0 && (
             <circle
               cx={historyPoints[historyPoints.length - 1].x}
               cy={historyPoints[historyPoints.length - 1].y}
               r="4.5"
-              fill="#56d364"
+              fill="#33b36b"
             />
           )}
           {forecastPoints.length > 0 && (
@@ -134,7 +134,7 @@ export default function PriceChart({ prediction }: { prediction: PredictionResul
               cx={forecastPoints[forecastPoints.length - 1].x}
               cy={forecastPoints[forecastPoints.length - 1].y}
               r="5"
-              fill="#00d6c9"
+              fill="#246bff"
             />
           )}
 

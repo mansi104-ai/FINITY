@@ -8,7 +8,16 @@ function formatDate(dateText: string | undefined): string {
   }
 
   const parsed = new Date(dateText);
-  return Number.isNaN(parsed.getTime()) ? dateText : parsed.toLocaleString();
+  return Number.isNaN(parsed.getTime())
+    ? dateText
+    : parsed.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      });
 }
 
 export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentResult }) {
@@ -108,6 +117,12 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
                   <p className="text-muted">
                     Relevance: {typeof resource.relevanceScore === "number" ? `${Math.round(resource.relevanceScore * 100)}%` : "n/a"} | Influence:{" "}
                     {typeof resource.influenceWeight === "number" ? resource.influenceWeight.toFixed(2) : "n/a"}
+                  </p>
+                )}
+                {(typeof resource.recencyWeight === "number" || typeof resource.ageHours === "number") && (
+                  <p className="text-muted">
+                    Recency weight: {typeof resource.recencyWeight === "number" ? resource.recencyWeight.toFixed(2) : "n/a"} | Age:{" "}
+                    {typeof resource.ageHours === "number" ? `${resource.ageHours.toFixed(1)} hours` : "n/a"}
                   </p>
                 )}
                 {resource.sentimentLevel && <p className="text-muted">Sentiment: {resource.sentimentLevel}</p>}
