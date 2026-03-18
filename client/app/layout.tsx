@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <span className="brand-mark">F</span>
                 <div className="brand-block">
                   <Link className="brand" href="/">
-                    FINITY Trader Workspace
+                    FINITY
                   </Link>
                   <p className="brand-copy">Canvas-style market board for research, forecasts, evidence trails, and allocation.</p>
                 </div>
