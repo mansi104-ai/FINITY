@@ -7,6 +7,14 @@ import { useAuth } from "../context/AuthContext";
 import type { AgentReport } from "../types";
 import ReportCard from "../components/ReportCard";
 
+function currency(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export default function Dashboard() {
   const { user, token, loading } = useAuth();
   const [reports, setReports] = useState<AgentReport[]>([]);
@@ -30,38 +38,83 @@ export default function Dashboard() {
   }, [token]);
 
   const latest = useMemo(() => reports[0], [reports]);
+  const buyCalls = useMemo(() => reports.filter((report) => report.recommendation.action === "buy").length, [reports]);
 
   return (
-    <section className="grid" style={{ paddingBlock: "1rem" }}>
-      <article className="card">
-        <h2>Dashboard</h2>
-        <p className="text-muted">Monitor your AI-assisted financial decisions across all agent versions.</p>
-        {loading && <p>Checking session...</p>}
-        {!loading && !token && (
-          <p>
-            Login from the <Link href="/query">Query page</Link> to start running agent workflows.
+    <section className="grid page-shell">
+      <article className="hero-panel">
+        <div>
+          <p className="eyebrow">Financial Intelligence Workspace</p>
+          <h1 className="hero-title">A sharper command center for AI-assisted market decisions.</h1>
+          <p className="hero-copy">
+            Track your latest research, position sizing, and analyst posture in one place with a stronger market-focused presentation.
           </p>
-        )}
-        {user && (
-          <p>
-            Signed in as <strong>{user.email}</strong> | Budget: ${user.budget.toFixed(2)} | Risk: {user.riskProfile}
-          </p>
-        )}
-        {error && <p style={{ color: "#c92a2a" }}>{error}</p>}
+        </div>
+        <div className="hero-strip">
+          <div className="metric-card">
+            <span className="metric-label">Reports stored</span>
+            <strong>{reports.length}</strong>
+          </div>
+          <div className="metric-card">
+            <span className="metric-label">Buy signals</span>
+            <strong>{buyCalls}</strong>
+          </div>
+          <div className="metric-card">
+            <span className="metric-label">Capital profile</span>
+            <strong>{user ? currency(user.budget) : "Connect account"}</strong>
+          </div>
+        </div>
       </article>
 
-      <div className="grid grid-2">
-        <article className="card">
-          <h3>Total Reports</h3>
-          <p style={{ fontSize: "2rem", margin: "0.4rem 0" }}>{reports.length}</p>
-          <p className="text-muted">Generated recommendations saved in history.</p>
-        </article>
-        <article className="card">
-          <h3>Quick Action</h3>
-          <p>Run new multi-agent query:</p>
-          <Link className="button" href="/query">
+      <div className="grid dashboard-grid">
+        <article className="card panel-dark">
+          <p className="eyebrow">Account snapshot</p>
+          <h2 style={{ marginTop: 0 }}>Control panel</h2>
+          {loading && <p>Checking session...</p>}
+          {!loading && !token && (
+            <p>
+              Login from the <Link href="/query">Query page</Link> to start generating market briefs.
+            </p>
+          )}
+          {user && (
+            <>
+              <p><strong>{user.email}</strong></p>
+              <p className="text-muted">Budget: {currency(user.budget)}</p>
+              <p className="text-muted">Risk profile: {user.riskProfile}</p>
+            </>
+          )}
+          {error && <p style={{ color: "#ff9f9f" }}>{error}</p>}
+          <Link className="button button-primary" href="/query">
             Open Query Console
           </Link>
+        </article>
+
+        <article className="card">
+          <p className="eyebrow">Flow</p>
+          <h3>How the system thinks</h3>
+          <div className="brief-list">
+            <div className="brief-item">
+              <span className="brief-index">01</span>
+              <div>
+                <strong>Researcher</strong>
+                <p className="text-muted">Scans news, checks search quality, and converts evidence into sentiment.</p>
+              </div>
+            </div>
+            <div className="brief-item">
+              <span className="brief-index">02</span>
+              <div>
+                <strong>Analyst</strong>
+                <p className="text-muted">Builds a forward path with confidence, key levels, and bull/base/bear scenarios.</p>
+              </div>
+            </div>
+            <div className="brief-item">
+              <span className="brief-index">03</span>
+              <div>
+                <strong>Allocator</strong>
+                <p className="text-muted">Translates signal strength into position sizing against your active budget.</p>
+              </div>
+            </div>
+          </div>
         </article>
       </div>
 

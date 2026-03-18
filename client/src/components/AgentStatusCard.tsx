@@ -3,33 +3,35 @@
 import type { AgentStatus } from "../types";
 
 const palette: Record<AgentStatus["state"], string> = {
-  queued: "#868e96",
-  running: "#1c7ed6",
-  completed: "#2b8a3e",
-  failed: "#c92a2a"
+  queued: "#8b97b3",
+  running: "#36cfc9",
+  completed: "#56d364",
+  failed: "#ff6b6b",
 };
 
 export default function AgentStatusCard({ statuses }: { statuses: AgentStatus[] }) {
   return (
     <section className="card">
-      <h3>Agent Status</h3>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Execution Trace</p>
+          <h3>Agent status board</h3>
+        </div>
+      </div>
       {statuses.length === 0 && <p className="text-muted">No agent execution yet.</p>}
-      <div className="grid" style={{ marginTop: "0.75rem" }}>
+      <div className="grid grid-3">
         {statuses.map((status) => (
-          <article
-            key={status.agent}
-            style={{ border: "1px solid #e9ecef", borderRadius: 10, padding: "0.65rem 0.75rem" }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+          <article key={status.agent} className="status-card">
+            <div className="status-card-top">
               <strong>{status.agent}</strong>
-              <span className="badge" style={{ background: `${palette[status.state]}22`, color: palette[status.state] }}>
+              <span className="badge badge-ghost" style={{ color: palette[status.state], borderColor: `${palette[status.state]}55` }}>
                 {status.state}
               </span>
             </div>
-            <small className="text-muted">
-              {status.durationMs ? `${status.durationMs} ms` : "Pending timing"}
-              {status.message ? ` - ${status.message}` : ""}
-            </small>
+            <p className="status-time">{status.durationMs ? `${status.durationMs} ms` : "Pending timing"}</p>
+            <p className="text-muted" style={{ marginBottom: 0 }}>
+              {status.message ?? "Awaiting additional detail"}
+            </p>
           </article>
         ))}
       </div>

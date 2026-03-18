@@ -66,6 +66,29 @@ export interface PredictionResult {
   currentPrice: number;
   predictedPrice: number;
   predictedReturnPct: number;
+  confidence: number;
+  trend: "bullish" | "bearish" | "sideways";
+  volatilityBandPct: number;
+  supportLevel: number;
+  resistanceLevel: number;
+  horizonLabel: string;
+  queryAlignment: number;
+  predictionMethod: string;
+  methodFactors: string[];
+  backtest?: {
+    samples: number;
+    maePct: number;
+    rmsePct: number;
+    directionalAccuracyPct: number;
+  };
+  analystSummary: string;
+  signals: string[];
+  scenarios: Array<{
+    label: string;
+    price: number;
+    returnPct: number;
+    reason: string;
+  }>;
   history: number[];
   forecast: number[];
 }
@@ -98,6 +121,7 @@ export interface AgentReport {
   query: string;
   ticker: string;
   version: number;
+  budget: number;
   sentiment?: SentimentResult;
   prediction?: PredictionResult;
   risk?: RiskResult;

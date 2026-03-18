@@ -4,6 +4,7 @@ export interface UserRecord {
   id: string;
   email: string;
   passwordHash: string;
+  tokenVersion: number;
   budget: number;
   riskProfile: RiskProfile;
   createdAt: string;

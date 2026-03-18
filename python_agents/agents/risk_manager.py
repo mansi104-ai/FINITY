@@ -1,9 +1,12 @@
 import time
 
 try:
-    from risk.var_calculator import calculate_var
-except ModuleNotFoundError:
-    from python_agents.risk.var_calculator import calculate_var
+    from ..risk.var_calculator import calculate_var
+except Exception:
+    try:
+        from risk.var_calculator import calculate_var
+    except ModuleNotFoundError:
+        from python_agents.risk.var_calculator import calculate_var
 
 
 class RiskManagerAgent:

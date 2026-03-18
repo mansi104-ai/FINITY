@@ -4,5 +4,11 @@ declare namespace Express {
       id: string;
       email: string;
     };
+    auth?: {
+      userId: string;
+      email: string;
+      sessionId: string;
+      tokenVersion: number;
+    };
   }
 }

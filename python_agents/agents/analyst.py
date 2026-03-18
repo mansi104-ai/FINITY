@@ -1,39 +1,36 @@
-import os
 import time
 
 try:
-    import yfinance as yf  # type: ignore
-except Exception:  # pragma: no cover
-    yf = None
-
-try:
-    from models.lstm_model import LSTMModel
-except ModuleNotFoundError:
-    from python_agents.models.lstm_model import LSTMModel
+    from ..models.market_data import MarketDataService
+    from ..models.market_forecaster import MarketForecaster
+except Exception:
+    try:
+        from models.market_data import MarketDataService
+        from models.market_forecaster import MarketForecaster
+    except ModuleNotFoundError:
+        from python_agents.models.market_data import MarketDataService
+        from python_agents.models.market_forecaster import MarketForecaster
 
 
 class AnalystAgent:
     def __init__(self) -> None:
-        self.model = LSTMModel(window=12)
-        self.use_live_data = os.getenv("USE_LIVE_MARKET_DATA", "false").lower() == "true"
+        self.data_service = MarketDataService()
+        self.forecaster = MarketForecaster()
 
-    def predict(self, ticker: str) -> dict:
+    def predict(self, ticker: str, query: str, sentiment: dict | None = None) -> dict:
         start = time.perf_counter()
-        history = self._fetch_prices(ticker)
-        result = self.model.predict(history)
-        result["ticker"] = ticker
+        sentiment = sentiment or {}
+        market_history = self.data_service.get_history(ticker=ticker, period="3y", interval="1d")
+        result = self.forecaster.predict(
+            market_history.frame,
+            ticker=ticker,
+            query=query,
+            sentiment_score=float(sentiment.get("score", 0.5)),
+            sentiment_level=str(sentiment.get("level", "HOLD")),
+            data_source=market_history.source,
+        )
         result["durationMs"] = int((time.perf_counter() - start) * 1000)
-        result["message"] = "Generated 5-day forecast"
+        result["message"] = (
+            f"Generated {result.get('horizonLabel', 'forward')} forecast from {market_history.source} history"
+        )
         return result
-
-    def _fetch_prices(self, ticker: str):
-        if yf is None or not self.use_live_data:
-            return self.model.synthetic_history(seed=ticker)
-
-        try:
-            frame = yf.Ticker(ticker).history(period="6mo")
-            if frame.empty or "Close" not in frame:
-                raise ValueError("No market data")
-            return frame
-        except Exception:
-            return self.model.synthetic_history(seed=ticker)

@@ -1,16 +1,23 @@
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
-import os
 
-# Load environment variables from .env.local
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env.local'))
+# Load environment variables from local and repo-root .env.local files.
+CURRENT_DIR = Path(__file__).resolve().parent
+ROOT_DIR = CURRENT_DIR.parent
+load_dotenv(CURRENT_DIR / ".env.local")
+load_dotenv(ROOT_DIR / ".env.local")
 
 try:
-    from orchestrator.crew import FinanceCrew
-except ModuleNotFoundError:
-    from python_agents.orchestrator.crew import FinanceCrew
+    from .orchestrator.crew import FinanceCrew
+except Exception:
+    try:
+        from orchestrator.crew import FinanceCrew
+    except ModuleNotFoundError:
+        from python_agents.orchestrator.crew import FinanceCrew
 
 
 class QueryRequest(BaseModel):
@@ -18,7 +25,7 @@ class QueryRequest(BaseModel):
     ticker: str = Field(min_length=1, max_length=15)
     budget: float = Field(gt=0)
     risk_profile: str = Field(default="medium")
-    version: int = Field(default=4, ge=1, le=4)
+    version: int = Field(default=2, ge=1, le=4)
 
 
 app = FastAPI(title="Finance Orchestrator API", version="1.0.0")

@@ -60,6 +60,9 @@ docker compose up --build
 ### Backend
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `POST /api/auth/logout-all`
 - `GET /api/profile`
 - `PATCH /api/profile`
 - `POST /api/query`
@@ -73,6 +76,7 @@ docker compose up --build
 ## Notes
 
 - This implementation uses in-memory backend storage for rapid prototyping.
+- Auth uses short-lived access tokens + refresh token rotation with per-session revocation.
 - News and market calls gracefully fall back to synthetic/local logic when external APIs are unavailable.
 - Set `USE_LIVE_MARKET_DATA=true` for live yfinance pulls.
 - `risk_profile` supports `low | medium | high`.

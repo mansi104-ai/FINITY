@@ -6,9 +6,12 @@ from typing import Dict, List, Tuple
 import requests
 
 try:
-    from models.sentiment_nlp import aggregate_sentiment, label_sentiment
-except ModuleNotFoundError:
-    from python_agents.models.sentiment_nlp import aggregate_sentiment, label_sentiment
+    from ..models.sentiment_nlp import aggregate_sentiment, label_sentiment
+except Exception:
+    try:
+        from models.sentiment_nlp import aggregate_sentiment, label_sentiment
+    except ModuleNotFoundError:
+        from python_agents.models.sentiment_nlp import aggregate_sentiment, label_sentiment
 
 
 class ResearcherAgent:
@@ -19,34 +22,56 @@ class ResearcherAgent:
         start_perf = time.perf_counter()
         run_started = self._now_utc()
 
-        # More specific financial search queries to filter out irrelevant results
-        search_queries = [
-            f"{ticker} stock price trading market",
-            f"{ticker} price forecast outlook investor",
-            f"{ticker} earnings financial performance guidance",
-        ]
+        search_queries = self._build_search_queries(ticker=ticker, query=query)
 
         attempts: List[Dict] = []
         resources: List[Dict] = []
 
+        if not self.news_api_key:
+            attempts.append(
+                {
+                    "query": search_queries[0],
+                    "phase": "from_scratch",
+                    "source": "newsapi",
+                    "status": "skipped",
+                    "resultCount": 0,
+                    "startedAt": self._iso(run_started),
+                    "endedAt": self._iso(self._now_utc()),
+                    "note": "NEWSAPI_KEY missing; skipped live research and used synthetic fallback.",
+                }
+            )
+            resources = self._synthetic_resources(ticker=ticker, user_query=query)
+            labels = []
+            for resource in resources:
+                label = label_sentiment(resource["title"])
+                resource["sentimentLevel"] = label
+                labels.append(label)
+
+            score, level, confidence, synthesis = aggregate_sentiment(labels)
+            timeline = self._timeline(resources=resources, generated_at=run_started)
+            search_stats = self._search_stats(attempts)
+            reasoning = [
+                f"Live news research unavailable, so fallback synthetic research was generated for {ticker}.",
+                f"Forecast context used the query topic: {query.strip() or ticker}.",
+                f"Final researcher sentiment={level} (score={score}, confidence={confidence}).",
+            ]
+            return {
+                "level": level,
+                "score": score,
+                "confidence": confidence,
+                "resources": resources,
+                "timeline": timeline,
+                "searchStats": search_stats,
+                "searchAttempts": attempts,
+                "reasoning": reasoning,
+                "synthesis": synthesis,
+                "durationMs": int((time.perf_counter() - start_perf) * 1000),
+                "message": f"Generated {len(resources)} fallback research resources",
+            }
+
         for idx, search_query in enumerate(search_queries):
             phase = "from_scratch" if idx == 0 else "reiteration"
             search_started = self._now_utc()
-
-            if not self.news_api_key:
-                attempts.append(
-                    {
-                        "query": search_query,
-                        "phase": phase,
-                        "source": "newsapi",
-                        "status": "skipped",
-                        "resultCount": 0,
-                        "startedAt": self._iso(search_started),
-                        "endedAt": self._iso(self._now_utc()),
-                        "note": "NEWSAPI_KEY missing; using synthetic research fallback.",
-                    }
-                )
-                continue
 
             items, error_note = self._search_news(search_query)
             resources.extend(items)
@@ -206,6 +231,29 @@ class ResearcherAgent:
             return [], err_msg
         except Exception as exc:
             return [], f"Search error: {str(exc)[:120]}"
+
+    def _build_search_queries(self, ticker: str, query: str) -> List[str]:
+        normalized_query = " ".join(query.strip().split())
+        if not normalized_query:
+            return [
+                f"{ticker} stock price trading market",
+                f"{ticker} price forecast outlook investor",
+                f"{ticker} earnings financial performance guidance",
+            ]
+
+        macro_terms = {"tariff", "tariffs", "fed", "inflation", "opec", "sanction", "rates", "yield", "crude", "oil", "gold"}
+        query_lower = normalized_query.lower()
+        if any(term in query_lower for term in macro_terms):
+            return [
+                f"{ticker} {normalized_query}",
+                f"{ticker} macro impact market reaction",
+            ]
+
+        return [
+            f"{ticker} {normalized_query}",
+            f"{ticker} price forecast outlook investor",
+            f"{ticker} earnings financial performance guidance",
+        ]
 
     def _synthetic_resources(self, ticker: str, user_query: str) -> List[Dict]:
         now = self._now_utc()

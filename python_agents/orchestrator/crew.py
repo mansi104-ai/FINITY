@@ -1,13 +1,18 @@
 from typing import Dict, List, Optional
 
 try:
-    from agents.analyst import AnalystAgent
-    from agents.researcher import ResearcherAgent
-    from agents.risk_manager import RiskManagerAgent
-except ModuleNotFoundError:
-    from python_agents.agents.analyst import AnalystAgent
-    from python_agents.agents.researcher import ResearcherAgent
-    from python_agents.agents.risk_manager import RiskManagerAgent
+    from ..agents.analyst import AnalystAgent
+    from ..agents.researcher import ResearcherAgent
+    from ..agents.risk_manager import RiskManagerAgent
+except Exception:
+    try:
+        from agents.analyst import AnalystAgent
+        from agents.researcher import ResearcherAgent
+        from agents.risk_manager import RiskManagerAgent
+    except ModuleNotFoundError:
+        from python_agents.agents.analyst import AnalystAgent
+        from python_agents.agents.researcher import ResearcherAgent
+        from python_agents.agents.risk_manager import RiskManagerAgent
 
 
 class FinanceCrew:
@@ -45,7 +50,11 @@ class FinanceCrew:
         risk: Optional[dict] = None
 
         if version >= 2:
-            prediction = self.analyst.predict(ticker=ticker)
+            prediction = self.analyst.predict(
+                ticker=ticker,
+                query=user_query,
+                sentiment=sentiment,
+            )
             agent_logs.append(
                 {
                     "agent": "Analyst",
@@ -115,6 +124,11 @@ class FinanceCrew:
         sentiment_score = sentiment.get("score", 0.5)
         decision_trace: List[Dict] = []
         buy_score = 50.0
+        prediction_confidence = prediction.get("confidence", 0.5) if prediction else 0.5
+        query_alignment = prediction.get("queryAlignment", 0.5) if prediction else 0.5
+        backtest_accuracy = (
+            prediction.get("backtest", {}).get("directionalAccuracyPct", 50.0) if prediction else 50.0
+        )
 
         sentiment_points = (sentiment_score - 0.5) * 80
         buy_score += sentiment_points
@@ -136,18 +150,22 @@ class FinanceCrew:
             buy_threshold = 60.0
         elif version == 2:
             predicted_return = prediction.get("predictedReturnPct", 0.0) if prediction else 0.0
-            prediction_points = max(-25.0, min(25.0, predicted_return * 4))
+            confidence_multiplier = max(0.55, min(1.15, prediction_confidence + query_alignment * 0.35))
+            prediction_points = max(-25.0, min(25.0, predicted_return * 4 * confidence_multiplier))
             buy_score += prediction_points
             decision_trace.append(
                 {
                     "stage": "Analyst",
-                    "detail": f"Predicted return={round(predicted_return, 2)}%.",
+                    "detail": (
+                        f"Predicted return={round(predicted_return, 2)}%, confidence={round(prediction_confidence, 2)}, "
+                        f"query alignment={round(query_alignment, 2)}, backtest accuracy={round(backtest_accuracy, 1)}%."
+                    ),
                     "outcome": f"Adjusted buy score by {round(prediction_points, 2)} points.",
                 }
             )
-            if predicted_return >= 2 and sentiment_score >= 0.55:
+            if predicted_return >= 1.6 and sentiment_score >= 0.55 and prediction_confidence >= 0.62 and backtest_accuracy >= 54:
                 action = "buy"
-            elif predicted_return <= -1 and sentiment_score < 0.5:
+            elif predicted_return <= -1.0 and prediction_confidence >= 0.58 and backtest_accuracy >= 52:
                 action = "sell"
             else:
                 action = "hold"
@@ -156,16 +174,20 @@ class FinanceCrew:
             buy_threshold = 62.0
         elif version == 3:
             predicted_return = prediction.get("predictedReturnPct", 0.0) if prediction else 0.0
-            prediction_points = max(-25.0, min(25.0, predicted_return * 4))
+            confidence_multiplier = max(0.55, min(1.2, prediction_confidence + query_alignment * 0.35))
+            prediction_points = max(-25.0, min(25.0, predicted_return * 4 * confidence_multiplier))
             buy_score += prediction_points
             decision_trace.append(
                 {
                     "stage": "Analyst",
-                    "detail": f"Predicted return={round(predicted_return, 2)}%.",
+                    "detail": (
+                        f"Predicted return={round(predicted_return, 2)}%, confidence={round(prediction_confidence, 2)}, "
+                        f"query alignment={round(query_alignment, 2)}, backtest accuracy={round(backtest_accuracy, 1)}%."
+                    ),
                     "outcome": f"Adjusted buy score by {round(prediction_points, 2)} points.",
                 }
             )
-            bias = predicted_return * 0.6 + (sentiment_score - 0.5) * 10
+            bias = predicted_return * 0.6 * confidence_multiplier + (sentiment_score - 0.5) * 10
             if bias > 1.5:
                 action = "buy"
             elif bias < -1.5:
@@ -201,18 +223,22 @@ class FinanceCrew:
                 action = "hold"
             else:
                 predicted_return = prediction.get("predictedReturnPct", 0.0) if prediction else 0.0
-                prediction_points = max(-25.0, min(25.0, predicted_return * 4))
+                confidence_multiplier = max(0.55, min(1.2, prediction_confidence + query_alignment * 0.35))
+                prediction_points = max(-25.0, min(25.0, predicted_return * 4 * confidence_multiplier))
                 buy_score += prediction_points
                 decision_trace.append(
                     {
                         "stage": "Analyst",
-                        "detail": f"Predicted return={round(predicted_return, 2)}%.",
+                        "detail": (
+                            f"Predicted return={round(predicted_return, 2)}%, confidence={round(prediction_confidence, 2)}, "
+                            f"query alignment={round(query_alignment, 2)}, backtest accuracy={round(backtest_accuracy, 1)}%."
+                        ),
                         "outcome": f"Adjusted buy score by {round(prediction_points, 2)} points.",
                     }
                 )
-                if predicted_return >= 2 and sentiment_score >= 0.55:
+                if predicted_return >= 1.75 and sentiment_score >= 0.55 and prediction_confidence >= 0.64 and backtest_accuracy >= 54:
                     action = "buy"
-                elif predicted_return <= -2:
+                elif predicted_return <= -1.4 and prediction_confidence >= 0.6 and backtest_accuracy >= 52:
                     action = "sell"
                 else:
                     action = "hold"

@@ -3,9 +3,9 @@
 import type { RiskResult } from "../types";
 
 const levelColor: Record<RiskResult["level"], string> = {
-  low: "#2b8a3e",
-  medium: "#f08c00",
-  high: "#c92a2a"
+  low: "#56d364",
+  medium: "#f5b83d",
+  high: "#ff6b6b",
 };
 
 export default function RiskMeter({ risk }: { risk: RiskResult }) {
@@ -13,23 +13,37 @@ export default function RiskMeter({ risk }: { risk: RiskResult }) {
 
   return (
     <section className="card">
-      <h3>Risk Meter</h3>
-      <div style={{ marginTop: "0.75rem", height: 16, borderRadius: 999, background: "#e9ecef", overflow: "hidden" }}>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Risk Console</p>
+          <h3>Position risk meter</h3>
+        </div>
+      </div>
+
+      <div className="risk-bar">
         <div
+          className="risk-bar-fill"
           style={{
             width: `${fill}%`,
-            height: "100%",
-            background: levelColor[risk.level],
-            transition: "width 0.3s ease"
+            background: `linear-gradient(90deg, ${levelColor[risk.level]}, ${levelColor[risk.level]}aa)`,
           }}
         />
       </div>
-      <p style={{ marginBottom: 0 }}>
-        Risk: <strong style={{ color: levelColor[risk.level] }}>{risk.level.toUpperCase()}</strong> | VaR: {risk.valueAtRiskPct.toFixed(2)}%
-      </p>
-      <p className="text-muted" style={{ marginTop: "0.2rem" }}>
-        Recommended max position size: {risk.recommendedPositionSizePct.toFixed(1)}% of available budget.
-      </p>
+
+      <div className="grid grid-3">
+        <div className="metric-card">
+          <span className="metric-label">Risk level</span>
+          <strong style={{ color: levelColor[risk.level] }}>{risk.level.toUpperCase()}</strong>
+        </div>
+        <div className="metric-card">
+          <span className="metric-label">Value at risk</span>
+          <strong>{risk.valueAtRiskPct.toFixed(2)}%</strong>
+        </div>
+        <div className="metric-card">
+          <span className="metric-label">Suggested max size</span>
+          <strong>{risk.recommendedPositionSizePct.toFixed(1)}%</strong>
+        </div>
+      </div>
     </section>
   );
 }

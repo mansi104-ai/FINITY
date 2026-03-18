@@ -1,11 +1,15 @@
-import os
-
 import numpy as np
 
 try:
-    import yfinance as yf  # type: ignore
-except Exception:  # pragma: no cover
-    yf = None
+    from ..models.market_data import MarketDataService
+except Exception:
+    try:
+        from models.market_data import MarketDataService
+    except ModuleNotFoundError:
+        from python_agents.models.market_data import MarketDataService
+
+
+_market_data = MarketDataService()
 
 
 def calculate_var(
@@ -33,18 +37,9 @@ def calculate_var(
 
 
 def _fetch_returns(ticker: str, lookback_days: int) -> np.ndarray:
-    use_live_data = os.getenv("USE_LIVE_MARKET_DATA", "false").lower() == "true"
-
-    if yf is None or not use_live_data:
-        return np.array([])
-
     try:
-        frame = yf.Ticker(ticker).history(period="1y")
-        if frame.empty or "Close" not in frame:
-            return np.array([])
-
-        closes = frame["Close"].astype(float).tail(lookback_days)
-        returns = closes.pct_change().dropna().to_numpy()
-        return returns
+        history = _market_data.get_history(ticker=ticker, period="2y", interval="1d")
+        closes = history.frame["Close"].astype(float).tail(lookback_days)
+        return closes.pct_change().dropna().to_numpy()
     except Exception:
         return np.array([])

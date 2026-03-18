@@ -18,31 +18,37 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
 
   return (
     <section className="card">
-      <h3>Research Audit Trail</h3>
-      <p className="text-muted" style={{ marginTop: "0.35rem" }}>
-        Detailed trace of what the researcher checked, when it checked, and how it reached its sentiment result.
-      </p>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Research Ledger</p>
+          <h3>Audit trail</h3>
+        </div>
+        <p className="text-muted">Source coverage, search attempts, and how the researcher reached its stance.</p>
+      </div>
 
-      {sentiment.timeline && (
-        <p>
-          Timeline: <strong>{formatDate(sentiment.timeline.from)}</strong> to{" "}
-          <strong>{formatDate(sentiment.timeline.to)}</strong>
-        </p>
-      )}
-
-      {sentiment.searchStats && (
-        <p>
-          Searches: from scratch <strong>{sentiment.searchStats.searchesFromScratch}</strong>, reiterations{" "}
-          <strong>{sentiment.searchStats.reiterations}</strong>, successful <strong>{sentiment.searchStats.successfulSearches}</strong> /{" "}
-          {sentiment.searchStats.totalSearches}
-        </p>
-      )}
+      <div className="grid grid-2">
+        {sentiment.timeline && (
+          <article className="mini-panel">
+            <h4>Coverage window</h4>
+            <p>{formatDate(sentiment.timeline.from)}</p>
+            <p>{formatDate(sentiment.timeline.to)}</p>
+          </article>
+        )}
+        {sentiment.searchStats && (
+          <article className="mini-panel">
+            <h4>Search quality</h4>
+            <p>Fresh searches: <strong>{sentiment.searchStats.searchesFromScratch}</strong></p>
+            <p>Reiterations: <strong>{sentiment.searchStats.reiterations}</strong></p>
+            <p>Successful: <strong>{sentiment.searchStats.successfulSearches}</strong> / {sentiment.searchStats.totalSearches}</p>
+          </article>
+        )}
+      </div>
 
       {sentiment.reasoning && sentiment.reasoning.length > 0 && (
-        <article style={{ marginTop: "0.8rem" }}>
-          <h4 style={{ marginBottom: "0.4rem" }}>How It Reached Result</h4>
+        <article className="mini-panel">
+          <h4>Reasoning</h4>
           {sentiment.reasoning.map((line, idx) => (
-            <p key={`${line}-${idx}`} className="text-muted" style={{ margin: "0.25rem 0" }}>
+            <p key={`${line}-${idx}`} className="text-muted">
               {idx + 1}. {line}
             </p>
           ))}
@@ -50,25 +56,21 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
       )}
 
       {sentiment.searchAttempts && sentiment.searchAttempts.length > 0 && (
-        <article style={{ marginTop: "0.8rem" }}>
-          <h4 style={{ marginBottom: "0.4rem" }}>Search Attempts</h4>
+        <article className="mini-panel">
+          <h4>Search attempts</h4>
           <div className="grid">
             {sentiment.searchAttempts.map((attempt, idx) => (
-              <div key={`${attempt.query}-${idx}`} style={{ border: "1px solid #e9ecef", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
-                <p style={{ margin: 0 }}>
-                  <strong>{attempt.query}</strong> ({attempt.phase})
+              <div key={`${attempt.query}-${idx}`} className="audit-card">
+                <p style={{ marginTop: 0 }}>
+                  <strong>{attempt.query}</strong>
                 </p>
-                <p className="text-muted" style={{ margin: "0.25rem 0" }}>
-                  Status: {attempt.status} | Results: {attempt.resultCount} | Source: {attempt.source}
+                <p className="text-muted">
+                  {attempt.phase} · {attempt.status} · {attempt.resultCount} results
                 </p>
-                <p className="text-muted" style={{ margin: "0.25rem 0" }}>
-                  {formatDate(attempt.startedAt)} - {formatDate(attempt.endedAt)}
+                <p className="text-muted">
+                  {formatDate(attempt.startedAt)} to {formatDate(attempt.endedAt)}
                 </p>
-                {attempt.note && (
-                  <p className="text-muted" style={{ margin: "0.25rem 0 0" }}>
-                    Note: {attempt.note}
-                  </p>
-                )}
+                {attempt.note && <p className="text-muted">{attempt.note}</p>}
               </div>
             ))}
           </div>
@@ -76,12 +78,12 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
       )}
 
       {sentiment.resources && sentiment.resources.length > 0 && (
-        <article style={{ marginTop: "0.8rem" }}>
-          <h4 style={{ marginBottom: "0.4rem" }}>Resources Reviewed</h4>
+        <article className="mini-panel">
+          <h4>Resources reviewed</h4>
           <div className="grid">
             {sentiment.resources.map((resource, idx) => (
-              <div key={`${resource.title}-${idx}`} style={{ border: "1px solid #e9ecef", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
-                <p style={{ margin: 0 }}>
+              <div key={`${resource.title}-${idx}`} className="audit-card">
+                <p style={{ marginTop: 0 }}>
                   {resource.url ? (
                     <a href={resource.url} target="_blank" rel="noreferrer">
                       {resource.title}
@@ -90,19 +92,11 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
                     resource.title
                   )}
                 </p>
-                <p className="text-muted" style={{ margin: "0.25rem 0" }}>
-                  Source: {resource.source} | Published: {formatDate(resource.publishedAt)}
+                <p className="text-muted">
+                  {resource.source} · {formatDate(resource.publishedAt)}
                 </p>
-                {resource.sentimentLevel && (
-                  <p className="text-muted" style={{ margin: "0.25rem 0" }}>
-                    Sentiment: {resource.sentimentLevel}
-                  </p>
-                )}
-                {resource.snippet && (
-                  <p className="text-muted" style={{ margin: "0.25rem 0 0" }}>
-                    {resource.snippet}
-                  </p>
-                )}
+                {resource.sentimentLevel && <p className="text-muted">Sentiment: {resource.sentimentLevel}</p>}
+                {resource.snippet && <p className="text-muted">{resource.snippet}</p>}
               </div>
             ))}
           </div>

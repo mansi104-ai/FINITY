@@ -25,16 +25,8 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function persistSession(token: string | null): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (token) {
-    window.localStorage.setItem("token", token);
-  } else {
-    window.localStorage.removeItem("token");
-  }
+function persistSession(tokens: { accessToken: string; refreshToken: string } | null): void {
+  api.persistSessionTokens(tokens);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -49,16 +41,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const hydrate = async () => {
-      const savedToken = typeof window !== "undefined" ? window.localStorage.getItem("token") : null;
-      if (!savedToken) {
+      const savedAccessToken = api.getAccessToken();
+      const savedRefreshToken = api.getRefreshToken();
+      if (!savedAccessToken && !savedRefreshToken) {
         setLoading(false);
         return;
       }
 
-      setToken(savedToken);
+      if (savedAccessToken) {
+        setToken(savedAccessToken);
+      }
 
       try {
         await refreshProfile();
+        setToken(api.getAccessToken());
       } catch {
         persistSession(null);
         setToken(null);
@@ -73,19 +69,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await api.login(email, password);
-    setToken(result.token);
+    setToken(result.accessToken);
     setUser(result.user);
-    persistSession(result.token);
+    persistSession({ accessToken: result.accessToken, refreshToken: result.refreshToken });
   }, []);
 
   const register = useCallback(async (email: string, password: string) => {
     const result = await api.register(email, password);
-    setToken(result.token);
+    setToken(result.accessToken);
     setUser(result.user);
-    persistSession(result.token);
+    persistSession({ accessToken: result.accessToken, refreshToken: result.refreshToken });
   }, []);
 
   const logout = useCallback(() => {
+    void api.logout().catch(() => undefined);
     setToken(null);
     setUser(null);
     persistSession(null);

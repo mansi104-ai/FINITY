@@ -14,7 +14,8 @@ const querySchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z][A-Z0-9.-]{0,14}$/, "Ticker must look like AAPL or RELIANCE.NS")
     .optional(),
-  version: z.number().int().min(1).max(4).default(4)
+  budget: z.number().min(100).max(10_000_000).optional(),
+  version: z.number().int().min(1).max(4).default(2)
 });
 
 const COMPANY_SYMBOL_MAP: Record<string, string> = {
@@ -86,6 +87,7 @@ export async function runQueryController(req: Request, res: Response) {
 
   const now = new Date().toISOString();
   const ticker = parsed.data.ticker ?? inferTicker(parsed.data.query);
+  const budget = parsed.data.budget ?? user.budget;
 
   if (!ticker) {
     return res.status(400).json({
@@ -101,7 +103,7 @@ export async function runQueryController(req: Request, res: Response) {
     version: parsed.data.version,
     status: "running",
     riskProfile: user.riskProfile,
-    budget: user.budget,
+    budget,
     createdAt: now,
     updatedAt: now
   };
@@ -123,6 +125,7 @@ export async function runQueryController(req: Request, res: Response) {
       query: queryRecord.rawQuery,
       ticker: queryRecord.ticker,
       version: queryRecord.version,
+      budget: queryRecord.budget,
       sentiment: pythonResult.sentiment,
       prediction: pythonResult.prediction,
       risk: pythonResult.risk,

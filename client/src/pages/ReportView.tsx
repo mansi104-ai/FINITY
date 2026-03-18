@@ -7,13 +7,19 @@ import ResearchAuditCard from "../components/ResearchAuditCard";
 import ReportCard from "../components/ReportCard";
 import RiskMeter from "../components/RiskMeter";
 import { getReport } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import type { AgentReport } from "../types";
 
 export default function ReportView({ reportId }: { reportId: string }) {
+  const { token } = useAuth();
   const [report, setReport] = useState<AgentReport | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!token) {
+      return;
+    }
+
     const run = async () => {
       try {
         const result = await getReport(reportId);
@@ -24,12 +30,20 @@ export default function ReportView({ reportId }: { reportId: string }) {
     };
 
     void run();
-  }, [reportId]);
+  }, [reportId, token]);
+
+  if (!token) {
+    return (
+      <section className="card" style={{ marginTop: "1rem" }}>
+        <p>Please login from Query page to view this report.</p>
+      </section>
+    );
+  }
 
   if (error) {
     return (
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <p style={{ color: "#c92a2a" }}>{error}</p>
+      <section className="card danger-card" style={{ marginTop: "1rem" }}>
+        <p>{error}</p>
       </section>
     );
   }
@@ -43,35 +57,58 @@ export default function ReportView({ reportId }: { reportId: string }) {
   }
 
   return (
-    <section className="grid" style={{ marginTop: "1rem" }}>
-      <article className="card">
-        <h2>Report {report.id}</h2>
-        <p className="text-muted">
-          Query: {report.query} | Generated: {new Date(report.createdAt).toLocaleString()}
-        </p>
+    <section className="grid page-shell">
+      <article className="hero-panel">
+        <div>
+          <p className="eyebrow">Detailed Report</p>
+          <h1 className="hero-title">{report.ticker} execution brief</h1>
+          <p className="hero-copy">
+            Query: {report.query}
+          </p>
+        </div>
+        <div className="hero-strip">
+          <div className="metric-card">
+            <span className="metric-label">Generated</span>
+            <strong>{new Date(report.createdAt).toLocaleString()}</strong>
+          </div>
+          <div className="metric-card">
+            <span className="metric-label">Budget</span>
+            <strong>${report.budget.toFixed(0)}</strong>
+          </div>
+          <div className="metric-card">
+            <span className="metric-label">Version</span>
+            <strong>V{report.version}</strong>
+          </div>
+        </div>
       </article>
+
       <ReportCard report={report} />
-      {report.sentiment && <ResearchAuditCard sentiment={report.sentiment} />}
       {report.prediction && <PriceChart prediction={report.prediction} />}
       {report.risk && <RiskMeter risk={report.risk} />}
+      {report.sentiment && <ResearchAuditCard sentiment={report.sentiment} />}
+
       {report.recommendation.decisionTrace && report.recommendation.decisionTrace.length > 0 && (
         <article className="card">
-          <h3>Decision Trace</h3>
-          <div className="grid" style={{ marginTop: "0.7rem" }}>
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Decision Path</p>
+              <h3>Why the system landed here</h3>
+            </div>
+          </div>
+          <div className="grid">
             {report.recommendation.decisionTrace.map((entry, index) => (
-              <div key={`${entry.stage}-${index}`} style={{ border: "1px solid #e9ecef", borderRadius: 10, padding: "0.6rem 0.75rem" }}>
-                <p style={{ margin: 0 }}>
+              <div key={`${entry.stage}-${index}`} className="audit-card">
+                <p style={{ marginTop: 0 }}>
                   <strong>{entry.stage}</strong>
                 </p>
-                <p className="text-muted" style={{ margin: "0.25rem 0" }}>
-                  {entry.detail}
-                </p>
-                <p style={{ margin: 0 }}>{entry.outcome}</p>
+                <p className="text-muted">{entry.detail}</p>
+                <p style={{ marginBottom: 0 }}>{entry.outcome}</p>
               </div>
             ))}
           </div>
         </article>
       )}
+
       <AgentStatusCard statuses={report.agentLogs} />
     </section>
   );
