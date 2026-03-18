@@ -17,13 +17,15 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
   }
 
   return (
-    <section className="card">
+    <section className="card analyst-resources">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Research Ledger</p>
-          <h3>Audit trail</h3>
+          <p className="eyebrow">Analyst Resources</p>
+          <h3>Everything reviewed</h3>
         </div>
-        <p className="text-muted">Source coverage, search attempts, and how the researcher reached its stance.</p>
+        <p className="text-muted">
+          Every search, source, timestamp, and reasoning note used by the researcher is visible here.
+        </p>
       </div>
 
       <div className="grid grid-2">
@@ -37,9 +39,16 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
         {sentiment.searchStats && (
           <article className="mini-panel">
             <h4>Search quality</h4>
-            <p>Fresh searches: <strong>{sentiment.searchStats.searchesFromScratch}</strong></p>
-            <p>Reiterations: <strong>{sentiment.searchStats.reiterations}</strong></p>
-            <p>Successful: <strong>{sentiment.searchStats.successfulSearches}</strong> / {sentiment.searchStats.totalSearches}</p>
+            <p>
+              Fresh searches: <strong>{sentiment.searchStats.searchesFromScratch}</strong>
+            </p>
+            <p>
+              Reiterations: <strong>{sentiment.searchStats.reiterations}</strong>
+            </p>
+            <p>
+              Successful: <strong>{sentiment.searchStats.successfulSearches}</strong> /{" "}
+              {sentiment.searchStats.totalSearches}
+            </p>
           </article>
         )}
       </div>
@@ -65,7 +74,7 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
                   <strong>{attempt.query}</strong>
                 </p>
                 <p className="text-muted">
-                  {attempt.phase} · {attempt.status} · {attempt.resultCount} results
+                  {attempt.phase} | {attempt.status} | {attempt.resultCount} results
                 </p>
                 <p className="text-muted">
                   {formatDate(attempt.startedAt)} to {formatDate(attempt.endedAt)}
@@ -93,8 +102,14 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
                   )}
                 </p>
                 <p className="text-muted">
-                  {resource.source} · {formatDate(resource.publishedAt)}
+                  {resource.source} | {formatDate(resource.publishedAt)}
                 </p>
+                {(typeof resource.relevanceScore === "number" || typeof resource.influenceWeight === "number") && (
+                  <p className="text-muted">
+                    Relevance: {typeof resource.relevanceScore === "number" ? `${Math.round(resource.relevanceScore * 100)}%` : "n/a"} | Influence:{" "}
+                    {typeof resource.influenceWeight === "number" ? resource.influenceWeight.toFixed(2) : "n/a"}
+                  </p>
+                )}
                 {resource.sentimentLevel && <p className="text-muted">Sentiment: {resource.sentimentLevel}</p>}
                 {resource.snippet && <p className="text-muted">{resource.snippet}</p>}
               </div>

@@ -6,10 +6,10 @@ import { AuthProvider } from "../src/context/AuthContext";
 import "./globals.css";
 
 const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/query", label: "Query" },
-  { href: "/history", label: "History" },
-  { href: "/profile", label: "Profile" }
+  { href: "/", label: "Control Center" },
+  { href: "/query", label: "Build Thesis" },
+  { href: "/history", label: "Report Archive" },
+  { href: "/profile", label: "Trader Profile" }
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -19,9 +19,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AuthProvider>
           <header className="topbar">
             <div className="container topbar-inner">
-              <Link className="brand" href="/">
-                Multi-Agent Finance Orchestrator
-              </Link>
+              <div className="brand-block">
+                <Link className="brand" href="/">
+                  FINITY Trader Workspace
+                </Link>
+                <p className="brand-copy">Research, forecast, algorithms, evidence graph, and allocation in one organized flow.</p>
+              </div>
               <nav className="nav-links">
                 {navItems.map((item) => (
                   <Link key={item.href} href={item.href}>

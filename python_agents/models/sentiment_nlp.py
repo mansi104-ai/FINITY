@@ -168,9 +168,10 @@ def label_sentiment(text: str) -> str:
         return "STRONG_SELL"
 
 
-def aggregate_sentiment(labels: Iterable[str]) -> Tuple[float, str, float, Dict]:
+def aggregate_sentiment(labels: Iterable[str], weights: Iterable[float] | None = None) -> Tuple[float, str, float, Dict]:
     """Aggregate multiple sentiment labels into a single score and level"""
     values = []
+    sample_weights = list(weights) if weights is not None else []
     sentiment_map = {
         "STRONG_BUY": 2.0,
         "BUY": 1.0,
@@ -187,9 +188,10 @@ def aggregate_sentiment(labels: Iterable[str]) -> Tuple[float, str, float, Dict]
         "strong_sell": 0,
     }
     
-    for label in labels:
+    for index, label in enumerate(labels):
         value = sentiment_map.get(label, 0.0)
-        values.append(value)
+        weight = sample_weights[index] if index < len(sample_weights) else 1.0
+        values.append((value, max(weight, 0.05)))
         
         # Track counts for synthesis
         if label == "STRONG_BUY":
@@ -206,7 +208,8 @@ def aggregate_sentiment(labels: Iterable[str]) -> Tuple[float, str, float, Dict]
     if not values:
         return 0.0, "HOLD", 0.5, synthesis
 
-    score = sum(values) / len(values)
+    total_weight = sum(weight for _, weight in values)
+    score = sum(value * weight for value, weight in values) / max(total_weight, 1e-9)
     
     # Determine final level based on aggregated score
     if score >= 1.5:
@@ -224,6 +227,7 @@ def aggregate_sentiment(labels: Iterable[str]) -> Tuple[float, str, float, Dict]
     max_count = max(synthesis.values())
     total = len(values)
     consensus_ratio = max_count / total if total > 0 else 0
-    confidence = min(0.95, 0.5 + abs(score) * 0.3 + consensus_ratio * 0.25)
+    weight_concentration = max((weight for _, weight in values), default=1.0) / max(total_weight, 1e-9)
+    confidence = min(0.95, 0.45 + abs(score) * 0.28 + consensus_ratio * 0.2 + weight_concentration * 0.18)
     
     return round(score, 3), level, round(confidence, 3), synthesis

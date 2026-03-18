@@ -16,6 +16,8 @@ export interface ResearchResource {
   publishedAt: string;
   snippet?: string;
   sentimentLevel?: SentimentLevel;
+  relevanceScore?: number;
+  influenceWeight?: number;
 }
 
 export interface ResearchSearchAttempt {

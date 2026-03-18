@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import type { QueryResponse } from "../types";
 import AgentStatusCard from "../components/AgentStatusCard";
 import ReportCard from "../components/ReportCard";
+import WorkspaceGuide from "../components/WorkspaceGuide";
 
 function extractTicker(query: string): string {
   const dollarMatch = query.toUpperCase().match(/\$([A-Z][A-Z0-9.-]{0,14})\b/);
@@ -90,11 +91,10 @@ export default function QueryPage() {
     <section className="grid page-shell">
       <article className="hero-panel">
         <div>
-          <p className="eyebrow">Version 2 Trading Console</p>
-          <h1 className="hero-title">Run a richer AI market brief with live budget context.</h1>
+          <p className="eyebrow">Trading Console</p>
+          <h1 className="hero-title">Build a market thesis, then inspect exactly how the system reached its call.</h1>
           <p className="hero-copy">
-            FINITY now treats capital sizing as part of the analysis flow, so the analyst can
-            weigh conviction, forecast structure, and allocation together.
+            FINITY is organized into a simple flow: enter a thesis, run the agents, inspect the forecast and algorithm graph, then review the evidence.
           </p>
         </div>
         <div className="hero-strip">
@@ -107,8 +107,8 @@ export default function QueryPage() {
             <strong>{currency(allocationHint)}</strong>
           </div>
           <div className="metric-card">
-            <span className="metric-label">Analyst mode</span>
-            <strong>Scenario aware</strong>
+            <span className="metric-label">Trader tooling</span>
+            <strong>Graph + algorithms</strong>
           </div>
         </div>
       </article>
@@ -237,10 +237,10 @@ export default function QueryPage() {
                   value={version}
                   onChange={(event) => setVersion(Number(event.target.value))}
                 >
-                  <option value={1}>V1 · Research only</option>
-                  <option value={2}>V2 · Research + analyst</option>
-                  <option value={3}>V3 · Policy weighted</option>
-                  <option value={4}>V4 · Full orchestration</option>
+                  <option value={1}>V1 | Research only</option>
+                  <option value={2}>V2 | Research + analyst</option>
+                  <option value={3}>V3 | Policy weighted</option>
+                  <option value={4}>V4 | Full orchestration</option>
                 </select>
               </div>
             </div>
@@ -277,32 +277,34 @@ export default function QueryPage() {
 
         <article className="card market-brief">
           <p className="eyebrow">Session brief</p>
-          <h3 style={{ marginTop: 0 }}>What changes in this version</h3>
+          <h3 style={{ marginTop: 0 }}>What you get after each run</h3>
           <div className="brief-list">
             <div className="brief-item">
               <span className="brief-index">01</span>
               <div>
-                <strong>Budget-aware execution</strong>
-                <p className="text-muted">Each analysis run can use a different budget without editing profile settings.</p>
+                <strong>Forecast workspace</strong>
+                <p className="text-muted">Prediction path, scenarios, support/resistance, and confidence-calibrated forecast output.</p>
               </div>
             </div>
             <div className="brief-item">
               <span className="brief-index">02</span>
               <div>
-                <strong>Richer analyst framing</strong>
-                <p className="text-muted">Forecasts now expose confidence, scenarios, support/resistance, and clearer market tone.</p>
+                <strong>Algorithm transparency</strong>
+                <p className="text-muted">Backtest quality, model method, signal contributors, and algorithm workbench for traders.</p>
               </div>
             </div>
             <div className="brief-item">
               <span className="brief-index">03</span>
               <div>
-                <strong>Terminal-style interface</strong>
-                <p className="text-muted">The front end now emphasizes budget, execution posture, and trading context instead of plain forms.</p>
+                <strong>Evidence graph</strong>
+                <p className="text-muted">Zoomable graph connecting the prediction to reviewed articles and their relevance to the call.</p>
               </div>
             </div>
           </div>
         </article>
       </div>
+
+      <WorkspaceGuide />
 
       {error && (
         <article className="card danger-card">

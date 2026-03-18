@@ -42,18 +42,25 @@ class ResearcherAgent:
             )
             resources = self._synthetic_resources(ticker=ticker, user_query=query)
             labels = []
+            weights = []
             for resource in resources:
                 label = label_sentiment(resource["title"])
+                relevance = self._resource_relevance(resource=resource, ticker=ticker, query=query)
+                influence = self._resource_influence(resource=resource, relevance=relevance)
                 resource["sentimentLevel"] = label
+                resource["relevanceScore"] = round(relevance, 3)
+                resource["influenceWeight"] = round(influence, 3)
                 labels.append(label)
+                weights.append(influence)
 
-            score, level, confidence, synthesis = aggregate_sentiment(labels)
+            score, level, confidence, synthesis = aggregate_sentiment(labels, weights)
             timeline = self._timeline(resources=resources, generated_at=run_started)
             search_stats = self._search_stats(attempts)
             reasoning = [
                 f"Live news research unavailable, so fallback synthetic research was generated for {ticker}.",
                 f"Forecast context used the query topic: {query.strip() or ticker}.",
-                f"Final researcher sentiment={level} (score={score}, confidence={confidence}).",
+                f"Each resource was weighted by relevance and recency before aggregation.",
+                f"Final researcher sentiment={level} (weighted score={score}, confidence={confidence}).",
             ]
             return {
                 "level": level,
@@ -94,12 +101,18 @@ class ResearcherAgent:
             resources = self._synthetic_resources(ticker=ticker, user_query=query)
 
         labels = []
+        weights = []
         for resource in resources:
-            label = label_sentiment(resource["title"])
+            label = label_sentiment(f"{resource['title']} {resource.get('snippet', '')}")
+            relevance = self._resource_relevance(resource=resource, ticker=ticker, query=query)
+            influence = self._resource_influence(resource=resource, relevance=relevance)
             resource["sentimentLevel"] = label
+            resource["relevanceScore"] = round(relevance, 3)
+            resource["influenceWeight"] = round(influence, 3)
             labels.append(label)
+            weights.append(influence)
 
-        score, level, confidence, synthesis = aggregate_sentiment(labels)
+        score, level, confidence, synthesis = aggregate_sentiment(labels, weights)
         timeline = self._timeline(resources=resources, generated_at=run_started)
         search_stats = self._search_stats(attempts)
 
@@ -132,7 +145,10 @@ class ResearcherAgent:
                 f"SELL={synthesis['sell']}, STRONG_SELL={synthesis['strong_sell']}."
             ),
             (
-                f"Final researcher sentiment={level} (score={score}, "
+                f"Weighted article influence was applied using relevance, recency, and source quality."
+            ),
+            (
+                f"Final researcher sentiment={level} (weighted score={score}, "
                 f"confidence={confidence}), therefore {recommendation_bias}."
             ),
         ]
@@ -361,6 +377,53 @@ class ResearcherAgent:
             seen.add(key)
             deduped.append(item)
         return deduped
+
+    def _resource_relevance(self, resource: Dict, ticker: str, query: str) -> float:
+        query_tokens = set(self._tokens(f"{ticker} {query}"))
+        resource_tokens = self._tokens(f"{resource.get('title', '')} {resource.get('snippet', '')}")
+        if not query_tokens:
+            return 0.45
+
+        overlap = len([token for token in resource_tokens if token in query_tokens])
+        overlap_score = overlap / max(min(len(query_tokens), 8), 1)
+        sentiment_alignment = 0.08 if resource.get("sentimentLevel") in {"BUY", "STRONG_BUY", "SELL", "STRONG_SELL"} else 0.03
+        return max(0.12, min(0.98, overlap_score * 0.72 + sentiment_alignment))
+
+    def _resource_influence(self, resource: Dict, relevance: float) -> float:
+        published = self._parse_iso(resource.get("publishedAt", ""))
+        age_days = 4.0
+        if published:
+            age_days = max(0.0, (self._now_utc() - published).total_seconds() / (60 * 60 * 24))
+
+        recency_score = max(0.4, 1.12 - age_days * 0.08)
+        source_score = self._source_quality(resource.get("source", ""))
+        sentiment_intensity = 1.08 if resource.get("sentimentLevel") in {"STRONG_BUY", "STRONG_SELL"} else 1.0
+        return max(0.1, min(2.2, relevance * recency_score * source_score * sentiment_intensity))
+
+    def _source_quality(self, source_name: str) -> float:
+        trusted = {
+            "reuters": 1.2,
+            "bloomberg": 1.2,
+            "wall street journal": 1.16,
+            "financial times": 1.16,
+            "cnbc": 1.08,
+            "marketwatch": 1.04,
+            "newsapi": 0.98,
+            "synthetic research feed": 0.82,
+        }
+        normalized = source_name.strip().lower()
+        for key, value in trusted.items():
+            if key in normalized:
+                return value
+        return 1.0
+
+    def _tokens(self, text: str) -> List[str]:
+        stop_words = {
+            "the", "and", "for", "with", "that", "this", "from", "what", "when", "where",
+            "which", "will", "stock", "price", "today", "should", "would", "could",
+        }
+        raw = [token.strip(".,!?;:\"'()[]{}$#@!~").lower() for token in text.split()]
+        return [token for token in raw if len(token) > 2 and token not in stop_words]
 
     def _timeline(self, resources: List[Dict], generated_at: datetime) -> Dict:
         dates = []

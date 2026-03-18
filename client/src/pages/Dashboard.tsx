@@ -6,6 +6,7 @@ import { getReports } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import type { AgentReport } from "../types";
 import ReportCard from "../components/ReportCard";
+import WorkspaceGuide from "../components/WorkspaceGuide";
 
 function currency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -119,6 +120,7 @@ export default function Dashboard() {
       </div>
 
       {latest && <ReportCard report={latest} />}
+      <WorkspaceGuide />
     </section>
   );
 }
