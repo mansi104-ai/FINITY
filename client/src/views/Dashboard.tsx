@@ -46,7 +46,7 @@ export default function Dashboard() {
       <article className="hero-panel">
         <div>
           <p className="eyebrow">Financial Intelligence Workspace</p>
-          <h1 className="hero-title">A sharper command center for AI-assisted market decisions.</h1>
+          <h1 className="hero-title">A sharp command center for AI-assisted market decisions.</h1>
           <p className="hero-copy">
             Track your latest research, position sizing, and analyst posture in one place with a stronger market-focused presentation.
           </p>
