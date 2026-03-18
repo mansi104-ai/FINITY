@@ -23,35 +23,10 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
         Detailed trace of what the researcher checked, when it checked, and how it reached its sentiment result.
       </p>
 
-      {sentiment.directAnswer && (
-        <p style={{ marginTop: "0.5rem" }}>
-          <strong>Direct answer:</strong> {sentiment.directAnswer}
-        </p>
-      )}
-
-      {sentiment.queryIntent && sentiment.queryIntent.length > 0 && (
-        <p className="text-muted" style={{ marginTop: "0.3rem" }}>
-          Intent detected: {sentiment.queryIntent.join(", ")}
-        </p>
-      )}
-
-      {sentiment.researchOnlyAction && (
-        <p className="text-muted" style={{ marginTop: "0.3rem" }}>
-          Research-only action: <strong>{sentiment.researchOnlyAction.toUpperCase()}</strong>
-        </p>
-      )}
-
       {sentiment.timeline && (
         <p>
           Timeline: <strong>{formatDate(sentiment.timeline.from)}</strong> to{" "}
           <strong>{formatDate(sentiment.timeline.to)}</strong>
-        </p>
-      )}
-
-      {sentiment.policySignals && (
-        <p className="text-muted">
-          Policy signals: tariffs {sentiment.policySignals.tariffMentions}, regulations{" "}
-          {sentiment.policySignals.regulationMentions}, government resources {sentiment.policySignals.governmentResources}
         </p>
       )}
 
