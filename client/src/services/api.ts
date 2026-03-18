@@ -1,6 +1,10 @@
 import type { AgentReport, QueryResponse } from "../types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// Default to the live API in production-like environments, and tolerate accidental
+// whitespace in hosted env vars so browser fetches don't fail on malformed URLs.
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://server-gray-iota.vercel.app")
+  .trim()
+  .replace(/\/$/, "");
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
