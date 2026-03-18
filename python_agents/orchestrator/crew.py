@@ -86,7 +86,7 @@ class FinanceCrew:
             "ticker": ticker,
             "version": version,
             "sentiment": {
-                "label": sentiment["label"],
+                "level": sentiment["level"],
                 "score": sentiment["score"],
                 "confidence": sentiment["confidence"],
                 "resources": sentiment.get("resources", []),
@@ -122,7 +122,7 @@ class FinanceCrew:
             {
                 "stage": "Researcher",
                 "detail": (
-                    f"Sentiment={sentiment.get('label', 'neutral')} "
+                    f"Sentiment={sentiment.get('level', 'HOLD')} "
                     f"(score={round(sentiment_score, 3)}, confidence={sentiment.get('confidence', 0.5)})."
                 ),
                 "outcome": f"Adjusted buy score by {round(sentiment_points, 2)} points.",

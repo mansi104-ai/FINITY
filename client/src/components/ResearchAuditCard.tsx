@@ -93,9 +93,9 @@ export default function ResearchAuditCard({ sentiment }: { sentiment: SentimentR
                 <p className="text-muted" style={{ margin: "0.25rem 0" }}>
                   Source: {resource.source} | Published: {formatDate(resource.publishedAt)}
                 </p>
-                {resource.sentimentLabel && (
+                {resource.sentimentLevel && (
                   <p className="text-muted" style={{ margin: "0.25rem 0" }}>
-                    Sentiment tag: {resource.sentimentLabel}
+                    Sentiment: {resource.sentimentLevel}
                   </p>
                 )}
                 {resource.snippet && (

@@ -1,5 +1,7 @@
 export type AgentState = "queued" | "running" | "completed" | "failed";
 
+export type SentimentLevel = "STRONG_SELL" | "SELL" | "HOLD" | "BUY" | "STRONG_BUY";
+
 export interface AgentStatus {
   agent: string;
   state: AgentState;
@@ -13,7 +15,7 @@ export interface ResearchResource {
   url?: string;
   publishedAt: string;
   snippet?: string;
-  sentimentLabel?: "bullish" | "bearish" | "neutral";
+  sentimentLevel?: SentimentLevel;
 }
 
 export interface ResearchSearchAttempt {
@@ -41,7 +43,7 @@ export interface ResearchStats {
 }
 
 export interface SentimentResult {
-  label: "bullish" | "bearish" | "neutral";
+  level: SentimentLevel;
   score: number;
   confidence: number;
   resources?: ResearchResource[];
@@ -50,9 +52,11 @@ export interface SentimentResult {
   searchAttempts?: ResearchSearchAttempt[];
   reasoning?: string[];
   synthesis?: {
-    bullish: number;
-    bearish: number;
-    neutral: number;
+    strong_buy: number;
+    buy: number;
+    hold: number;
+    sell: number;
+    strong_sell: number;
     total: number;
   };
 }

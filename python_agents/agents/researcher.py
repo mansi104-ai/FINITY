@@ -19,10 +19,11 @@ class ResearcherAgent:
         start_perf = time.perf_counter()
         run_started = self._now_utc()
 
+        # More specific financial search queries to filter out irrelevant results
         search_queries = [
-            ticker,
-            f"{ticker} stock outlook",
-            f"{ticker} earnings guidance",
+            f"{ticker} stock price trading market",
+            f"{ticker} price forecast outlook investor",
+            f"{ticker} earnings financial performance guidance",
         ]
 
         attempts: List[Dict] = []
@@ -70,20 +71,23 @@ class ResearcherAgent:
         labels = []
         for resource in resources:
             label = label_sentiment(resource["title"])
-            resource["sentimentLabel"] = label
+            resource["sentimentLevel"] = label
             labels.append(label)
 
-        score, label, confidence = aggregate_sentiment(labels)
-        synthesis = self._synthesis(labels)
+        score, level, confidence, synthesis = aggregate_sentiment(labels)
         timeline = self._timeline(resources=resources, generated_at=run_started)
         search_stats = self._search_stats(attempts)
 
         recommendation_bias = (
-            "research bias suggests BUY"
-            if label == "bullish"
-            else "research bias suggests SELL"
-            if label == "bearish"
+            "research bias suggests STRONG BUY"
+            if level == "STRONG_BUY"
+            else "research bias suggests BUY"
+            if level == "BUY"
             else "research bias suggests HOLD/WAIT"
+            if level == "HOLD"
+            else "research bias suggests SELL"
+            if level == "SELL"
+            else "research bias suggests STRONG SELL"
         )
 
         reasoning = [
@@ -98,19 +102,20 @@ class ResearcherAgent:
                 f"{search_stats['successfulSearches']} successful attempts."
             ),
             (
-                f"Sentiment vote distribution: bullish={synthesis['bullish']}, "
-                f"bearish={synthesis['bearish']}, neutral={synthesis['neutral']}."
+                f"Sentiment distribution: STRONG_BUY={synthesis['strong_buy']}, "
+                f"BUY={synthesis['buy']}, HOLD={synthesis['hold']}, "
+                f"SELL={synthesis['sell']}, STRONG_SELL={synthesis['strong_sell']}."
             ),
             (
-                f"Final researcher sentiment={label} (score={round(score, 3)}, "
-                f"confidence={round(confidence, 3)}), therefore {recommendation_bias}."
+                f"Final researcher sentiment={level} (score={score}, "
+                f"confidence={confidence}), therefore {recommendation_bias}."
             ),
         ]
 
         return {
-            "label": label,
-            "score": round(score, 3),
-            "confidence": round(confidence, 3),
+            "level": level,
+            "score": score,
+            "confidence": confidence,
             "resources": resources,
             "timeline": timeline,
             "searchStats": search_stats,
@@ -122,70 +127,181 @@ class ResearcherAgent:
         }
 
     def _search_news(self, search_query: str) -> Tuple[List[Dict], str]:
+        # Keywords to filter for financial/price-related content
+        FINANCIAL_KEYWORDS = {
+            "price", "stock", "trading", "market", "earnings", "revenue", "profit",
+            "forecast", "outlook", "target", "analyst", "rating", "upgrade", "downgrade",
+            "investor", "fund", "portfolio", "performance", "financial", "quarter", "q1", "q2", "q3", "q4",
+            "guidance", "dividend", "share", "trade", "bull", "bear", "volatility", "index", "rally"
+        }
+        
+        # Keywords to exclude (non-financial noise)
+        EXCLUSION_KEYWORDS = {
+            "olympic", "medal", "sports", "game", "tournament", "championship", "nfl", "nba", "nhl",
+            "entertainment", "celebrity", "award", "music", "movie", "fashion", "beauty",
+            "record label", "gold medal", "gold digger", "golden retriever", "minecraft", "wedding"
+        }
+        
         try:
             response = requests.get(
                 "https://newsapi.org/v2/everything",
                 params={
                     "q": search_query,
                     "apiKey": self.news_api_key,
-                    "pageSize": 8,
+                    "pageSize": 15,  # Get more to filter through
                     "language": "en",
                     "sortBy": "publishedAt",
                 },
                 timeout=6,
             )
             response.raise_for_status()
-            articles = response.json().get("articles", [])
+            data = response.json()
+            
+            # Check for API errors in response
+            if data.get("status") == "error":
+                return [], f"API Error: {data.get('message', 'Unknown error')}"
+            
+            articles = data.get("articles", [])
+            if not articles:
+                return [], f"No articles found for query: {search_query}"
+            
             normalized = []
             for article in articles:
-                title = article.get("title")
-                if not title:
+                title = article.get("title", "").lower()
+                snippet = article.get("description", "").lower()
+                content = f"{title} {snippet}"
+                
+                # Skip articles with exclusion keywords
+                if any(keyword in content for keyword in EXCLUSION_KEYWORDS):
                     continue
+                
+                # Only include articles with financial keywords
+                if not any(keyword in content for keyword in FINANCIAL_KEYWORDS):
+                    continue
+                
+                article_title = article.get("title")
+                if not article_title:
+                    continue
+                    
                 normalized.append(
                     {
-                        "title": title,
+                        "title": article_title,
                         "source": (article.get("source") or {}).get("name", "NewsAPI"),
                         "url": article.get("url"),
                         "publishedAt": article.get("publishedAt") or self._iso(self._now_utc()),
                         "snippet": article.get("description") or "",
                     }
                 )
+            
+            if not normalized:
+                return [], f"No relevant financial articles found (filtered for quality)"
+            
             return normalized, ""
+        except requests.exceptions.HTTPError as exc:
+            err_msg = f"HTTP {exc.response.status_code}: {exc.response.reason}"
+            if exc.response.status_code == 401:
+                err_msg = "Invalid/expired API key (401). Verify NEWSAPI_KEY in .env.local"
+            elif exc.response.status_code == 429:
+                err_msg = "Rate limit exceeded (429). Please try again later."
+            return [], err_msg
         except Exception as exc:
-            return [], f"Search failed: {str(exc)[:160]}"
+            return [], f"Search error: {str(exc)[:120]}"
 
     def _synthetic_resources(self, ticker: str, user_query: str) -> List[Dict]:
         now = self._now_utc()
-        return [
-            {
-                "title": f"{ticker} outlook mixed as macro uncertainty persists",
+        import random
+        
+        # Randomize between all 5 sentiment levels for more diversity
+        sentiment_tilt = random.choice(["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"])
+        
+        sentiment_data = {
+            "STRONG_BUY": {
+                "titles": [
+                    f"{ticker} shows exceptional growth with breakout potential",
+                    f"{ticker} achieves record performance, analysts upgrade aggressively",
+                    f"{ticker} dominates market with innovation and strategic advantage",
+                    f"{ticker} demonstrates accelerating momentum with strong catalysts",
+                ],
+                "snippets": [
+                    "Outstanding fundamentals and exceptional execution drive market leadership.",
+                    "Record profitability with momentum accelerating. Strong buy signals across metrics.",
+                    "Breakthrough innovation creates sustainable competitive advantage.",
+                    "Multiple positive catalysts converge for exceptional upside opportunity.",
+                ]
+            },
+            "BUY": {
+                "titles": [
+                    f"{ticker} shows attractive upside with positive outlook",
+                    f"{ticker} analysts upgrade on improving fundamentals",
+                    f"{ticker} offers compelling opportunity amid growth acceleration",
+                    f"{ticker} momentum strengthens with successful execution",
+                ],
+                "snippets": [
+                    "Growth trajectory improving with positive sentiment. Upgrade recommended.",
+                    "Strong operational improvements and market expansion underway.",
+                    "Attractively valued with upside potential from multiple drivers.",
+                    "Positive catalysts support outperformance in near term.",
+                ]
+            },
+            "HOLD": {
+                "titles": [
+                    f"{ticker} displays mixed signals amid market uncertainty",
+                    f"{ticker} remains balanced with opportunities and risks",
+                    f"{ticker} maintains steady outlook despite sector headwinds",
+                    f"{ticker} catalysts ahead could drive significant moves",
+                ],
+                "snippets": [
+                    "Balanced view with both upside and downside scenarios.",
+                    "Neutral positioning warranted pending catalyst resolution.",
+                    "Mixed signals from analysts suggest cautious approach.",
+                    "Uncertain near-term direction with multiple potential outcomes.",
+                ]
+            },
+            "SELL": {
+                "titles": [
+                    f"{ticker} faces headwinds amid deteriorating fundamentals",
+                    f"{ticker} analysts downgrade on growing concerns",
+                    f"{ticker} pressure persists despite management efforts",
+                    f"{ticker} weakness accelerates amid sector challenges",
+                ],
+                "snippets": [
+                    "Deteriorating fundamentals and negative momentum warrant downgrade.",
+                    "Multiple concerns emerging with challenging near-term outlook.",
+                    "Weakness spreading across key metrics. Downside risks rising.",
+                    "Underperformance likely as headwinds intensify.",
+                ]
+            },
+            "STRONG_SELL": {
+                "titles": [
+                    f"{ticker} faces existential crisis with severe challenges",
+                    f"{ticker} collapses amid fraud and governance scandal",
+                    f"{ticker} bankruptcy risk emerges from catastrophic failures",
+                    f"{ticker} devastated by recession impact and asset liquidation",
+                ],
+                "snippets": [
+                    "Catastrophic deterioration with existential threats to business model.",
+                    "Scandal and fraud allegations threaten company viability.",
+                    "Bankruptcy scenario increasingly likely given toxic fundamentals.",
+                    "Avoid at all costs - severe downside risk on horizon.",
+                ]
+            }
+        }
+        
+        data = sentiment_data[sentiment_tilt]
+        titles = data["titles"]
+        snippets = data["snippets"]
+        
+        resources = []
+        for i in range(4):
+            resources.append({
+                "title": f"{ticker} - {titles[i]}",
                 "source": "Synthetic Research Feed",
                 "url": "",
-                "publishedAt": self._iso(now - timedelta(days=1)),
-                "snippet": "Macro uncertainty and sector rotation keep sentiment balanced.",
-            },
-            {
-                "title": f"{ticker} analyst revisions indicate cautious optimism",
-                "source": "Synthetic Research Feed",
-                "url": "",
-                "publishedAt": self._iso(now - timedelta(days=3)),
-                "snippet": "Some analysts revised targets upward while highlighting volatility.",
-            },
-            {
-                "title": f"{ticker} valuation debate continues ahead of upcoming catalysts",
-                "source": "Synthetic Research Feed",
-                "url": "",
-                "publishedAt": self._iso(now - timedelta(days=5)),
-                "snippet": "Valuation remains debated by institutional investors.",
-            },
-            {
-                "title": f"User query context: {user_query}",
-                "source": "User Prompt",
-                "url": "",
-                "publishedAt": self._iso(now),
-                "snippet": "Primary user intent incorporated into synthesis.",
-            },
-        ]
+                "publishedAt": self._iso(now - timedelta(days=5-i)),
+                "snippet": snippets[i] if i < len(snippets) else "Research analysis included.",
+            })
+        
+        return resources
 
     def _dedupe_resources(self, resources: List[Dict]) -> List[Dict]:
         seen = set()
@@ -222,17 +338,6 @@ class ResearcherAgent:
             "reiterations": reiterations,
             "totalSearches": len(attempts),
             "successfulSearches": successful,
-        }
-
-    def _synthesis(self, labels: List[str]) -> Dict:
-        bullish = labels.count("bullish")
-        bearish = labels.count("bearish")
-        neutral = labels.count("neutral")
-        return {
-            "bullish": bullish,
-            "bearish": bearish,
-            "neutral": neutral,
-            "total": len(labels),
         }
 
     def _parse_iso(self, date_text: str) -> datetime | None:
