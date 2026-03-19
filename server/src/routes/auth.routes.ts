@@ -2,10 +2,10 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID, createHash } from "crypto";
-import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import { env } from "../config";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { authRateLimiter, authSessionRateLimiter } from "../middleware/rateLimiter";
 import type { AuthSessionRecord } from "../models/AuthSession.model";
 import { toSafeUser, type UserRecord } from "../models/User.model";
 import {
@@ -26,17 +26,18 @@ type JwtPayload = {
   sid: string;
   tv: number;
   typ: TokenType;
+  jti: string;
 };
 
 const authRoutes = Router();
 
 const authSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email().max(320),
   password: z.string().min(8)
 });
 
 const refreshSchema = z.object({
-  refreshToken: z.string().min(10)
+  refreshToken: z.string().trim().min(10)
 });
 
 function toTokenHash(token: string): string {
@@ -54,7 +55,8 @@ function signToken(user: UserRecord, sessionId: string, type: TokenType): string
     email: user.email,
     sid: sessionId,
     tv: user.tokenVersion,
-    typ: type
+    typ: type,
+    jti: randomUUID()
   };
 
   return jwt.sign(payload, env.jwtSecret, {
@@ -96,142 +98,165 @@ function isSessionActive(session: AuthSessionRecord): boolean {
   return +new Date(session.expiresAt) > Date.now();
 }
 
-authRoutes.post("/register", async (req, res) => {
-  const parsed = authSchema.safeParse(req.body);
-
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid registration payload", details: parsed.error.flatten() });
-  }
-
-  const email = parsed.data.email.toLowerCase();
-  const existing = await findUserByEmail(email);
-  if (existing) {
-    return res.status(409).json({ error: "Email already exists" });
-  }
-
-  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-
-  const user: UserRecord = {
-    id: uuidv4(),
-    email,
-    passwordHash,
-    tokenVersion: 1,
-    budget: 10000,
-    riskProfile: "medium",
-    createdAt: new Date().toISOString()
-  };
-
-  await saveUser(user);
-  // Registration immediately creates a live session so the frontend can continue without a second login step.
-  const tokens = await issueSessionTokens(user);
-
-  return res.status(201).json({ ...tokens, user: toSafeUser(user) });
-});
-
-authRoutes.post("/login", async (req, res) => {
-  const parsed = authSchema.safeParse(req.body);
-
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid login payload", details: parsed.error.flatten() });
-  }
-
-  const user = await findUserByEmail(parsed.data.email.toLowerCase());
-  if (!user) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-
-  const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
-  if (!ok) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-
-  const tokens = await issueSessionTokens(user);
-  return res.status(200).json({ ...tokens, user: toSafeUser(user) });
-});
-
-authRoutes.post("/refresh", async (req, res) => {
-  const parsed = refreshSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid refresh payload", details: parsed.error.flatten() });
-  }
-
+authRoutes.post("/register", authRateLimiter, async (req, res, next) => {
   try {
-    const payload = jwt.verify(parsed.data.refreshToken, env.jwtSecret, {
-      issuer: env.jwtIssuer,
-      audience: "finity-clients"
-    }) as JwtPayload;
+    const parsed = authSchema.safeParse(req.body);
 
-    if (payload.typ !== "refresh") {
-      return res.status(401).json({ error: "Invalid token type" });
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid registration payload", details: parsed.error.flatten() });
     }
 
-    const user = await getUserById(payload.sub);
+    const email = parsed.data.email.toLowerCase();
+    const existing = await findUserByEmail(email);
+    if (existing) {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+
+    const user: UserRecord = {
+      id: randomUUID(),
+      email,
+      passwordHash,
+      tokenVersion: 1,
+      budget: 10000,
+      riskProfile: "medium",
+      createdAt: new Date().toISOString()
+    };
+
+    await saveUser(user);
+    // Registration immediately creates a live session so the frontend can continue without a second login step.
+    const tokens = await issueSessionTokens(user);
+
+    return res.status(201).json({ ...tokens, user: toSafeUser(user) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+authRoutes.post("/login", authRateLimiter, async (req, res, next) => {
+  try {
+    const parsed = authSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid login payload", details: parsed.error.flatten() });
+    }
+
+    const user = await findUserByEmail(parsed.data.email.toLowerCase());
     if (!user) {
-      return res.status(401).json({ error: "User not found" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    if (user.tokenVersion !== payload.tv) {
-      return res.status(401).json({ error: "Session version mismatch" });
+    const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
+    if (!ok) {
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const session = await getSessionById(payload.sid);
-    if (!session || session.userId !== user.id || !isSessionActive(session)) {
-      return res.status(401).json({ error: "Session is invalid or expired" });
-    }
-
-    if (session.refreshTokenHash !== toTokenHash(parsed.data.refreshToken)) {
-      // A refresh token mismatch usually means replay or a stale client token, so revoke the session defensively.
-      revokeSession(session.id);
-      return res.status(401).json({ error: "Refresh token mismatch" });
-    }
-
-    // Rotate refresh tokens on every refresh so an old leaked token cannot be reused indefinitely.
-    const rotatedRefreshToken = signToken(user, session.id, "refresh");
-    const now = new Date().toISOString();
-    await saveSession({
-      ...session,
-      refreshTokenHash: toTokenHash(rotatedRefreshToken),
-      updatedAt: now
-    });
-
-    return res.status(200).json({
-      accessToken: signToken(user, session.id, "access"),
-      refreshToken: rotatedRefreshToken,
-      user: toSafeUser(user)
-    });
-  } catch {
-    return res.status(401).json({ error: "Invalid refresh token" });
+    const tokens = await issueSessionTokens(user);
+    return res.status(200).json({ ...tokens, user: toSafeUser(user) });
+  } catch (error) {
+    return next(error);
   }
 });
 
-authRoutes.post("/logout", authMiddleware, async (req, res) => {
-  if (!req.auth) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+authRoutes.post("/refresh", authSessionRateLimiter, async (req, res, next) => {
+  try {
+    const parsed = refreshSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid refresh payload", details: parsed.error.flatten() });
+    }
 
-  await revokeSession(req.auth.sessionId);
-  return res.status(200).json({ ok: true });
+    try {
+      const payload = jwt.verify(parsed.data.refreshToken, env.jwtSecret, {
+        issuer: env.jwtIssuer,
+        audience: "finity-clients"
+      }) as JwtPayload;
+
+      if (payload.typ !== "refresh") {
+        return res.status(401).json({ error: "Invalid token type" });
+      }
+
+      const user = await getUserById(payload.sub);
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      if (user.tokenVersion !== payload.tv) {
+        return res.status(401).json({ error: "Session version mismatch" });
+      }
+
+      const session = await getSessionById(payload.sid);
+      if (!session || session.userId !== user.id || !isSessionActive(session)) {
+        return res.status(401).json({ error: "Session is invalid or expired" });
+      }
+
+      if (session.refreshTokenHash !== toTokenHash(parsed.data.refreshToken)) {
+        // A refresh token mismatch usually means replay or a stale client token, so revoke the session defensively.
+        await revokeSession(session.id);
+        return res.status(401).json({ error: "Refresh token mismatch" });
+      }
+
+      // Rotate refresh tokens on every refresh so an old leaked token cannot be reused indefinitely.
+      const rotatedRefreshToken = signToken(user, session.id, "refresh");
+      const now = new Date().toISOString();
+      await saveSession({
+        ...session,
+        refreshTokenHash: toTokenHash(rotatedRefreshToken),
+        updatedAt: now
+      });
+
+      return res.status(200).json({
+        accessToken: signToken(user, session.id, "access"),
+        refreshToken: rotatedRefreshToken,
+        user: toSafeUser(user)
+      });
+    } catch (error) {
+      if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
+        return res.status(401).json({ error: "Invalid refresh token" });
+      }
+      return next(error);
+    }
+  } catch (error) {
+    return next(error);
+  }
 });
 
-authRoutes.post("/logout-all", authMiddleware, async (req, res) => {
-  if (!req.authUser) {
-    return res.status(401).json({ error: "Unauthorized" });
+authRoutes.post("/logout", authSessionRateLimiter, authMiddleware, async (req, res, next) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    await revokeSession(req.auth.sessionId);
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    return next(error);
   }
+});
 
-  const user = await getUserById(req.authUser.id);
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
+authRoutes.post("/logout-all", authSessionRateLimiter, authMiddleware, async (req, res, next) => {
+  try {
+    if (!req.authUser) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const user = await getUserById(req.authUser.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const updated: UserRecord = {
+      ...user,
+      tokenVersion: user.tokenVersion + 1
+    };
+    // Bumping tokenVersion invalidates all previously signed access/refresh tokens for the user.
+    await saveUser(updated);
+    await revokeAllSessionsForUser(updated.id);
+
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    return next(error);
   }
-
-  const updated: UserRecord = {
-    ...user,
-    tokenVersion: user.tokenVersion + 1
-  };
-  // Bumping tokenVersion invalidates all previously signed access/refresh tokens for the user.
-  await saveUser(updated);
-  await revokeAllSessionsForUser(updated.id);
-
-  return res.status(200).json({ ok: true });
 });
 
 export default authRoutes;
