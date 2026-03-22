@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 import type { Request, Response } from "express";
 import { saveQuery, saveReport } from "../store/db";
-import { runPythonAgents } from "../utils/pythonBridge";
+import { runPythonAgents, PythonServiceError } from "../utils/pythonBridge";
 import type { QueryRecord } from "../models/Query.model";
 import type { AgentReport } from "../models/Report.model";
 import type { RiskProfile } from "../models/User.model";
@@ -147,7 +147,21 @@ export async function runQueryController(req: Request, res: Response) {
       updatedAt: new Date().toISOString()
     });
 
-    const message = error instanceof Error ? error.message : "Python service failed";
+    // Handle Python service errors with appropriate HTTP status codes
+    if (error instanceof PythonServiceError) {
+      const statusCode =
+        error.code === "UNREACHABLE"
+          ? 503 // Service Unavailable
+          : error.code === "TIMEOUT"
+            ? 504 // Gateway Timeout
+            : 502; // Bad Gateway
+
+      return res.status(statusCode).json({ error: error.message });
+    }
+
+    // Handle unexpected errors
+    const message = error instanceof Error ? error.message : "Analysis service failed";
+    console.error("Unexpected error in query controller:", error);
     return res.status(502).json({ error: message });
   }
 }
