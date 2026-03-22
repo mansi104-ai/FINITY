@@ -45,7 +45,11 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json({ error: "Internal server error" });
 });
 
-app.listen(env.port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Server listening on http://localhost:${env.port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(env.port, () => {
+    // eslint-disable-next-line no-console
+    console.log(`Server listening on http://localhost:${env.port}`);
+  });
+}
+
+export default app;

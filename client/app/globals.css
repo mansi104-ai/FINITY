@@ -507,11 +507,19 @@ a {
     linear-gradient(180deg, rgba(223, 245, 236, 0.72), rgba(255, 255, 255, 0.94));
 }
 
-.focus-list,
+.focus-list {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
 .watchlist-grid {
   display: grid;
   gap: 0.85rem;
   margin-top: 1rem;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
 }
 
 .focus-card,
