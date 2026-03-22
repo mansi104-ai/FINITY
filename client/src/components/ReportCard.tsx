@@ -7,8 +7,20 @@ function currency(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 0
   }).format(value);
+}
+
+function actionLabel(action: AgentReport["recommendation"]["action"]): string {
+  if (action === "buy") {
+    return "Looks promising";
+  }
+
+  if (action === "sell") {
+    return "Be careful";
+  }
+
+  return "Wait and watch";
 }
 
 export default function ReportCard({ report }: { report: AgentReport }) {
@@ -32,70 +44,76 @@ export default function ReportCard({ report }: { report: AgentReport }) {
     <section className="card recommendation-panel">
       <div className="recommendation-header">
         <div>
-          <p className="eyebrow">Decision Engine</p>
-          <h2 style={{ marginTop: 0 }}>{report.ticker} recommendation</h2>
+          <p className="eyebrow">Today&apos;s Takeaway</p>
+          <h2 style={{ marginTop: 0 }}>{report.ticker} at a glance</h2>
         </div>
-        <div className={`trend-chip ${actionTone}`}>{report.recommendation.action.toUpperCase()}</div>
+        <div className={`trend-chip ${actionTone}`}>{actionLabel(report.recommendation.action)}</div>
       </div>
 
       <div className="recommendation-grid">
         <div className="metric-card">
-          <span className="metric-label">Budget deployed</span>
-          <strong>{currency(report.budget)}</strong>
+          <span className="metric-label">Suggested move</span>
+          <strong>{actionLabel(report.recommendation.action)}</strong>
         </div>
         <div className="metric-card">
-          <span className="metric-label">Suggested size</span>
+          <span className="metric-label">Starter amount</span>
           <strong>{currency(report.recommendation.suggestedAmount)}</strong>
         </div>
         <div className="metric-card">
-          <span className="metric-label">Verdict</span>
-          <strong>{report.recommendation.verdict ?? "monitor"}</strong>
+          <span className="metric-label">Budget used</span>
+          <strong>{currency(report.budget)}</strong>
         </div>
         <div className="metric-card">
-          <span className="metric-label">Model version</span>
-          <strong>V{report.version}</strong>
+          <span className="metric-label">Confidence</span>
+          <strong>{report.prediction ? `${Math.round(report.prediction.confidence * 100)}%` : "Available in full report"}</strong>
         </div>
       </div>
 
       <p className="recommendation-copy">{report.recommendation.reason}</p>
 
-      {typeof report.recommendation.buyScore === "number" && (
-        <div className="score-band">
-          <div className="score-band-fill" style={{ width: `${Math.min(report.recommendation.buyScore, 100)}%` }} />
-          <div className="score-band-labels">
-            <span>Buy score {report.recommendation.buyScore.toFixed(2)}</span>
-            <span>
-              Threshold {typeof report.recommendation.buyThreshold === "number" ? report.recommendation.buyThreshold.toFixed(2) : "n/a"}
-            </span>
-          </div>
-        </div>
-      )}
+      <details className="simple-details">
+        <summary className="details-summary">
+          <span>See why this result was chosen</span>
+        </summary>
 
-      {report.prediction && (
-        <article className="mini-panel" style={{ marginTop: "1rem" }}>
-          <h4>How the analyst predicted this</h4>
-          <p className="text-muted" style={{ marginTop: "0.35rem" }}>
-            {predictionMethod}
-          </p>
-          {methodFactors.map((factor) => (
-            <p key={factor} className="text-muted">
-              {factor}
+        {typeof report.recommendation.buyScore === "number" && (
+          <div className="score-band">
+            <div className="score-band-fill" style={{ width: `${Math.min(report.recommendation.buyScore, 100)}%` }} />
+            <div className="score-band-labels">
+              <span>Score {report.recommendation.buyScore.toFixed(2)}</span>
+              <span>
+                Target {typeof report.recommendation.buyThreshold === "number" ? report.recommendation.buyThreshold.toFixed(2) : "n/a"}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {report.prediction && (
+          <article className="mini-panel" style={{ marginTop: "1rem" }}>
+            <h4>How the forecast was built</h4>
+            <p className="text-muted" style={{ marginTop: "0.35rem" }}>
+              {predictionMethod}
             </p>
-          ))}
-          {report.prediction.backtest && (
-            <p className="text-muted">
-              Backtest: {report.prediction.backtest.directionalAccuracyPct.toFixed(1)}% directional accuracy,{" "}
-              {report.prediction.backtest.maePct.toFixed(2)}% MAE over {Math.round(report.prediction.backtest.samples)} samples.
-            </p>
-          )}
-        </article>
-      )}
+            {methodFactors.map((factor) => (
+              <p key={factor} className="text-muted">
+                {factor}
+              </p>
+            ))}
+            {report.prediction.backtest && (
+              <p className="text-muted">
+                Past accuracy: {report.prediction.backtest.directionalAccuracyPct.toFixed(1)}% directionally correct and{" "}
+                {report.prediction.backtest.maePct.toFixed(2)}% average error across {Math.round(report.prediction.backtest.samples)} samples.
+              </p>
+            )}
+          </article>
+        )}
+      </details>
 
       <div className="tag-row">
         {report.sentiment && <SentimentBadge sentiment={report.sentiment} />}
         {report.prediction && (
           <span className="badge badge-ghost">
-            Analyst {report.prediction.trend} | {Math.round(report.prediction.confidence * 100)}%
+            Outlook {report.prediction.trend} | {Math.round(report.prediction.confidence * 100)}%
           </span>
         )}
       </div>
