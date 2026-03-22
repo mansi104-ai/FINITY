@@ -283,6 +283,10 @@ a {
   align-items: end;
 }
 
+.daily-routine-grid {
+  grid-template-columns: 1.4fr 1fr;
+}
+
 .report-board {
   display: grid;
   gap: 1.2rem;
@@ -491,6 +495,78 @@ a {
 .trade-ticket {
   background:
     linear-gradient(180deg, rgba(220, 232, 255, 0.82), rgba(255, 255, 255, 0.94));
+}
+
+.morning-brief-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 240, 168, 0.48), rgba(255, 255, 255, 0.94));
+}
+
+.radar-panel {
+  background:
+    linear-gradient(180deg, rgba(223, 245, 236, 0.72), rgba(255, 255, 255, 0.94));
+}
+
+.focus-list,
+.watchlist-grid {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.focus-card,
+.watchlist-card,
+.empty-state {
+  border: 1px solid rgba(32, 38, 58, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 0.95rem 1rem;
+  box-shadow: 0 12px 22px rgba(39, 53, 91, 0.08);
+}
+
+.focus-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.focus-card-top p {
+  margin: 0.2rem 0 0;
+}
+
+.focus-price {
+  margin: 0.75rem 0 0;
+  color: #20304d;
+  font-weight: 600;
+}
+
+.mini-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.inline-button {
+  min-height: 38px;
+  padding: 0.6rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(32, 38, 58, 0.08);
+  background: linear-gradient(135deg, #2d78ff, #1c58d6);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 18px rgba(39, 53, 91, 0.1);
+}
+
+.inline-button-muted {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+}
+
+.empty-state p {
+  margin-bottom: 0;
 }
 
 .quick-tools {
@@ -973,6 +1049,7 @@ a {
 
 @media (max-width: 960px) {
   .dashboard-grid,
+  .daily-routine-grid,
   .query-layout,
   .chart-shell,
   .report-board,

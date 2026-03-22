@@ -3,19 +3,26 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import MarketTickerStrip from "../components/MarketTickerStrip";
-import { sendQuery } from "../services/api";
-import type { QueryResponse, RiskProfile } from "../types";
+import { getMarketSnapshot, sendQuery } from "../services/api";
+import type { MarketSnapshot, QueryResponse, RiskProfile } from "../types";
 import AgentStatusCard from "../components/AgentStatusCard";
 import ReportCard from "../components/ReportCard";
 
 const LOCAL_SETTINGS_KEY = "finity-local-settings";
 const RECENT_SEARCHES_KEY = "finity-recent-searches";
+const WATCHLIST_KEY = "finity-watchlist";
 const MAX_RECENT_SEARCHES = 4;
+const MAX_WATCHLIST = 6;
 
 type RecentSearch = {
   label: string;
   query: string;
   ticker?: string;
+};
+
+type WatchlistEntry = {
+  ticker: string;
+  label: string;
 };
 
 const quickPrompts: Array<{ label: string; query: string; ticker?: string }> = [
@@ -35,9 +42,8 @@ const quickPrompts: Array<{ label: string; query: string; ticker?: string }> = [
     ticker: "MSFT"
   },
   {
-    label: "S&P 500 mood",
-    query: "How does the market mood look for the S&P 500 today?",
-    ticker: "SPY"
+    label: "Market mood",
+    query: "How does the market look today for regular investors?"
   }
 ];
 
@@ -69,6 +75,10 @@ function currency(value: number): string {
   }).format(value);
 }
 
+function formatSignedPercent(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
 function safeParseRecentSearches(raw: string | null): RecentSearch[] {
   if (!raw) {
     return [];
@@ -82,6 +92,27 @@ function safeParseRecentSearches(raw: string | null): RecentSearch[] {
   }
 }
 
+function safeParseWatchlist(raw: string | null): WatchlistEntry[] {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as WatchlistEntry[];
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_WATCHLIST) : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildTickerQuestion(ticker: string, label: string): string {
+  return `What is the outlook for ${label} (${ticker}) today?`;
+}
+
+function isMajorIndex(symbol: string): boolean {
+  return symbol.startsWith("^");
+}
+
 export default function QueryPage() {
   const [query, setQuery] = useState("");
   const [ticker, setTicker] = useState("");
@@ -89,6 +120,8 @@ export default function QueryPage() {
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("medium");
   const [version, setVersion] = useState(2);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
+  const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<QueryResponse | null>(null);
@@ -99,6 +132,61 @@ export default function QueryPage() {
     () => comfortOptions.find((option) => option.value === riskProfile)?.label ?? "Balanced",
     [riskProfile]
   );
+
+  const activeSymbol = useMemo(
+    () => (result?.report.ticker || ticker || placeholderTicker || "").trim().toUpperCase(),
+    [placeholderTicker, result?.report.ticker, ticker]
+  );
+
+  const activeSymbolSaved = useMemo(
+    () => watchlist.some((entry) => entry.ticker.toUpperCase() === activeSymbol),
+    [activeSymbol, watchlist]
+  );
+
+  const tradableTickers = useMemo(
+    () => marketSnapshot?.tickers.filter((item) => !isMajorIndex(item.symbol)) ?? [],
+    [marketSnapshot]
+  );
+
+  const movers = useMemo(() => {
+    return [...tradableTickers]
+      .sort((left, right) => Math.abs(right.changePercent) - Math.abs(left.changePercent))
+      .slice(0, 4);
+  }, [tradableTickers]);
+
+  const topGainer = useMemo(() => {
+    return [...tradableTickers].sort((left, right) => right.changePercent - left.changePercent)[0] ?? null;
+  }, [tradableTickers]);
+
+  const topLoser = useMemo(() => {
+    return [...tradableTickers].sort((left, right) => left.changePercent - right.changePercent)[0] ?? null;
+  }, [tradableTickers]);
+
+  const marketMood = useMemo(() => {
+    if (!marketSnapshot || marketSnapshot.tickers.length === 0) {
+      return "Waiting for market data";
+    }
+
+    const averageChange =
+      marketSnapshot.tickers.reduce((sum, item) => sum + item.changePercent, 0) / marketSnapshot.tickers.length;
+
+    if (averageChange > 0.25) {
+      return "Positive start";
+    }
+
+    if (averageChange < -0.25) {
+      return "Cautious tone";
+    }
+
+    return "Mixed market";
+  }, [marketSnapshot]);
+
+  const watchlistCards = useMemo(() => {
+    return watchlist.map((entry) => ({
+      ...entry,
+      quote: marketSnapshot?.tickers.find((item) => item.symbol.toUpperCase() === entry.ticker.toUpperCase()) ?? null
+    }));
+  }, [marketSnapshot, watchlist]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -121,6 +209,20 @@ export default function QueryPage() {
     }
 
     setRecentSearches(safeParseRecentSearches(window.localStorage.getItem(RECENT_SEARCHES_KEY)));
+    setWatchlist(safeParseWatchlist(window.localStorage.getItem(WATCHLIST_KEY)));
+  }, []);
+
+  useEffect(() => {
+    const loadSnapshot = async () => {
+      try {
+        const response = await getMarketSnapshot();
+        setMarketSnapshot(response);
+      } catch {
+        setMarketSnapshot(null);
+      }
+    };
+
+    void loadSnapshot();
   }, []);
 
   useEffect(() => {
@@ -151,9 +253,60 @@ export default function QueryPage() {
     window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
   };
 
+  const persistWatchlist = (next: WatchlistEntry[]) => {
+    setWatchlist(next);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(WATCHLIST_KEY, JSON.stringify(next));
+    }
+  };
+
+  const addToWatchlist = (entry: WatchlistEntry) => {
+    const normalizedTicker = entry.ticker.trim().toUpperCase();
+    if (!normalizedTicker) {
+      return;
+    }
+
+    const next = [
+      { ticker: normalizedTicker, label: entry.label || normalizedTicker },
+      ...watchlist.filter((item) => item.ticker.toUpperCase() !== normalizedTicker)
+    ].slice(0, MAX_WATCHLIST);
+
+    persistWatchlist(next);
+  };
+
+  const removeFromWatchlist = (symbol: string) => {
+    const normalizedTicker = symbol.trim().toUpperCase();
+    persistWatchlist(watchlist.filter((item) => item.ticker.toUpperCase() !== normalizedTicker));
+  };
+
+  const toggleCurrentSymbol = () => {
+    if (!activeSymbol) {
+      return;
+    }
+
+    if (activeSymbolSaved) {
+      removeFromWatchlist(activeSymbol);
+      return;
+    }
+
+    const marketLabel =
+      marketSnapshot?.tickers.find((item) => item.symbol.toUpperCase() === activeSymbol)?.name ??
+      result?.report.ticker ??
+      activeSymbol;
+
+    addToWatchlist({ ticker: activeSymbol, label: marketLabel });
+  };
+
   const applyPrompt = (prompt: { query: string; ticker?: string }) => {
     setQuery(prompt.query);
     setTicker(prompt.ticker ?? extractTicker(prompt.query));
+    setError("");
+  };
+
+  const applyTickerFocus = (item: { ticker: string; label: string }) => {
+    setQuery(buildTickerQuestion(item.ticker, item.label));
+    setTicker(item.ticker);
     setError("");
   };
 
@@ -213,6 +366,108 @@ export default function QueryPage() {
           </div>
         </div>
       </article>
+
+      <div className="grid daily-routine-grid">
+        <article className="card morning-brief-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Command Center</p>
+              <h2>What matters right now</h2>
+            </div>
+            <p className="text-muted">A quick dashboard for daily discovery, saved names, and one-tap follow-ups.</p>
+          </div>
+
+          <div className="grid grid-3">
+            <div className="metric-card">
+              <span className="metric-label">Market mood</span>
+              <strong>{marketMood}</strong>
+            </div>
+            <div className="metric-card">
+              <span className="metric-label">Best mover</span>
+              <strong>{topGainer ? `${topGainer.symbol} ${formatSignedPercent(topGainer.changePercent)}` : "Loading"}</strong>
+            </div>
+            <div className="metric-card">
+              <span className="metric-label">Weakest mover</span>
+              <strong>{topLoser ? `${topLoser.symbol} ${formatSignedPercent(topLoser.changePercent)}` : "Loading"}</strong>
+            </div>
+          </div>
+
+          <div className="focus-list">
+            {movers.map((item) => (
+              <article key={item.symbol} className="focus-card">
+                <div className="focus-card-top">
+                  <div>
+                    <strong>{item.symbol}</strong>
+                    <p className="text-muted">{item.name}</p>
+                  </div>
+                  <span className={item.changePercent >= 0 ? "trend-chip trend-up" : "trend-chip trend-down"}>
+                    {formatSignedPercent(item.changePercent)}
+                  </span>
+                </div>
+                <p className="focus-price">Last close {currency(item.lastClose)}</p>
+                <div className="mini-button-row">
+                  <button className="inline-button" onClick={() => applyTickerFocus({ ticker: item.symbol, label: item.name })} type="button">
+                    Use In Brief
+                  </button>
+                  <button className="inline-button inline-button-muted" onClick={() => addToWatchlist({ ticker: item.symbol, label: item.name })} type="button">
+                    Save To Radar
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </article>
+
+        <article className="card radar-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Saved Radar</p>
+              <h2>Your daily list</h2>
+            </div>
+            <p className="text-muted">Pin names you want to revisit every morning.</p>
+          </div>
+
+          {watchlistCards.length === 0 ? (
+            <div className="empty-state">
+              <strong>No saved names yet</strong>
+              <p className="text-muted">Use "Save To Radar" on a mover or after a search result to build your own daily dashboard.</p>
+            </div>
+          ) : (
+            <div className="watchlist-grid">
+              {watchlistCards.map((item) => (
+                <article key={item.ticker} className="watchlist-card">
+                  <div className="focus-card-top">
+                    <div>
+                      <strong>{item.ticker}</strong>
+                      <p className="text-muted">{item.label}</p>
+                    </div>
+                    {item.quote ? (
+                      <span className={item.quote.changePercent >= 0 ? "trend-chip trend-up" : "trend-chip trend-down"}>
+                        {formatSignedPercent(item.quote.changePercent)}
+                      </span>
+                    ) : (
+                      <span className="badge badge-ghost">Saved</span>
+                    )}
+                  </div>
+
+                  <p className="focus-price">
+                    {item.quote ? `Last close ${currency(item.quote.lastClose)}` : "Saved for quick one-tap access"}
+                  </p>
+
+                  <div className="mini-button-row">
+                    <button className="inline-button" onClick={() => applyTickerFocus({ ticker: item.ticker, label: item.label })} type="button">
+                      Open Brief
+                    </button>
+                    <button className="inline-button inline-button-muted" onClick={() => removeFromWatchlist(item.ticker)} type="button">
+                      Remove
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </article>
+      </div>
 
       <article className="card trade-ticket compact-ticket">
         <div className="section-heading">
@@ -359,7 +614,7 @@ export default function QueryPage() {
             </div>
             <div className="ticket-kpi">
               <span className="metric-label">Detected symbol</span>
-              <strong>{ticker || placeholderTicker || "We will detect it for you"}</strong>
+              <strong>{activeSymbol || "We will detect it for you"}</strong>
             </div>
           </div>
 
@@ -367,6 +622,11 @@ export default function QueryPage() {
             <button className="button button-primary" disabled={!query.trim() || running} type="submit">
               {running ? "Building your brief..." : "Get Today&apos;s Brief"}
             </button>
+            {activeSymbol && (
+              <button className="button button-secondary" onClick={toggleCurrentSymbol} type="button">
+                {activeSymbolSaved ? "Remove From Radar" : "Save To Radar"}
+              </button>
+            )}
             {result && (
               <Link className="button button-secondary" href={`/report/${result.reportId}`}>
                 Open Full Report

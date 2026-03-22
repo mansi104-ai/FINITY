@@ -1,8 +1,8 @@
 import type { AgentReport, MarketSnapshot, QueryResponse } from "../types";
 
-// Default to the live API in production-like environments, and tolerate accidental
-// whitespace in hosted env vars so browser fetches don't fail on malformed URLs.
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://server-gray-iota.vercel.app")
+// Prefer same-origin requests so deployed clients can use a rewrite/proxy and avoid
+// browser-side CORS/network failures. Keep the explicit backend URL as a fallback.
+const DIRECT_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://server-gray-iota.vercel.app")
   .trim()
   .replace(/\/$/, "");
 
@@ -13,19 +13,38 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-    cache: "no-store"
-  });
+  const candidates = Array.from(new Set(["", DIRECT_API_BASE_URL].filter(Boolean)));
+  let lastError: Error | null = null;
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = typeof data?.error === "string" ? data.error : "Request failed";
-    throw new Error(message);
+  for (const baseUrl of candidates) {
+    try {
+      const response = await fetch(`${baseUrl}${path}`, {
+        ...init,
+        headers,
+        cache: "no-store"
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = typeof data?.error === "string" ? data.error : "Request failed";
+        lastError = new Error(message);
+        continue;
+      }
+
+      return data as T;
+    } catch (error) {
+      lastError =
+        error instanceof Error
+          ? error
+          : new Error("Unable to reach the server right now. Please try again in a moment.");
+    }
   }
 
-  return data as T;
+  if (lastError?.message === "Failed to fetch") {
+    throw new Error("Unable to reach the analysis server right now. Please try again in a moment.");
+  }
+
+  throw lastError ?? new Error("Request failed");
 }
 
 export function sendQuery(payload: {
