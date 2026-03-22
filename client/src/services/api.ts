@@ -1,4 +1,4 @@
-import type { AgentReport, QueryResponse } from "../types";
+import type { AgentReport, MarketSnapshot, QueryResponse } from "../types";
 
 // Default to the live API in production-like environments, and tolerate accidental
 // whitespace in hosted env vars so browser fetches don't fail on malformed URLs.
@@ -47,4 +47,8 @@ export function getReport(reportId: string): Promise<{ report: AgentReport }> {
 
 export function getReports(): Promise<{ reports: AgentReport[] }> {
   return request("/api/reports");
+}
+
+export function getMarketSnapshot(): Promise<MarketSnapshot> {
+  return request("/api/market/snapshot");
 }

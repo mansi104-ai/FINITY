@@ -5,6 +5,7 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import authRoutes from "./routes/auth.routes";
+import marketRoutes from "./routes/market.routes";
 import profileRoutes from "./routes/profile.routes";
 import queryRoutes from "./routes/query.routes";
 import reportRoutes from "./routes/report.routes";
@@ -29,6 +30,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/market", marketRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/query", queryRoutes);
 app.use("/api/reports", reportRoutes);

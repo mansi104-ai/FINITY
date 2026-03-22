@@ -151,3 +151,23 @@ export interface QueryResponse {
   reportId: string;
   report: AgentReport;
 }
+
+export interface MarketSnapshotTicker {
+  symbol: string;
+  name: string;
+  lastClose: number;
+  changePercent: number;
+}
+
+export interface MarketSnapshot {
+  asOf: string;
+  market: {
+    isOpen: boolean;
+    phase: "open" | "closed";
+    label: string;
+    timezone: string;
+    sessionHours: string;
+  };
+  lastTradingDayLabel: string;
+  tickers: MarketSnapshotTicker[];
+}
