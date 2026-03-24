@@ -1,5 +1,12 @@
 import axios from "axios";
 import type { Request, Response } from "express";
+import {
+  getClientIp,
+  getGeolocationFromIP,
+  getMarketFromTimezone,
+  type StockMarket,
+  type GeoLocation
+} from "../utils/geolocation";
 
 const TRACKED_SYMBOLS = ["^GSPC", "^DJI", "^IXIC", "AAPL", "MSFT", "NVDA", "AMZN", "TSLA"] as const;
 const NEW_YORK_TIMEZONE = "America/New_York";
@@ -14,12 +21,18 @@ type YahooQuote = {
 
 type MarketSnapshotResponse = {
   asOf: string;
+  geoLocation: {
+    country: string;
+    countryCode: string;
+    timezone: string;
+  };
   market: {
     isOpen: boolean;
     phase: "open" | "closed";
     label: string;
     timezone: string;
     sessionHours: string;
+    market: string;
   };
   lastTradingDayLabel: string;
   tickers: Array<{
@@ -29,6 +42,38 @@ type MarketSnapshotResponse = {
     changePercent: number;
   }>;
 };
+
+function getMarketStatusForMarket(now: Date, market: StockMarket) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: market.timezone,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(now);
+
+  const weekday = parts.find((part) => part.type === "weekday")?.value ?? "Mon";
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? "0");
+
+  const dayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday);
+  const minutesFromMidnight = hour * 60 + minute;
+  const openMinutes = market.openHour * 60 + market.openMinute;
+  const closeMinutes = market.closeHour * 60 + market.closeMinute;
+  const isOpenDay = market.openDays.includes(dayIndex);
+  const isOpen = isOpenDay && minutesFromMidnight >= openMinutes && minutesFromMidnight < closeMinutes;
+
+  const timeStr = `${String(market.openHour).padStart(2, "0")}:${String(market.openMinute).padStart(2, "0")} - ${String(market.closeHour).padStart(2, "0")}:${String(market.closeMinute).padStart(2, "0")}`;
+
+  return {
+    isOpen,
+    phase: isOpen ? "open" : "closed",
+    label: isOpen ? `${market.label} is open` : `${market.label} is closed`,
+    timezone: market.timezone,
+    sessionHours: timeStr,
+    market: market.code
+  } as const;
+}
 
 function getNewYorkParts(now: Date): { weekday: string; hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -46,9 +91,9 @@ function getNewYorkParts(now: Date): { weekday: string; hour: number; minute: nu
   return { weekday, hour, minute };
 }
 
-function getLastTradingDayLabel(now: Date): string {
+function getLastTradingDayLabel(now: Date, timezone: string = NEW_YORK_TIMEZONE): string {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: NEW_YORK_TIMEZONE,
+    timeZone: timezone,
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -135,22 +180,39 @@ async function fetchQuotes(): Promise<MarketSnapshotResponse["tickers"]> {
   }));
 }
 
-export async function getMarketSnapshotController(_req: Request, res: Response) {
+export async function getMarketSnapshotController(req: Request, res: Response) {
   const now = new Date();
-  const market = getMarketStatus(now);
 
   try {
+    // Get user's IP and determine their location
+    const clientIp = getClientIp(req);
+    const geo = await getGeolocationFromIP(clientIp);
+    
+    // Get market status based on user's location
+    const market = getMarketStatusForMarket(now, geo.market);
+    
     const tickers = await fetchQuotes();
     return res.status(200).json({
       asOf: now.toISOString(),
+      geoLocation: {
+        country: geo.country,
+        countryCode: geo.countryCode,
+        timezone: geo.timezone
+      },
       market,
-      lastTradingDayLabel: getLastTradingDayLabel(now),
+      lastTradingDayLabel: getLastTradingDayLabel(now, geo.timezone),
       tickers
     } satisfies MarketSnapshotResponse);
   } catch (error) {
     console.warn("Falling back to static market snapshot", error);
+    const market = getMarketStatus(now);
     return res.status(200).json({
       asOf: now.toISOString(),
+      geoLocation: {
+        country: "United States",
+        countryCode: "US",
+        timezone: NEW_YORK_TIMEZONE
+      },
       market,
       lastTradingDayLabel: getLastTradingDayLabel(now),
       tickers: fallbackTickerData()

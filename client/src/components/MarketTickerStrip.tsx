@@ -47,6 +47,9 @@ export default function MarketTickerStrip() {
             <p>
               {snapshot.lastTradingDayLabel} close | {snapshot.market.sessionHours}
             </p>
+            <p style={{ fontSize: "0.75rem", color: "#687089", marginTop: "0.25rem" }}>
+              📍 {snapshot.geoLocation.country} ({snapshot.geoLocation.countryCode})
+            </p>
           </div>
         </div>
       </div>

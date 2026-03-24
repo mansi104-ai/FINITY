@@ -161,12 +161,18 @@ export interface MarketSnapshotTicker {
 
 export interface MarketSnapshot {
   asOf: string;
+  geoLocation: {
+    country: string;
+    countryCode: string;
+    timezone: string;
+  };
   market: {
     isOpen: boolean;
     phase: "open" | "closed";
     label: string;
     timezone: string;
     sessionHours: string;
+    market: string;
   };
   lastTradingDayLabel: string;
   tickers: MarketSnapshotTicker[];
