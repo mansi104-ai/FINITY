@@ -30,13 +30,13 @@ function areaPath(points: Point[], height: number): string {
 }
 
 export default function PriceChart({ prediction }: { prediction: PredictionResult }) {
-  const width = 720;
-  const height = 260;
-  const historyWidth = 430;
-  const forecastOffset = 400;
+  const width = 800;
+  const height = 320;
+  const historyWidth = 440;
+  const forecastOffset = 440;
   const historyPoints = toPoints(prediction.history, historyWidth, height);
   const forecastSeries = [prediction.history[prediction.history.length - 1], ...prediction.forecast];
-  const forecastPoints = toPoints(forecastSeries, width - forecastOffset - 24, height).map((point) => ({
+  const forecastPoints = toPoints(forecastSeries, width - forecastOffset - 40, height).map((point) => ({
     x: point.x + forecastOffset,
     y: point.y,
   }));
@@ -94,8 +94,10 @@ export default function PriceChart({ prediction }: { prediction: PredictionResul
         </div>
 
         <svg
-          viewBox={`0 0 ${width} ${height + 24}`}
+          viewBox={`0 0 ${width} ${height + 32}`}
           width="100%"
+          height="auto"
+          preserveAspectRatio="xMidYMid meet"
           className="market-chart"
           aria-label="Stock market style price chart"
         >
@@ -138,10 +140,10 @@ export default function PriceChart({ prediction }: { prediction: PredictionResul
             />
           )}
 
-          <text x="20" y={height + 18} className="chart-caption">
+          <text x="20" y={height + 22} className="chart-caption">
             Historical tape
           </text>
-          <text x={forecastOffset} y={height + 18} className="chart-caption">
+          <text x={forecastOffset} y={height + 22} className="chart-caption">
             Forward path
           </text>
         </svg>

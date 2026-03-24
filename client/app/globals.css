@@ -925,7 +925,7 @@ a {
 }
 
 .chart-panel {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .graph-toolbar {
@@ -980,6 +980,10 @@ a {
   grid-template-columns: 88px 1fr;
   gap: 0.75rem;
   align-items: stretch;
+  min-height: 400px;
+  padding: 0.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .chart-axis-labels {
@@ -993,6 +997,9 @@ a {
 
 .market-chart {
   overflow: visible;
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .chart-grid-line {
@@ -1067,6 +1074,10 @@ a {
 
   .chart-axis-labels {
     display: none;
+  }
+
+  .chart-shell {
+    min-height: 300px;
   }
 
   .analyst-workspace {
