@@ -61,7 +61,7 @@ function signToken(user: UserRecord, sessionId: string, type: TokenType): string
 
   return jwt.sign(payload, env.jwtSecret, {
     issuer: env.jwtIssuer,
-    audience: "finity-clients",
+    audience: "findec-clients",
     expiresIn: expiresInSeconds
   });
 }
@@ -169,7 +169,7 @@ authRoutes.post("/refresh", authSessionRateLimiter, async (req, res, next) => {
     try {
       const payload = jwt.verify(parsed.data.refreshToken, env.jwtSecret, {
         issuer: env.jwtIssuer,
-        audience: "finity-clients"
+        audience: "findec-clients"
       }) as JwtPayload;
 
       if (payload.typ !== "refresh") {

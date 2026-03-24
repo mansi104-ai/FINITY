@@ -1,4 +1,4 @@
-# FINITY
+# FINDEC
 
 Multi-Agent Finance Orchestrator with:
 - Next.js + TypeScript frontend

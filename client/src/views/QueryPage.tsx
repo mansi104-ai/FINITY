@@ -8,9 +8,9 @@ import type { MarketSnapshot, QueryResponse, RiskProfile } from "../types";
 import AgentStatusCard from "../components/AgentStatusCard";
 import ReportCard from "../components/ReportCard";
 
-const LOCAL_SETTINGS_KEY = "finity-local-settings";
-const RECENT_SEARCHES_KEY = "finity-recent-searches";
-const WATCHLIST_KEY = "finity-watchlist";
+const LOCAL_SETTINGS_KEY = "findec-local-settings";
+const RECENT_SEARCHES_KEY = "findec-recent-searches";
+const WATCHLIST_KEY = "findec-watchlist";
 const MAX_RECENT_SEARCHES = 4;
 const MAX_WATCHLIST = 6;
 
@@ -347,7 +347,7 @@ export default function QueryPage() {
           <p className="eyebrow">Daily Market Check-In</p>
           <h1 className="hero-title">Start the day with a simple answer.</h1>
           <p className="hero-copy">
-            Ask about a stock, fund, or company in plain English. FINITY turns it into a short daily brief with a clear
+            Ask about a stock, fund, or company in plain English. FINDEC turns it into a short daily brief with a clear
             next step.
           </p>
         </div>

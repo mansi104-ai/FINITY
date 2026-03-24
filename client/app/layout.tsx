@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <span className="brand-mark">F</span>
               <div className="brand-block">
                 <Link className="brand" href="/">
-                  FINITY
+                  FINDEC
                 </Link>
                 <p className="brand-copy">A simple daily market check-in, even if you are not an expert.</p>
               </div>

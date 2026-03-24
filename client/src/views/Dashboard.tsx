@@ -7,7 +7,7 @@ import type { AgentReport, RiskProfile } from "../types";
 import ReportCard from "../components/ReportCard";
 import WorkspaceGuide from "../components/WorkspaceGuide";
 
-const LOCAL_SETTINGS_KEY = "finity-local-settings";
+const LOCAL_SETTINGS_KEY = "findec-local-settings";
 
 function currency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -91,7 +91,7 @@ export default function Dashboard() {
           <p className="eyebrow">Workspace snapshot</p>
           <h2 style={{ marginTop: 0 }}>Control panel</h2>
           <p>
-            FINITY now opens directly into public analysis mode, so you can run market briefs without creating an account first.
+            FINDEC now opens directly into public analysis mode, so you can run market briefs without creating an account first.
           </p>
           <p className="text-muted">Budget: {currency(budget)}</p>
           <p className="text-muted">Risk profile: {riskProfile}</p>

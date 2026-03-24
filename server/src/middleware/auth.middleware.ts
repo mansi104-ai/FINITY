@@ -23,7 +23,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     // Every protected request must present a valid short-lived access token.
     const payload = jwt.verify(token, env.jwtSecret, {
       issuer: env.jwtIssuer,
-      audience: "finity-clients"
+      audience: "findec-clients"
     }) as AuthPayload;
 
     if (payload.typ !== "access") {

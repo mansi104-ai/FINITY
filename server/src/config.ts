@@ -14,9 +14,9 @@ function readNumber(value: string | undefined, fallback: number, key: string): n
 }
 
 const nodeEnv = process.env.NODE_ENV ?? "development";
-const jwtSecret = process.env.JWT_SECRET ?? "finity-dev-secret";
+const jwtSecret = process.env.JWT_SECRET ?? "findec-dev-secret";
 
-if (nodeEnv === "production" && jwtSecret === "finity-dev-secret") {
+if (nodeEnv === "production" && jwtSecret === "findec-dev-secret") {
   console.warn("WARNING: JWT_SECRET should be configured in production! Using fallback for now.");
 }
 
@@ -25,7 +25,7 @@ export const env = {
   isProduction: nodeEnv === "production",
   port: readNumber(process.env.PORT, 4000, "PORT"),
   jwtSecret,
-  jwtIssuer: process.env.JWT_ISSUER ?? "finity-server",
+  jwtIssuer: process.env.JWT_ISSUER ?? "findec-server",
   accessTokenTtlMinutes: readNumber(process.env.ACCESS_TOKEN_TTL_MINUTES, 15, "ACCESS_TOKEN_TTL_MINUTES"),
   refreshTokenTtlDays: readNumber(process.env.REFRESH_TOKEN_TTL_DAYS, 30, "REFRESH_TOKEN_TTL_DAYS"),
   pythonServiceUrl: process.env.PYTHON_SERVICE_URL ?? "http://localhost:8000/run",
@@ -34,5 +34,5 @@ export const env = {
   trustProxy: process.env.TRUST_PROXY === "true",
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
   mongodbUri: process.env.MONGODB_URI ?? "",
-  mongodbDbName: process.env.MONGODB_DB_NAME ?? "finity"
+  mongodbDbName: process.env.MONGODB_DB_NAME ?? "findec"
 };

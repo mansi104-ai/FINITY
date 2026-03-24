@@ -5,7 +5,7 @@ services:
     build:
       context: ./python_agents
       dockerfile: Dockerfile
-    container_name: finity-python-agents
+    container_name: findec-python-agents
     ports:
       - "8000:8000"
 
@@ -13,10 +13,10 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: finity-server
+    container_name: findec-server
     environment:
       PORT: 4000
-      JWT_SECRET: finity-local-secret
+      JWT_SECRET: findec-local-secret
       PYTHON_SERVICE_URL: http://python-agents:8000/run
       QUERY_LIMIT_PER_HOUR: 10
     ports:
@@ -28,7 +28,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: finity-client
+    container_name: findec-client
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:4000
     ports:

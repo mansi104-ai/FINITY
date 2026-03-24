@@ -29,7 +29,7 @@ export default function WorkspaceGuide() {
       <div className="section-heading">
         <div>
           <p className="eyebrow">Workspace Guide</p>
-          <h3>How to use FINITY</h3>
+          <h3>How to use FINDEC</h3>
         </div>
         <p className="text-muted">
           This product is organized as a simple workflow: thesis in, forecast out, evidence visible, capital rules applied.

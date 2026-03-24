@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { RiskProfile } from "../types";
 
-const LOCAL_SETTINGS_KEY = "finity-local-settings";
+const LOCAL_SETTINGS_KEY = "findec-local-settings";
 
 function currency(value: number): string {
   return new Intl.NumberFormat("en-US", {

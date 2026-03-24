@@ -21,7 +21,7 @@ async function getMongoDb(): Promise<Db | null> {
 
   if (!mongoDbPromise) {
     mongoDbPromise = MongoClient.connect(env.mongodbUri).then((client) =>
-      client.db(env.mongodbDbName || "finity"),
+      client.db(env.mongodbDbName || "findec"),
     );
   }
 
