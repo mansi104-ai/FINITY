@@ -1,5 +1,5 @@
-import QueryPage from "../src/views/QueryPage";
+import WorkspaceHome from "../src/views/WorkspaceHome";
 
 export default function HomePage() {
-  return <QueryPage />;
+  return <WorkspaceHome />;
 }
