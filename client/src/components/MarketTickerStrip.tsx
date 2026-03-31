@@ -41,14 +41,14 @@ export default function MarketTickerStrip() {
     <section className="market-strip-shell" aria-label="Market status and last close ticker tape">
       <div className="market-strip-header">
         <div className="market-status-card">
-          <span className={`market-dot market-dot-${snapshot.market.phase}`} aria-hidden="true" />
+          <span aria-hidden="true" className={`market-dot market-dot-${snapshot.market.phase}`} />
           <div>
             <strong>{snapshot.market.label}</strong>
             <p>
               {snapshot.lastTradingDayLabel} close | {snapshot.market.sessionHours}
             </p>
             <p style={{ fontSize: "0.75rem", color: "#687089", marginTop: "0.25rem" }}>
-              📍 {snapshot.geoLocation.country} ({snapshot.geoLocation.countryCode})
+              Location: {snapshot.geoLocation.country} ({snapshot.geoLocation.countryCode})
             </p>
           </div>
         </div>

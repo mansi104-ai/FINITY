@@ -159,6 +159,13 @@ export interface MarketSnapshotTicker {
   changePercent: number;
 }
 
+export interface FeaturedTicker {
+  symbol: string;
+  name: string;
+  exchange: string;
+  reason: string;
+}
+
 export interface MarketSnapshot {
   asOf: string;
   geoLocation: {
@@ -175,5 +182,6 @@ export interface MarketSnapshot {
     market: string;
   };
   lastTradingDayLabel: string;
+  featuredTickers: FeaturedTicker[];
   tickers: MarketSnapshotTicker[];
 }

@@ -1,6 +1,6 @@
 import QueryPage from "../../src/views/QueryPage";
 
-export default function QueryRoutePage({
+export default function BriefRoutePage({
   searchParams
 }: {
   searchParams?: { ticker?: string };

@@ -230,7 +230,7 @@ export default function WorkspaceHome() {
                 <h2>Where FINDEC wins the workflow</h2>
               </div>
               <Link className="button button-secondary workspace-inline-link" href="/query">
-                Open live query workspace
+                Open live brief
               </Link>
             </div>
 
@@ -270,6 +270,21 @@ export default function WorkspaceHome() {
                 </article>
               )}
             </div>
+
+            {marketSnapshot?.featuredTickers?.length ? (
+              <div className="workspace-country-strip">
+                {marketSnapshot.featuredTickers.map((item) => (
+                  <article className="workspace-country-card" key={item.symbol}>
+                    <span className="metric-label">{item.exchange}</span>
+                    <strong>{item.name}</strong>
+                    <p className="text-muted">{item.reason}</p>
+                    <Link className="inline-button" href={`/brief?ticker=${encodeURIComponent(item.symbol)}`}>
+                      Open brief
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            ) : null}
           </section>
         </div>
 
@@ -339,11 +354,11 @@ export default function WorkspaceHome() {
             </article>
 
             <div className="button-row">
-              <Link className="button button-primary" href="/query">
+              <Link className="button button-primary" href="/brief">
                 Start a live brief
               </Link>
-              <Link className="button button-secondary" href="/history">
-                View prior reports
+              <Link className="button button-secondary" href="/radar">
+                Open radar
               </Link>
             </div>
           </section>

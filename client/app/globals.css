@@ -1473,6 +1473,30 @@ html[data-theme="dark"] .chart-divider {
   margin-top: 1rem;
 }
 
+.workspace-country-strip {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 1rem;
+}
+
+.workspace-country-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 1rem;
+  background: rgba(17, 23, 38, 0.88);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+}
+
+.workspace-country-card strong {
+  display: block;
+  margin: 0.35rem 0 0.5rem;
+}
+
+.workspace-country-card p {
+  min-height: 3.2rem;
+}
+
 .workspace-ticker-card strong {
   display: block;
   margin: 0.35rem 0;

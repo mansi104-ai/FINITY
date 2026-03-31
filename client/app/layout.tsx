@@ -24,8 +24,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link className="badge badge-ghost" href="/">
                 Workspace
               </Link>
+              <Link className="badge badge-ghost" href="/radar">
+                Radar
+              </Link>
+              <Link className="badge badge-ghost" href="/brief">
+                Brief
+              </Link>
+              <Link className="badge badge-ghost" href="/report">
+                Report
+              </Link>
               <Link className="badge badge-ghost" href="/query">
-                Query
+                Legacy Brief
               </Link>
               <Link className="badge badge-ghost" href="/history">
                 History

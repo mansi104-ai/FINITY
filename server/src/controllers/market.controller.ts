@@ -35,6 +35,12 @@ type MarketSnapshotResponse = {
     market: string;
   };
   lastTradingDayLabel: string;
+  featuredTickers: Array<{
+    symbol: string;
+    name: string;
+    exchange: string;
+    reason: string;
+  }>;
   tickers: Array<{
     symbol: string;
     name: string;
@@ -42,6 +48,46 @@ type MarketSnapshotResponse = {
     changePercent: number;
   }>;
 };
+
+const COUNTRY_FEATURED_TICKERS: Record<
+  string,
+  Array<{
+    symbol: string;
+    name: string;
+    exchange: string;
+    reason: string;
+  }>
+> = {
+  IN: [
+    { symbol: "RELIANCE.NS", name: "Reliance Industries", exchange: "NSE", reason: "Energy, telecom, and retail exposure for Indian large-cap investors." },
+    { symbol: "TCS.NS", name: "Tata Consultancy Services", exchange: "NSE", reason: "A core Indian IT bellwether with global services revenue." },
+    { symbol: "HDFCBANK.NS", name: "HDFC Bank", exchange: "NSE", reason: "A widely tracked private bank tied to domestic credit growth." }
+  ],
+  US: [
+    { symbol: "AAPL", name: "Apple", exchange: "NASDAQ", reason: "A mega-cap technology name often used as a baseline US quality stock." },
+    { symbol: "MSFT", name: "Microsoft", exchange: "NASDAQ", reason: "Cloud and AI exposure with strong balance-sheet quality." },
+    { symbol: "NVDA", name: "NVIDIA", exchange: "NASDAQ", reason: "One of the highest-conviction AI infrastructure names in the US market." }
+  ],
+  GB: [
+    { symbol: "SHEL.L", name: "Shell", exchange: "LSE", reason: "A major UK-listed global energy company." },
+    { symbol: "AZN.L", name: "AstraZeneca", exchange: "LSE", reason: "A flagship UK healthcare and pharma stock." },
+    { symbol: "HSBA.L", name: "HSBC", exchange: "LSE", reason: "A large international bank commonly followed by UK investors." }
+  ],
+  JP: [
+    { symbol: "7203.T", name: "Toyota Motor", exchange: "TSE", reason: "A core Japanese industrial and auto exporter." },
+    { symbol: "6758.T", name: "Sony Group", exchange: "TSE", reason: "Broad Japanese consumer tech and entertainment exposure." },
+    { symbol: "9984.T", name: "SoftBank Group", exchange: "TSE", reason: "A high-beta Japanese name linked to technology investing." }
+  ],
+  CN: [
+    { symbol: "600519.SS", name: "Kweichow Moutai", exchange: "SSE", reason: "A flagship mainland consumer stock with strong domestic recognition." },
+    { symbol: "601318.SS", name: "Ping An Insurance", exchange: "SSE", reason: "A major Chinese financial services name." },
+    { symbol: "600036.SS", name: "China Merchants Bank", exchange: "SSE", reason: "A frequently followed banking stock in China." }
+  ]
+};
+
+function getFeaturedTickersForCountry(countryCode: string) {
+  return COUNTRY_FEATURED_TICKERS[countryCode] ?? COUNTRY_FEATURED_TICKERS.US;
+}
 
 function getMarketStatusForMarket(now: Date, market: StockMarket) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -140,7 +186,8 @@ function getMarketStatus(now: Date) {
     phase: isOpen ? "open" : "closed",
     label: isOpen ? "US market is open" : "US market is closed",
     timezone: NEW_YORK_TIMEZONE,
-    sessionHours: "9:30 AM - 4:00 PM ET"
+    sessionHours: "9:30 AM - 4:00 PM ET",
+    market: "NYSE"
   } as const;
 }
 
@@ -201,6 +248,7 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
       },
       market,
       lastTradingDayLabel: getLastTradingDayLabel(now, geo.timezone),
+      featuredTickers: getFeaturedTickersForCountry(geo.countryCode),
       tickers
     } satisfies MarketSnapshotResponse);
   } catch (error) {
@@ -215,6 +263,7 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
       },
       market,
       lastTradingDayLabel: getLastTradingDayLabel(now),
+      featuredTickers: getFeaturedTickersForCountry("US"),
       tickers: fallbackTickerData()
     } satisfies MarketSnapshotResponse);
   }

@@ -113,7 +113,7 @@ function isMajorIndex(symbol: string): boolean {
   return symbol.startsWith("^");
 }
 
-export default function QueryPage() {
+export default function QueryPage({ initialTicker = "" }: { initialTicker?: string }) {
   const [query, setQuery] = useState("");
   const [ticker, setTicker] = useState("");
   const [budget, setBudget] = useState(10000);
@@ -211,6 +211,17 @@ export default function QueryPage() {
     setRecentSearches(safeParseRecentSearches(window.localStorage.getItem(RECENT_SEARCHES_KEY)));
     setWatchlist(safeParseWatchlist(window.localStorage.getItem(WATCHLIST_KEY)));
   }, []);
+
+  useEffect(() => {
+    const normalizedTicker = initialTicker.trim().toUpperCase();
+    if (!normalizedTicker) {
+      return;
+    }
+
+    setTicker(normalizedTicker);
+    setQuery((current) => current || `Build a market brief for ${normalizedTicker} and explain the key drivers today.`);
+    setError("");
+  }, [initialTicker]);
 
   useEffect(() => {
     const loadSnapshot = async () => {
