@@ -1,11 +1,20 @@
 # FINDEC
 
+Current workspace milestone: `v0.0.2`
+
 Multi-Agent Finance Orchestrator with:
 - Next.js + TypeScript frontend
 - Node.js + Express + TypeScript backend
 - Python FastAPI multi-agent ML service
 
 ## Versioned Build Roadmap
+
+### v0.0.2 UI Direction
+
+- New workspace home focused on "Conversational Dashboarding"
+- Split-pane architecture with a contextual AI copilot sidebar
+- Dark pro palette for a more terminal-like investing workspace
+- Visual-first morning dashboard to reduce metric overload
 
 1. Version 1: Frontend + Agent 1 (Researcher sentiment)
 2. Version 2: Add Agent 2 (Analyst prediction)

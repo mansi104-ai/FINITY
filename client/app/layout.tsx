@@ -7,7 +7,7 @@ import "./globals.css";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html data-theme="dark" lang="en">
       <body>
         <header className="topbar">
           <div className="container topbar-inner">
@@ -17,12 +17,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <Link className="brand" href="/">
                   FINDEC
                 </Link>
-                <p className="brand-copy">A simple daily market check-in, even if you are not an expert.</p>
+                <p className="brand-copy">Conversational dashboarding for AI-assisted investing decisions.</p>
               </div>
             </div>
             <div className="topbar-actions">
-              <span className="badge badge-ghost">Daily Use</span>
-              <span className="badge badge-ghost">Plain English</span>
+              <Link className="badge badge-ghost" href="/">
+                Workspace
+              </Link>
+              <Link className="badge badge-ghost" href="/query">
+                Query
+              </Link>
+              <Link className="badge badge-ghost" href="/history">
+                History
+              </Link>
+              <span className="badge badge-ghost">v0.0.2</span>
             </div>
           </div>
         </header>
