@@ -61,6 +61,14 @@ a {
   padding: 1.25rem 1.35rem 2rem;
 }
 
+.global-market-strip {
+  padding-bottom: 0;
+}
+
+.app-main {
+  padding-top: 0.75rem;
+}
+
 .topbar {
   position: sticky;
   top: 0;

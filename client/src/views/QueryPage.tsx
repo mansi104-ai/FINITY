@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import MarketTickerStrip from "../components/MarketTickerStrip";
 import { getMarketSnapshot, sendQuery } from "../services/api";
 import type { MarketSnapshot, QueryResponse, RiskProfile } from "../types";
 import AgentStatusCard from "../components/AgentStatusCard";
@@ -351,8 +350,6 @@ export default function QueryPage({ initialTicker = "" }: { initialTicker?: stri
 
   return (
     <section className="grid page-shell">
-      <MarketTickerStrip />
-
       <article className="hero-panel">
         <div>
           <p className="eyebrow">Daily Market Check-In</p>
