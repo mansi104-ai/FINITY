@@ -22,6 +22,13 @@ export interface StockMarket {
   label: string;
 }
 
+type RequestLike = {
+  headers: Record<string, string | string[] | undefined>;
+  socket?: {
+    remoteAddress?: string;
+  };
+};
+
 // Market definitions by timezone
 const MARKET_DEFINITIONS: Record<string, StockMarket> = {
   "Asia/Kolkata": {
@@ -115,6 +122,35 @@ export function getClientIp(req: any): string {
   return req.socket.remoteAddress || "127.0.0.1";
 }
 
+function getHeaderValue(req: RequestLike, key: string): string | undefined {
+  const value = req.headers[key];
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return typeof value === "string" ? value : undefined;
+}
+
+export function getGeolocationFromHeaders(req: RequestLike): GeoLocation | null {
+  const countryCode = (getHeaderValue(req, "x-vercel-ip-country") || getHeaderValue(req, "cf-ipcountry") || "").trim().toUpperCase();
+  const timezoneHeader = (getHeaderValue(req, "x-vercel-ip-timezone") || "").trim();
+  const country = (getHeaderValue(req, "x-vercel-ip-country-region") || "").trim();
+
+  if (!countryCode) {
+    return null;
+  }
+
+  const timezone = COUNTRY_TO_TIMEZONE[countryCode] || timezoneHeader || "America/New_York";
+  const market = MARKET_DEFINITIONS[timezone] || MARKET_DEFINITIONS["America/New_York"]!;
+
+  return {
+    country: country || countryCode,
+    countryCode,
+    timezone,
+    market
+  };
+}
+
 /**
  * Get geolocation from IP (using free GeoIP service)
  * In production, use a proper service like MaxMind GeoIP2 for accuracy
@@ -158,6 +194,15 @@ export async function getGeolocationFromIP(ip: string): Promise<GeoLocation> {
     console.warn("Geolocation lookup failed, using default:", error);
     return getDefaultGeolocation();
   }
+}
+
+export async function getGeolocation(req: RequestLike): Promise<GeoLocation> {
+  const headerGeo = getGeolocationFromHeaders(req);
+  if (headerGeo) {
+    return headerGeo;
+  }
+
+  return getGeolocationFromIP(getClientIp(req));
 }
 
 /**

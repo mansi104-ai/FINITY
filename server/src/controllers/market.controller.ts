@@ -1,15 +1,19 @@
 import axios from "axios";
 import type { Request, Response } from "express";
 import {
-  getClientIp,
-  getGeolocationFromIP,
-  getMarketFromTimezone,
+  getGeolocation,
   type StockMarket,
   type GeoLocation
 } from "../utils/geolocation";
 
-const TRACKED_SYMBOLS = ["^GSPC", "^DJI", "^IXIC", "AAPL", "MSFT", "NVDA", "AMZN", "TSLA"] as const;
 const NEW_YORK_TIMEZONE = "America/New_York";
+const COUNTRY_TRACKED_SYMBOLS: Record<string, string[]> = {
+  IN: ["^NSEI", "^BSESN", "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "SBIN.NS"],
+  US: ["^GSPC", "^DJI", "^IXIC", "AAPL", "MSFT", "NVDA", "AMZN", "TSLA"],
+  GB: ["^FTSE", "SHEL.L", "AZN.L", "HSBA.L", "BP.L", "ULVR.L"],
+  JP: ["^N225", "7203.T", "6758.T", "9984.T", "6501.T", "8306.T"],
+  CN: ["000001.SS", "399001.SZ", "600519.SS", "601318.SS", "600036.SS", "601888.SS"]
+};
 
 type YahooQuote = {
   symbol?: string;
@@ -87,6 +91,10 @@ const COUNTRY_FEATURED_TICKERS: Record<
 
 function getFeaturedTickersForCountry(countryCode: string) {
   return COUNTRY_FEATURED_TICKERS[countryCode] ?? COUNTRY_FEATURED_TICKERS.US;
+}
+
+function getTrackedSymbolsForCountry(countryCode: string) {
+  return COUNTRY_TRACKED_SYMBOLS[countryCode] ?? COUNTRY_TRACKED_SYMBOLS.US;
 }
 
 function getMarketStatusForMarket(now: Date, market: StockMarket) {
@@ -191,7 +199,20 @@ function getMarketStatus(now: Date) {
   } as const;
 }
 
-function fallbackTickerData(): MarketSnapshotResponse["tickers"] {
+function fallbackTickerData(countryCode: string): MarketSnapshotResponse["tickers"] {
+  if (countryCode === "IN") {
+    return [
+      { symbol: "^NSEI", name: "Nifty 50", lastClose: 22463.3, changePercent: 0.58 },
+      { symbol: "^BSESN", name: "Sensex", lastClose: 73902.1, changePercent: 0.52 },
+      { symbol: "RELIANCE.NS", name: "Reliance Industries", lastClose: 2988.4, changePercent: 0.84 },
+      { symbol: "TCS.NS", name: "Tata Consultancy Services", lastClose: 4012.3, changePercent: 0.44 },
+      { symbol: "HDFCBANK.NS", name: "HDFC Bank", lastClose: 1548.6, changePercent: -0.12 },
+      { symbol: "INFY.NS", name: "Infosys", lastClose: 1499.8, changePercent: 0.63 },
+      { symbol: "ICICIBANK.NS", name: "ICICI Bank", lastClose: 1087.5, changePercent: 0.38 },
+      { symbol: "SBIN.NS", name: "State Bank of India", lastClose: 781.2, changePercent: -0.21 }
+    ];
+  }
+
   return [
     { symbol: "^GSPC", name: "S&P 500", lastClose: 5224.62, changePercent: 0.42 },
     { symbol: "^DJI", name: "Dow Jones", lastClose: 39214.15, changePercent: 0.31 },
@@ -204,8 +225,8 @@ function fallbackTickerData(): MarketSnapshotResponse["tickers"] {
   ];
 }
 
-async function fetchQuotes(): Promise<MarketSnapshotResponse["tickers"]> {
-  const symbols = TRACKED_SYMBOLS.join(",");
+async function fetchQuotes(symbolsToTrack: string[]): Promise<MarketSnapshotResponse["tickers"]> {
+  const symbols = symbolsToTrack.join(",");
   const response = await axios.get<{ quoteResponse?: { result?: YahooQuote[] } }>(
     "https://query1.finance.yahoo.com/v7/finance/quote",
     {
@@ -229,16 +250,29 @@ async function fetchQuotes(): Promise<MarketSnapshotResponse["tickers"]> {
 
 export async function getMarketSnapshotController(req: Request, res: Response) {
   const now = new Date();
+  const defaultGeo: GeoLocation = {
+    country: "United States",
+    countryCode: "US",
+    timezone: NEW_YORK_TIMEZONE,
+    market: {
+      name: "New York Stock Exchange",
+      code: "NYSE",
+      timezone: NEW_YORK_TIMEZONE,
+      openHour: 9,
+      openMinute: 30,
+      closeHour: 16,
+      closeMinute: 0,
+      openDays: [1, 2, 3, 4, 5],
+      label: "US market"
+    }
+  };
+  let geo = defaultGeo;
 
   try {
-    // Get user's IP and determine their location
-    const clientIp = getClientIp(req);
-    const geo = await getGeolocationFromIP(clientIp);
+    geo = await getGeolocation(req);
     
-    // Get market status based on user's location
     const market = getMarketStatusForMarket(now, geo.market);
-    
-    const tickers = await fetchQuotes();
+    const tickers = await fetchQuotes(getTrackedSymbolsForCountry(geo.countryCode));
     return res.status(200).json({
       asOf: now.toISOString(),
       geoLocation: {
@@ -253,18 +287,18 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
     } satisfies MarketSnapshotResponse);
   } catch (error) {
     console.warn("Falling back to static market snapshot", error);
-    const market = getMarketStatus(now);
+    const market = getMarketStatusForMarket(now, geo.market);
     return res.status(200).json({
       asOf: now.toISOString(),
       geoLocation: {
-        country: "United States",
-        countryCode: "US",
-        timezone: NEW_YORK_TIMEZONE
+        country: geo.country,
+        countryCode: geo.countryCode,
+        timezone: geo.timezone
       },
       market,
-      lastTradingDayLabel: getLastTradingDayLabel(now),
-      featuredTickers: getFeaturedTickersForCountry("US"),
-      tickers: fallbackTickerData()
+      lastTradingDayLabel: getLastTradingDayLabel(now, geo.timezone),
+      featuredTickers: getFeaturedTickersForCountry(geo.countryCode),
+      tickers: fallbackTickerData(geo.countryCode)
     } satisfies MarketSnapshotResponse);
   }
 }
