@@ -19,6 +19,27 @@
   --board-paper: #fffaf2;
 }
 
+[data-theme='dark'] {
+  --bg: #0B0E14;
+  --bg-elevated: #11151f;
+  --card: rgba(18, 24, 39, 0.94);
+  --card-strong: #161c2a;
+  --text: #f0f3ff;
+  --muted: #8b96b3;
+  --primary: #246bff;
+  --primary-strong: #3d7eff;
+  --success: #00C805;
+  --warning: #f2b327;
+  --danger: #FF5000;
+  --border: rgba(255, 255, 255, 0.12);
+  --shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
+  --board-blue: #1c2a4d;
+  --board-yellow: #3d3111;
+  --board-mint: #173d2f;
+  --board-coral: #3d221c;
+  --board-paper: #161a29;
+}
+
 * {
   box-sizing: border-box;
 }
