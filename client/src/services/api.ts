@@ -89,7 +89,7 @@ export function sendQuery(payload: {
   riskProfile?: "low" | "medium" | "high";
   version: number;
 }): Promise<QueryResponse> {
-  return request("/api/query", {
+  return request<QueryResponse>("/api/query", {
     method: "POST",
     body: JSON.stringify(payload)
   }).then((response) => {
@@ -120,9 +120,9 @@ export async function getReport(reportId: string): Promise<{ report: AgentReport
 }
 
 export function getReports(): Promise<{ reports: AgentReport[] }> {
-  return request("/api/reports");
+  return request<{ reports: AgentReport[] }>("/api/reports");
 }
 
 export function getMarketSnapshot(): Promise<MarketSnapshot> {
-  return request("/api/market/snapshot");
+  return request<MarketSnapshot>("/api/market/snapshot");
 }
