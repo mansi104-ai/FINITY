@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getMarketSnapshot } from "../services/api";
 import type { MarketSnapshot } from "../types";
 
@@ -16,6 +17,7 @@ function pct(value: number): string {
 }
 
 export default function MarketTickerStrip() {
+  const router = useRouter();
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
 
   useEffect(() => {
@@ -57,7 +59,20 @@ export default function MarketTickerStrip() {
       <div className="ticker-marquee">
         <div className="ticker-track">
           {doubledTickers.map((ticker, index) => (
-            <article className="ticker-chip" key={`${ticker.symbol}-${index}`}>
+            <article 
+              className="ticker-chip" 
+              key={`${ticker.symbol}-${index}`}
+              onClick={() => router.push(`/brief?ticker=${ticker.symbol}`)}
+              style={{ cursor: "pointer" }}
+              title={`View ${ticker.name} brief`}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  router.push(`/brief?ticker=${ticker.symbol}`);
+                }
+              }}
+            >
               <strong>{ticker.symbol.replace("^", "")}</strong>
               <span>{price(ticker.lastClose)}</span>
               <span className={ticker.changePercent >= 0 ? "ticker-up" : "ticker-down"}>{pct(ticker.changePercent)}</span>

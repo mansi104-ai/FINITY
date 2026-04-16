@@ -6,6 +6,41 @@ const DIRECT_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://server-
   .trim()
   .replace(/\/$/, "");
 
+const REPORTS_CACHE_KEY = "findec-reports-cache";
+
+function getCachedReport(reportId: string): AgentReport | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const cache = window.localStorage.getItem(REPORTS_CACHE_KEY);
+    if (!cache) {
+      return null;
+    }
+
+    const reports = JSON.parse(cache) as Record<string, AgentReport>;
+    return reports[reportId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheReport(report: AgentReport): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const cache = window.localStorage.getItem(REPORTS_CACHE_KEY);
+    const reports = cache ? (JSON.parse(cache) as Record<string, AgentReport>) : {};
+    reports[report.id] = report;
+    window.localStorage.setItem(REPORTS_CACHE_KEY, JSON.stringify(reports));
+  } catch {
+    // Silently ignore cache errors
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
 
@@ -57,11 +92,31 @@ export function sendQuery(payload: {
   return request("/api/query", {
     method: "POST",
     body: JSON.stringify(payload)
+  }).then((response) => {
+    // Cache the report when it's generated
+    if (response.report) {
+      cacheReport(response.report);
+    }
+    return response;
   });
 }
 
-export function getReport(reportId: string): Promise<{ report: AgentReport }> {
-  return request(`/api/reports/${reportId}`);
+export async function getReport(reportId: string): Promise<{ report: AgentReport }> {
+  try {
+    const response = await request<{ report: AgentReport }>(`/api/reports/${reportId}`);
+    // Cache successful responses
+    if (response.report) {
+      cacheReport(response.report);
+    }
+    return response;
+  } catch (error) {
+    // Fall back to cached report if server request fails
+    const cached = getCachedReport(reportId);
+    if (cached) {
+      return { report: cached };
+    }
+    throw error;
+  }
 }
 
 export function getReports(): Promise<{ reports: AgentReport[] }> {

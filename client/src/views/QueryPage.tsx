@@ -112,7 +112,7 @@ function isMajorIndex(symbol: string): boolean {
   return symbol.startsWith("^");
 }
 
-export default function QueryPage({ initialTicker = "" }: { initialTicker?: string }) {
+export default function QueryPage({ initialTicker = "", initialQuery = "" }: { initialTicker?: string; initialQuery?: string }) {
   const [query, setQuery] = useState("");
   const [ticker, setTicker] = useState("");
   const [budget, setBudget] = useState(10000);
@@ -127,11 +127,6 @@ export default function QueryPage({ initialTicker = "" }: { initialTicker?: stri
 
   const placeholderTicker = useMemo(() => extractTicker(query), [query]);
   const allocationHint = useMemo(() => Math.round(budget * 0.08), [budget]);
-  const comfortLabel = useMemo(
-    () => comfortOptions.find((option) => option.value === riskProfile)?.label ?? "Balanced",
-    [riskProfile]
-  );
-
   const activeSymbol = useMemo(
     () => (result?.report.ticker || ticker || placeholderTicker || "").trim().toUpperCase(),
     [placeholderTicker, result?.report.ticker, ticker]
@@ -221,6 +216,17 @@ export default function QueryPage({ initialTicker = "" }: { initialTicker?: stri
     setQuery((current) => current || `Build a market brief for ${normalizedTicker} and explain the key drivers today.`);
     setError("");
   }, [initialTicker]);
+
+  useEffect(() => {
+    const trimmedQuery = initialQuery.trim();
+    if (!trimmedQuery) {
+      return;
+    }
+
+    setQuery(trimmedQuery);
+    setTicker((current) => current || extractTicker(trimmedQuery));
+    setError("");
+  }, [initialQuery]);
 
   useEffect(() => {
     const loadSnapshot = async () => {
@@ -350,95 +356,18 @@ export default function QueryPage({ initialTicker = "" }: { initialTicker?: stri
 
   return (
     <section className="grid page-shell">
-      <article className="hero-panel">
-        <div>
-          <p className="eyebrow">Daily Market Check-In</p>
-          <h1 className="hero-title">Start the day with a simple answer.</h1>
-          <p className="hero-copy">
-            Ask about a stock, fund, or company in plain English. FINDEC turns it into a short daily brief with a clear
-            next step.
-          </p>
-        </div>
-        <div className="hero-strip">
-          <div className="metric-card">
-            <span className="metric-label">Speak naturally</span>
-            <strong>Company names work too</strong>
-          </div>
-          <div className="metric-card">
-            <span className="metric-label">Comfort level</span>
-            <strong>{comfortLabel}</strong>
-          </div>
-          <div className="metric-card">
-            <span className="metric-label">Starter amount</span>
-            <strong>{currency(allocationHint)}</strong>
-          </div>
-        </div>
-      </article>
-
       <div className="grid daily-routine-grid">
-        <article className="card morning-brief-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Command Center</p>
-              <h2>What matters right now</h2>
-            </div>
-            <p className="text-muted">A quick dashboard for daily discovery, saved names, and one-tap follow-ups.</p>
-          </div>
-
-          <div className="grid grid-3">
-            <div className="metric-card">
-              <span className="metric-label">Market mood</span>
-              <strong>{marketMood}</strong>
-            </div>
-            <div className="metric-card">
-              <span className="metric-label">Best mover</span>
-              <strong>{topGainer ? `${topGainer.symbol} ${formatSignedPercent(topGainer.changePercent)}` : "Loading"}</strong>
-            </div>
-            <div className="metric-card">
-              <span className="metric-label">Weakest mover</span>
-              <strong>{topLoser ? `${topLoser.symbol} ${formatSignedPercent(topLoser.changePercent)}` : "Loading"}</strong>
-            </div>
-          </div>
-
-          <div className="focus-list">
-            {movers.map((item) => (
-              <article key={item.symbol} className="focus-card">
-                <div className="focus-card-top">
-                  <div>
-                    <strong>{item.symbol}</strong>
-                    <p className="text-muted">{item.name}</p>
-                  </div>
-                  <span className={item.changePercent >= 0 ? "trend-chip trend-up" : "trend-chip trend-down"}>
-                    {formatSignedPercent(item.changePercent)}
-                  </span>
-                </div>
-                <p className="focus-price">Last close {currency(item.lastClose)}</p>
-                <div className="mini-button-row">
-                  <button className="inline-button" onClick={() => applyTickerFocus({ ticker: item.symbol, label: item.name })} type="button">
-                    Use In Brief
-                  </button>
-                  <button className="inline-button inline-button-muted" onClick={() => addToWatchlist({ ticker: item.symbol, label: item.name })} type="button">
-                    Save To Radar
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </article>
-
         <article className="card radar-panel">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Saved Radar</p>
-              <h2>Your daily list</h2>
+              <h2>Your list</h2>
             </div>
-            <p className="text-muted">Pin names you want to revisit every morning.</p>
           </div>
 
           {watchlistCards.length === 0 ? (
             <div className="empty-state">
               <strong>No saved names yet</strong>
-              <p className="text-muted">Use "Save To Radar" on a mover or after a search result to build your own daily dashboard.</p>
             </div>
           ) : (
             <div className="watchlist-grid">
@@ -481,9 +410,8 @@ export default function QueryPage({ initialTicker = "" }: { initialTicker?: stri
         <div className="section-heading">
           <div>
             <p className="eyebrow">Today&apos;s Question</p>
-            <h2>Your daily brief</h2>
+            <h2>Your brief</h2>
           </div>
-          <p className="text-muted">Use one tap to start, or ask your own question below.</p>
         </div>
 
         <div className="quick-tools">
@@ -536,7 +464,6 @@ export default function QueryPage({ initialTicker = "" }: { initialTicker?: stri
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
-            <p className="form-hint">You can type a company name, ticker, or a full question. Example: Apple, TSLA, or "Should I buy Nvidia now?"</p>
           </div>
 
           <div className="grid grid-2 compact-grid">

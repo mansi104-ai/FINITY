@@ -122,12 +122,29 @@ export default function PredictionDriverGraph({ report }: { report: AgentReport 
     }));
 
     const sorted = resources.sort((a, b) => b.relevance - a.relevance);
+    const fallbackFactors =
+      report.prediction?.methodFactors ??
+      report.prediction?.signals ??
+      report.recommendation.decisionTrace?.map((entry) => entry.outcome) ??
+      [];
+    const driverItems =
+      sorted.length > 0
+        ? sorted
+        : fallbackFactors.slice(0, 5).map((factor, index) => ({
+            resource: {
+              title: factor,
+              source: "Model driver",
+              publishedAt: report.createdAt,
+              snippet: factor,
+            },
+            relevance: Math.max(0.22, 0.58 - index * 0.07),
+          }));
     const nodes: NodePoint[] = [predictionNode];
     const edges: Edge[] = [];
     const ringRadius = 176;
 
-    sorted.forEach(({ resource, relevance }, index) => {
-      const angle = (-Math.PI / 2) + (index / Math.max(sorted.length, 1)) * Math.PI * 2;
+    driverItems.forEach(({ resource, relevance }, index) => {
+      const angle = (-Math.PI / 2) + (index / Math.max(driverItems.length, 1)) * Math.PI * 2;
       const node: NodePoint = {
         id: `resource-${index}`,
         label: truncate(resource.title, 42),
@@ -250,6 +267,11 @@ export default function PredictionDriverGraph({ report }: { report: AgentReport 
           )}
         </aside>
       </div>
+      {graph.edges.length === 0 && (
+        <p className="text-muted graph-empty-note">
+          Driver details will appear when the report includes forecast factors or research resources.
+        </p>
+      )}
     </section>
   );
 }
