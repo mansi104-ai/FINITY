@@ -1,5 +1,5 @@
-import ReportsIndex from "../../src/views/ReportsIndex";
+import { redirect } from "next/navigation";
 
 export default function ReportIndexPage() {
-  return <ReportsIndex />;
+  redirect("/brief");
 }

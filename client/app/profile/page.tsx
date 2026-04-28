@@ -1,5 +1,5 @@
-import Profile from "../../src/views/Profile";
+import { redirect } from "next/navigation";
 
 export default function ProfileRoutePage() {
-  return <Profile />;
+  redirect("/brief");
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getMarketHistory, getMarketSnapshot, sendQuery } from "../services/api";
 import type { MarketHistory, MarketSnapshot, QueryResponse, RiskProfile } from "../types";
 
@@ -40,7 +40,7 @@ const SAMPLE_RESULT: QueryResponse = {
     suitability: "Suited for you",
     risk_note: "Rupee depreciation may hurt IT margins",
     opportunity_note: "US deal pipeline expanding into Q1",
-    action: "Infosys looks stable for a medium risk investor. No urgent action needed — watch the rupee this week."
+    action: "Infosys looks stable for a medium risk investor. No urgent action needed - watch the rupee this week."
   }
 };
 
@@ -203,6 +203,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<QueryResponse | null>(null);
+  const hydratedParamsRef = useRef("");
 
   const activeSymbol = useMemo(() => (ticker || extractTicker(query) || "").trim().toUpperCase(), [query, ticker]);
   const activeTicker = useMemo(() => {
@@ -255,24 +256,29 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   }, []);
 
   useEffect(() => {
-    if (!initialTicker.trim()) {
+    const normalizedTicker = initialTicker.trim().toUpperCase();
+    const trimmedQuery = initialQuery.trim();
+    const hydrationKey = `${normalizedTicker}::${trimmedQuery}`;
+
+    if (hydratedParamsRef.current === hydrationKey) {
       return;
     }
 
-    setTicker(initialTicker.trim().toUpperCase());
-    setQuery((current) => current || `What is the outlook for ${initialTicker.trim().toUpperCase()} today?`);
-    setError("");
-  }, [initialTicker]);
+    hydratedParamsRef.current = hydrationKey;
 
-  useEffect(() => {
-    if (!initialQuery.trim()) {
+    if (trimmedQuery) {
+      setQuery(trimmedQuery);
+      setTicker(normalizedTicker || extractTicker(trimmedQuery));
+      setError("");
       return;
     }
 
-    setQuery(initialQuery.trim());
-    setTicker((current) => current || extractTicker(initialQuery));
-    setError("");
-  }, [initialQuery]);
+    if (normalizedTicker) {
+      setTicker(normalizedTicker);
+      setQuery(`What is the outlook for ${normalizedTicker} today?`);
+      setError("");
+    }
+  }, [initialQuery, initialTicker]);
 
   useEffect(() => {
     const loadSnapshot = async () => {
@@ -336,7 +342,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
             onChange={(event) => setQuery(event.target.value)}
           />
           <button className="finity-search-button" disabled={!query.trim() || running} type="submit">
-            {running ? "..." : "brief →"}
+            {running ? "..." : "brief ->"}
           </button>
         </form>
 
@@ -428,7 +434,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
 
             <div className="finity-bullet-list">
               {displayResult.researcher.top_signals.map((signal) => (
-                <p key={signal}>• {signal}</p>
+                <p key={signal}>- {signal}</p>
               ))}
             </div>
           </article>

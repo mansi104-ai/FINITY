@@ -1,5 +1,5 @@
-import ReportView from "../../../src/views/ReportView";
+import { redirect } from "next/navigation";
 
-export default function ReportRoutePage({ params }: { params: { id: string } }) {
-  return <ReportView reportId={params.id} />;
+export default function ReportRoutePage() {
+  redirect("/brief");
 }

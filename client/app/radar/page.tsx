@@ -1,5 +1,5 @@
-import Radar from "../../src/views/Radar";
+import { redirect } from "next/navigation";
 
 export default function RadarRoutePage() {
-  return <Radar />;
+  redirect("/brief");
 }

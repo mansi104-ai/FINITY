@@ -1,5 +1,5 @@
-import WorkspaceHome from "../src/views/WorkspaceHome";
+import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  return <WorkspaceHome />;
+  redirect("/brief");
 }
