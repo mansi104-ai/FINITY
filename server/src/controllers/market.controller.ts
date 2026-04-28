@@ -53,6 +53,23 @@ type MarketSnapshotResponse = {
   }>;
 };
 
+type MarketHistoryPoint = {
+  date: string;
+  close: number;
+};
+
+type MarketHistoryResponse = {
+  symbol: string;
+  name: string;
+  currency: string;
+  points: MarketHistoryPoint[];
+  latestClose: number;
+  changePercent30d: number;
+  high30d: number;
+  low30d: number;
+  source: "yahoo" | "synthetic";
+};
+
 const COUNTRY_FEATURED_TICKERS: Record<
   string,
   Array<{
@@ -248,6 +265,96 @@ async function fetchQuotes(symbolsToTrack: string[]): Promise<MarketSnapshotResp
   }));
 }
 
+function syntheticHistory(ticker: string, baseline = 1500): MarketHistoryResponse {
+  const seed = ticker.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const points: MarketHistoryPoint[] = [];
+  let current = baseline + (seed % 300);
+  const today = new Date();
+
+  for (let index = 29; index >= 0; index -= 1) {
+    const drift = ((seed % 7) - 3) * 0.0009;
+    const wave = Math.sin((29 - index + seed) / 4.2) * 0.009;
+    current = Math.max(10, current * (1 + drift + wave));
+    const date = new Date(today);
+    date.setDate(today.getDate() - index);
+    points.push({
+      date: date.toISOString(),
+      close: Number(current.toFixed(2))
+    });
+  }
+
+  const closes = points.map((point) => point.close);
+  const latestClose = closes[closes.length - 1];
+  const firstClose = closes[0];
+
+  return {
+    symbol: ticker,
+    name: ticker,
+    currency: "INR",
+    points,
+    latestClose,
+    changePercent30d: Number((((latestClose - firstClose) / firstClose) * 100).toFixed(2)),
+    high30d: Number(Math.max(...closes).toFixed(2)),
+    low30d: Number(Math.min(...closes).toFixed(2)),
+    source: "synthetic"
+  };
+}
+
+async function fetchHistory(ticker: string): Promise<MarketHistoryResponse> {
+  const response = await axios.get("https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(ticker), {
+    params: {
+      range: "1mo",
+      interval: "1d",
+      includePrePost: false,
+      events: "div,splits"
+    },
+    timeout: 6000
+  });
+
+  const result = response.data?.chart?.result?.[0];
+  const meta = result?.meta;
+  const timestamps = result?.timestamp as number[] | undefined;
+  const closes = result?.indicators?.quote?.[0]?.close as Array<number | null> | undefined;
+
+  if (!meta || !timestamps?.length || !closes?.length) {
+    throw new Error("No chart history returned");
+  }
+
+  const points = timestamps
+    .map((timestamp, index) => {
+      const close = closes[index];
+      if (typeof close !== "number" || !Number.isFinite(close)) {
+        return null;
+      }
+      return {
+        date: new Date(timestamp * 1000).toISOString(),
+        close: Number(close.toFixed(2))
+      };
+    })
+    .filter((point): point is MarketHistoryPoint => point !== null)
+    .slice(-30);
+
+  if (points.length < 10) {
+    throw new Error("Insufficient chart history returned");
+  }
+
+  const series = points.map((point) => point.close);
+  const latestClose = series[series.length - 1];
+  const firstClose = series[0];
+
+  return {
+    symbol: meta.symbol ?? ticker,
+    name: meta.shortName ?? meta.longName ?? meta.symbol ?? ticker,
+    currency: meta.currency ?? "INR",
+    points,
+    latestClose: Number(latestClose.toFixed(2)),
+    changePercent30d: Number((((latestClose - firstClose) / firstClose) * 100).toFixed(2)),
+    high30d: Number(Math.max(...series).toFixed(2)),
+    low30d: Number(Math.min(...series).toFixed(2)),
+    source: "yahoo"
+  };
+}
+
 export async function getMarketSnapshotController(req: Request, res: Response) {
   const now = new Date();
   const defaultGeo: GeoLocation = {
@@ -300,5 +407,21 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
       featuredTickers: getFeaturedTickersForCountry(geo.countryCode),
       tickers: fallbackTickerData(geo.countryCode)
     } satisfies MarketSnapshotResponse);
+  }
+}
+
+export async function getMarketHistoryController(req: Request, res: Response) {
+  const ticker = String(req.params.ticker ?? "").trim().toUpperCase();
+
+  if (!ticker) {
+    return res.status(400).json({ error: "Ticker is required" });
+  }
+
+  try {
+    const history = await fetchHistory(ticker);
+    return res.status(200).json(history satisfies MarketHistoryResponse);
+  } catch (error) {
+    console.warn(`Falling back to synthetic 30-day history for ${ticker}`, error);
+    return res.status(200).json(syntheticHistory(ticker) satisfies MarketHistoryResponse);
   }
 }

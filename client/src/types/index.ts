@@ -206,3 +206,20 @@ export interface MarketSnapshot {
   featuredTickers: FeaturedTicker[];
   tickers: MarketSnapshotTicker[];
 }
+
+export interface MarketHistoryPoint {
+  date: string;
+  close: number;
+}
+
+export interface MarketHistory {
+  symbol: string;
+  name: string;
+  currency: string;
+  points: MarketHistoryPoint[];
+  latestClose: number;
+  changePercent30d: number;
+  high30d: number;
+  low30d: number;
+  source: "yahoo" | "synthetic";
+}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getMarketSnapshot, sendQuery } from "../services/api";
-import type { MarketSnapshot, QueryResponse, RiskProfile } from "../types";
+import { getMarketHistory, getMarketSnapshot, sendQuery } from "../services/api";
+import type { MarketHistory, MarketSnapshot, QueryResponse, RiskProfile } from "../types";
 
 const LOCAL_SETTINGS_KEY = "findec-local-settings";
 const WATCHLIST_KEY = "findec-watchlist";
@@ -147,6 +147,51 @@ function suitabilityTone(value: QueryResponse["risk_manager"]["suitability"]): s
   return "finity-tag-amber";
 }
 
+function toChartPoints(points: MarketHistory["points"], width: number, height: number): string {
+  if (points.length === 0) {
+    return "";
+  }
+
+  const closes = points.map((point) => point.close);
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = Math.max(max - min, 1);
+
+  return points
+    .map((point, index) => {
+      const x = (index / Math.max(points.length - 1, 1)) * width;
+      const y = height - ((point.close - min) / range) * height;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function marketMoodCopy(change1d?: number, change30d?: number): string {
+  if (typeof change1d === "number" && change1d >= 1.2) {
+    return "Market mood is strongly positive for this stock today";
+  }
+  if (typeof change1d === "number" && change1d <= -1.2) {
+    return "Market mood is cautious for this stock today";
+  }
+  if (typeof change30d === "number" && change30d >= 6) {
+    return "Market mood stays constructive after a strong month";
+  }
+  if (typeof change30d === "number" && change30d <= -6) {
+    return "Market mood remains fragile after a weak month";
+  }
+  return "Market mood is steady for this stock today";
+}
+
+function liveActionText(baseAction: string, history: MarketHistory | null, dayMove?: number): string {
+  if (!history) {
+    return baseAction;
+  }
+
+  const dayText = typeof dayMove === "number" ? `${dayMove >= 0 ? "+" : ""}${dayMove.toFixed(1)}% today` : "today";
+  const monthText = `${history.changePercent30d >= 0 ? "+" : ""}${history.changePercent30d.toFixed(1)}% over 30 days`;
+  return `${baseAction} ${dayText}; ${monthText}.`;
+}
+
 export default function QueryPage({ initialTicker = "", initialQuery = "" }: { initialTicker?: string; initialQuery?: string }) {
   const [query, setQuery] = useState("");
   const [ticker, setTicker] = useState("");
@@ -154,13 +199,30 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("medium");
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
+  const [marketHistory, setMarketHistory] = useState<MarketHistory | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<QueryResponse | null>(null);
 
   const activeSymbol = useMemo(() => (ticker || extractTicker(query) || "").trim().toUpperCase(), [query, ticker]);
+  const activeTicker = useMemo(() => {
+    if (!activeSymbol) {
+      return "INFY.NS";
+    }
+    if (activeSymbol.includes(".")) {
+      return activeSymbol;
+    }
+    if (activeSymbol === "INFOSYS") {
+      return "INFY.NS";
+    }
+    return activeSymbol;
+  }, [activeSymbol]);
   const displayResult = result ?? SAMPLE_RESULT;
-  const displaySymbol = activeSymbol || "INFOSYS";
+  const activeQuote = useMemo(
+    () => marketSnapshot?.tickers.find((item) => item.symbol.toUpperCase() === activeTicker.toUpperCase()) ?? null,
+    [activeTicker, marketSnapshot]
+  );
+  const displaySymbol = marketHistory?.name?.toUpperCase?.() || activeSymbol || "INFOSYS";
   const marketCards = useMemo(() => defaultMarketCards(marketSnapshot), [marketSnapshot]);
   const watchlistCards = useMemo(() => {
     return watchlist.map((entry) => ({
@@ -224,6 +286,22 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
     void loadSnapshot();
   }, []);
 
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        setMarketHistory(await getMarketHistory(activeTicker));
+      } catch {
+        setMarketHistory(null);
+      }
+    };
+
+    void loadHistory();
+  }, [activeTicker]);
+
+  const chartPolyline = useMemo(() => {
+    return marketHistory ? toChartPoints(marketHistory.points, 760, 180) : "";
+  }, [marketHistory]);
+
   const handleRun = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setRunning(true);
@@ -250,14 +328,6 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   return (
     <section className="finity-minimal-page">
       <div className="finity-minimal-shell">
-        <header className="finity-minimal-topbar">
-          <strong className="finity-brand">FINITY</strong>
-          <p className="finity-market-status">
-            <span className="finity-market-dot" />
-            {marketSnapshot?.market.label?.toLowerCase() ?? "market open"} · NSE · {todayLabel(marketSnapshot?.asOf)}
-          </p>
-        </header>
-
         <form className="finity-search-row" onSubmit={handleRun}>
           <input
             className="finity-search-input"
@@ -286,6 +356,40 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
           </section>
         )}
 
+        <section className="finity-panel finity-chart-panel">
+          <div className="finity-chart-top">
+            <div>
+              <p className="finity-kicker">30 day price graph · {displaySymbol}</p>
+              <strong className="finity-chart-price">
+                {marketHistory ? formatRupees(marketHistory.latestClose) : "₹1,482"}
+              </strong>
+            </div>
+            <div className="finity-chart-stats">
+              <div>
+                <span>30d return</span>
+                <strong className={marketHistory && marketHistory.changePercent30d < 0 ? "finity-subline-down" : "finity-subline-up"}>
+                  {marketHistory ? formatSignedPercent(marketHistory.changePercent30d) : "+4.8%"}
+                </strong>
+              </div>
+              <div>
+                <span>High / Low</span>
+                <strong>
+                  {marketHistory ? `${formatRupees(marketHistory.high30d)} / ${formatRupees(marketHistory.low30d)}` : "₹1,522 / ₹1,406"}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="finity-chart-shell">
+            <svg className="finity-chart-svg" viewBox="0 0 760 180" aria-label="30 day company price chart" role="img">
+              <line x1="0" y1="30" x2="760" y2="30" className="finity-chart-grid" />
+              <line x1="0" y1="90" x2="760" y2="90" className="finity-chart-grid" />
+              <line x1="0" y1="150" x2="760" y2="150" className="finity-chart-grid" />
+              {chartPolyline ? <polyline fill="none" stroke="#79b53a" strokeWidth="2.2" points={chartPolyline} /> : null}
+            </svg>
+          </div>
+        </section>
+
         <section className="finity-results-grid">
           <article className="finity-panel finity-agent-panel">
             <p className="finity-kicker">Researcher agent · {displaySymbol}</p>
@@ -302,7 +406,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
                 >
                   {displayResult.researcher.sentiment}
                 </span>
-                <p className="finity-copy">Market mood is positive for this stock today</p>
+                <p className="finity-copy">{marketMoodCopy(activeQuote?.changePercent, marketHistory?.changePercent30d)}</p>
               </div>
               <strong className="finity-big-score">{displayResult.researcher.sentiment_confidence}%</strong>
             </div>
@@ -383,7 +487,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
 
         <section className="finity-action-banner">
           <p className="finity-kicker">What to do today</p>
-          <strong>{displayResult.risk_manager.action}</strong>
+          <strong>{liveActionText(displayResult.risk_manager.action, marketHistory, activeQuote?.changePercent)}</strong>
         </section>
 
         <section className="finity-panel finity-watchlist-panel">

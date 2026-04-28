@@ -2286,24 +2286,13 @@ html[data-theme="dark"] .single-note-card-accent {
 }
 
 .finity-minimal-page {
-  min-height: 100vh;
-  background: #0a0a0a;
-  padding: 1.75rem 0 3rem;
+  padding: 0 0 3rem;
 }
 
 .finity-minimal-shell {
-  width: min(100%, 838px);
-  margin: 0 auto;
+  width: 100%;
   color: #f3eee4;
   font-family: "IBM Plex Mono", "IBM Plex Sans", monospace;
-}
-
-.finity-minimal-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.1rem;
 }
 
 .finity-brand {
@@ -2311,6 +2300,46 @@ html[data-theme="dark"] .single-note-card-accent {
   font-size: 1.55rem;
   line-height: 1;
   color: #f7f0e3;
+}
+
+.finity-app-body {
+  margin: 0;
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #f3eee4;
+  font-family: "IBM Plex Mono", "IBM Plex Sans", monospace;
+}
+
+.finity-app-shell {
+  width: min(100%, 838px);
+  margin: 0 auto;
+  padding: 1.75rem 0 3rem;
+}
+
+.finity-app-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 0.85rem;
+}
+
+.finity-app-strip {
+  margin-bottom: 1.15rem;
+}
+
+.finity-app-main {
+  width: 100%;
+}
+
+.finity-strip-shell {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.finity-strip-topline {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .finity-market-status {
@@ -2328,6 +2357,48 @@ html[data-theme="dark"] .single-note-card-accent {
   border-radius: 999px;
   background: #63a61f;
   box-shadow: 0 0 0 4px rgba(99, 166, 31, 0.08);
+}
+
+.finity-market-dot-open {
+  background: #63a61f;
+}
+
+.finity-market-dot-closed {
+  background: #cc5147;
+}
+
+.finity-ticker-marquee {
+  overflow: hidden;
+  border: 1px solid #272727;
+  border-radius: 12px;
+  background: #111111;
+}
+
+.finity-ticker-track {
+  display: flex;
+  width: max-content;
+  gap: 0.65rem;
+  padding: 0.65rem;
+  animation: ticker-scroll 28s linear infinite;
+}
+
+.finity-ticker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.4rem;
+  padding: 0 0.9rem;
+  border: 1px solid #222;
+  border-radius: 10px;
+  background: #151515;
+  color: #d8d0c2;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.finity-ticker-chip strong {
+  color: #f4efe6;
+  font-weight: 500;
 }
 
 .finity-search-row {
@@ -2456,6 +2527,63 @@ html[data-theme="dark"] .single-note-card-accent {
 .finity-results-grid {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   margin-top: 1.15rem;
+}
+
+.finity-chart-panel {
+  margin-top: 1rem;
+  padding: 0.95rem 1rem 1rem;
+}
+
+.finity-chart-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.finity-chart-price {
+  display: block;
+  margin-top: 0.4rem;
+  color: #f4efe6;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.finity-chart-stats {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: end;
+}
+
+.finity-chart-stats span {
+  display: block;
+  color: #696b70;
+  font-size: 0.72rem;
+}
+
+.finity-chart-stats strong {
+  display: block;
+  margin-top: 0.18rem;
+  color: #f4efe6;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.finity-chart-shell {
+  margin-top: 0.9rem;
+  border-top: 1px solid #1d1d1d;
+  padding-top: 0.8rem;
+}
+
+.finity-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.finity-chart-grid {
+  stroke: #1e1e1e;
+  stroke-width: 1;
 }
 
 .finity-agent-panel,
@@ -2685,15 +2813,16 @@ html[data-theme="dark"] .single-note-card-accent {
 }
 
 @media (max-width: 640px) {
-  .finity-minimal-page {
+  .finity-app-body {
     padding-inline: 0.9rem;
   }
 
+  .finity-app-shell,
   .finity-minimal-shell {
     width: 100%;
   }
 
-  .finity-minimal-topbar,
+  .finity-strip-topline,
   .finity-agent-head,
   .finity-watchlist-row {
     flex-direction: column;
@@ -2702,9 +2831,18 @@ html[data-theme="dark"] .single-note-card-accent {
 
   .finity-search-row,
   .finity-market-grid,
+  .finity-chart-top,
   .finity-results-grid,
   .finity-risk-grid {
     grid-template-columns: 1fr;
+  }
+
+  .finity-chart-top {
+    display: grid;
+  }
+
+  .finity-chart-stats {
+    justify-items: start;
   }
 
   .finity-search-button {

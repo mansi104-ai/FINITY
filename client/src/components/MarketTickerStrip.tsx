@@ -40,27 +40,23 @@ export default function MarketTickerStrip() {
   const doubledTickers = [...snapshot.tickers, ...snapshot.tickers];
 
   return (
-    <section className="market-strip-shell" aria-label="Market status and last close ticker tape">
-      <div className="market-strip-header">
-        <div className="market-status-card">
-          <span aria-hidden="true" className={`market-dot market-dot-${snapshot.market.phase}`} />
-          <div>
-            <strong>{snapshot.market.label}</strong>
-            <p>
-              {snapshot.lastTradingDayLabel} close | {snapshot.market.sessionHours}
-            </p>
-            <p style={{ fontSize: "0.75rem", color: "#687089", marginTop: "0.25rem" }}>
-              Location: {snapshot.geoLocation.country} ({snapshot.geoLocation.countryCode})
-            </p>
-          </div>
-        </div>
+    <section className="finity-strip-shell" aria-label="Market status and last close ticker tape">
+      <div className="finity-strip-topline">
+        <p className="finity-market-status">
+          <span aria-hidden="true" className={`finity-market-dot finity-market-dot-${snapshot.market.phase}`} />
+          {snapshot.market.label.toLowerCase()} · {snapshot.market.market} · {new Intl.DateTimeFormat("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          }).format(new Date(snapshot.asOf))}
+        </p>
       </div>
 
-      <div className="ticker-marquee">
-        <div className="ticker-track">
+      <div className="finity-ticker-marquee">
+        <div className="finity-ticker-track">
           {doubledTickers.map((ticker, index) => (
             <article 
-              className="ticker-chip" 
+              className="finity-ticker-chip" 
               key={`${ticker.symbol}-${index}`}
               onClick={() => router.push(`/brief?ticker=${ticker.symbol}`)}
               style={{ cursor: "pointer" }}
@@ -75,7 +71,7 @@ export default function MarketTickerStrip() {
             >
               <strong>{ticker.symbol.replace("^", "")}</strong>
               <span>{price(ticker.lastClose)}</span>
-              <span className={ticker.changePercent >= 0 ? "ticker-up" : "ticker-down"}>{pct(ticker.changePercent)}</span>
+              <span className={ticker.changePercent >= 0 ? "finity-subline-up" : "finity-subline-down"}>{pct(ticker.changePercent)}</span>
             </article>
           ))}
         </div>
