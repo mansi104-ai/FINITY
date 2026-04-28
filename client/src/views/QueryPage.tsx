@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getMarketSnapshot, sendQuery } from "../services/api";
 import type { MarketSnapshot, QueryResponse, RiskProfile } from "../types";
 import AgentStatusCard from "../components/AgentStatusCard";
-import ReportCard from "../components/ReportCard";
+import { MetricInfoPopover } from "../components/MetricInfoPopover";
 
 const LOCAL_SETTINGS_KEY = "findec-local-settings";
 const RECENT_SEARCHES_KEY = "findec-recent-searches";
@@ -112,12 +111,35 @@ function isMajorIndex(symbol: string): boolean {
   return symbol.startsWith("^");
 }
 
+function briefToneClass(result: QueryResponse): string {
+  if (result.risk_manager.suitability === "Suited for you") {
+    return "trend-up";
+  }
+  if (result.risk_manager.suitability === "Not suited") {
+    return "trend-down";
+  }
+  return "trend-flat";
+}
+
+function briefHeadline(result: QueryResponse, symbol: string): string {
+  if (result.risk_manager.suitability === "Suited for you") {
+    return `${symbol || "This stock"} looks worth tracking closely`;
+  }
+  if (result.risk_manager.suitability === "Not suited") {
+    return `${symbol || "This stock"} needs more caution right now`;
+  }
+  return `${symbol || "This stock"} looks mixed for now`;
+}
+
+function briefSummary(result: QueryResponse): string {
+  return `${result.researcher.sentiment} sentiment, ${result.analyst.outlook.toLowerCase()} outlook, and ${result.risk_manager.suitability.toLowerCase()} fit for your risk level.`;
+}
+
 export default function QueryPage({ initialTicker = "", initialQuery = "" }: { initialTicker?: string; initialQuery?: string }) {
   const [query, setQuery] = useState("");
   const [ticker, setTicker] = useState("");
   const [budget, setBudget] = useState(10000);
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("medium");
-  const [version, setVersion] = useState(2);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
@@ -127,10 +149,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
 
   const placeholderTicker = useMemo(() => extractTicker(query), [query]);
   const allocationHint = useMemo(() => Math.round(budget * 0.08), [budget]);
-  const activeSymbol = useMemo(
-    () => (result?.report.ticker || ticker || placeholderTicker || "").trim().toUpperCase(),
-    [placeholderTicker, result?.report.ticker, ticker]
-  );
+  const activeSymbol = useMemo(() => (ticker || placeholderTicker || "").trim().toUpperCase(), [placeholderTicker, ticker]);
 
   const activeSymbolSaved = useMemo(
     () => watchlist.some((entry) => entry.ticker.toUpperCase() === activeSymbol),
@@ -308,7 +327,6 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
 
     const marketLabel =
       marketSnapshot?.tickers.find((item) => item.symbol.toUpperCase() === activeSymbol)?.name ??
-      result?.report.ticker ??
       activeSymbol;
 
     addToWatchlist({ ticker: activeSymbol, label: marketLabel });
@@ -338,14 +356,14 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
         ticker: normalizedTicker || undefined,
         budget,
         riskProfile,
-        version
+        version: 4
       });
 
       setResult(response);
       saveRecentSearch({
-        label: response.report.ticker || normalizedTicker || query.slice(0, 24),
+        label: normalizedTicker || query.slice(0, 24),
         query,
-        ticker: response.report.ticker || normalizedTicker || undefined
+        ticker: normalizedTicker || undefined
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "We could not build your brief right now.");
@@ -355,24 +373,302 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   };
 
   return (
-    <section className="grid page-shell">
-      <div className="grid daily-routine-grid">
-        <article className="card radar-panel">
+    <section className="grid page-shell single-brief-page">
+      <article className="card single-brief-hero">
+        <div className="single-brief-topline">
+          <div>
+            <p className="eyebrow">FINITY Briefing Room</p>
+            <h1 className="single-brief-title">Ask once, read the full stock brief right here.</h1>
+            <p className="single-brief-copy">
+              No second page, no hidden report. FINITY runs all three agents and lays out the answer in one clean view,
+              with the important numbers up front and the supporting text kept quieter.
+            </p>
+          </div>
+
+          <div className="single-brief-market-strip">
+            <div className="single-market-card">
+              <span className="metric-label">Market mood</span>
+              <strong>{marketMood}</strong>
+              <p className="text-muted">
+                {topGainer ? `${topGainer.symbol} leads at ${formatSignedPercent(topGainer.changePercent)}.` : "Waiting for live movers."}
+              </p>
+            </div>
+            <div className="single-market-card">
+              <span className="metric-label">Pressure point</span>
+              <strong>{topLoser ? topLoser.symbol : "Tracking"}</strong>
+              <p className="text-muted">
+                {topLoser ? `${formatSignedPercent(topLoser.changePercent)} today.` : "Will appear when market data is ready."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form className="single-brief-composer" onSubmit={handleRun}>
+          <div className="single-brief-compose-main">
+            <label className="label" htmlFor="query">
+              What do you want to know today?
+            </label>
+            <textarea
+              className="textarea single-brief-textarea"
+              id="query"
+              rows={4}
+              placeholder="Example: Is Microsoft still a good long-term buy, or should I wait?"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+
+            <div className="single-brief-chip-groups">
+              <div className="quick-block">
+                <span className="metric-label">Quick start</span>
+                <div className="chip-row">
+                  {quickPrompts.map((prompt) => (
+                    <button
+                      key={prompt.label}
+                      className="quick-chip"
+                      onClick={() => applyPrompt(prompt)}
+                      type="button"
+                    >
+                      {prompt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {recentSearches.length > 0 && (
+                <div className="quick-block">
+                  <span className="metric-label">Recent</span>
+                  <div className="chip-row">
+                    {recentSearches.map((item) => (
+                      <button
+                        key={`${item.query}-${item.ticker ?? "none"}`}
+                        className="recent-chip"
+                        onClick={() => applyPrompt(item)}
+                        type="button"
+                      >
+                        <strong>{item.label}</strong>
+                        <span>{item.query}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="single-brief-control-rail">
+            <div className="single-control-card">
+              <label className="label" htmlFor="ticker">
+                Ticker
+              </label>
+              <input
+                className="input"
+                id="ticker"
+                value={ticker}
+                placeholder={placeholderTicker || "AAPL"}
+                onChange={(event) => setTicker(event.target.value.toUpperCase().replace(/[^A-Z0-9.-]/g, ""))}
+              />
+              <p className="text-muted">Optional. FINITY can still try to detect the symbol from your question.</p>
+            </div>
+
+            <div className="single-control-card">
+              <label className="label" htmlFor="budget">
+                Amount you may invest
+              </label>
+              <input
+                className="input"
+                id="budget"
+                min={100}
+                step={100}
+                type="number"
+                value={budget}
+                onChange={(event) => setBudget(Number(event.target.value))}
+              />
+              <p className="text-muted">Used to tailor the risk view for a first-time investor.</p>
+            </div>
+
+            <div className="single-control-card">
+              <span className="label">Comfort level</span>
+              <div className="comfort-grid">
+                {comfortOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    className={`comfort-option ${riskProfile === option.value ? "comfort-option-active" : ""}`}
+                    onClick={() => setRiskProfile(option.value)}
+                    type="button"
+                  >
+                    <strong>{option.label}</strong>
+                    <span>{option.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="single-summary-grid">
+              <div className="single-summary-card">
+                <span className="metric-label">Amount checked</span>
+                <strong>{currency(budget)}</strong>
+              </div>
+              <div className="single-summary-card">
+                <span className="metric-label">Starter size</span>
+                <strong>{currency(allocationHint)}</strong>
+              </div>
+              <div className="single-summary-card">
+                <span className="metric-label">Detected symbol</span>
+                <strong>{activeSymbol || "We will detect it"}</strong>
+              </div>
+            </div>
+
+            <div className="button-row single-brief-actions">
+              <button className="button button-primary" disabled={!query.trim() || running} type="submit">
+                {running ? "Building your brief..." : "Build In-Page Brief"}
+              </button>
+              {activeSymbol && (
+                <button className="button button-secondary" onClick={toggleCurrentSymbol} type="button">
+                  {activeSymbolSaved ? "Remove From Radar" : "Save To Radar"}
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </article>
+
+      {error && (
+        <article className="card danger-card">
+          <p style={{ margin: 0 }}>{error}</p>
+        </article>
+      )}
+
+      {result && (
+        <>
+          <section className="card single-brief-results">
+            <div className="single-results-header">
+              <div>
+                <p className="eyebrow">Your in-page brief</p>
+                <h2 className="single-results-title">{briefHeadline(result, activeSymbol)}</h2>
+                <p className="single-results-copy">{briefSummary(result)}</p>
+              </div>
+              <div className="single-results-badges">
+                <span className={`trend-chip ${briefToneClass(result)}`}>{result.risk_manager.suitability}</span>
+                <span className={`trend-chip ${result.estimated ? "trend-flat" : "trend-up"}`}>
+                  {result.estimated ? "Estimated data" : "Live-backed flow"}
+                </span>
+              </div>
+            </div>
+
+            <div className="single-results-hero-grid">
+              <div className="single-verdict-card">
+                <span className="metric-label">Main takeaway</span>
+                <strong>{result.risk_manager.action}</strong>
+                <p className="text-muted">{result.risk_manager.risk_note}</p>
+              </div>
+
+              <div className="single-highlight-strip">
+                <MetricInfoPopover explanation={result.analyst.pe_context} label="P/E" value={result.analyst.pe_ratio} />
+                <MetricInfoPopover
+                  explanation={result.analyst.ai_confidence_context}
+                  label="AI confidence"
+                  value={`${result.analyst.ai_confidence} / 100`}
+                />
+                <MetricInfoPopover
+                  explanation="Shows how much the positive and negative evidence disagree right now."
+                  label="Bull vs Bear"
+                  value={`${result.researcher.bull_ratio} / ${result.researcher.bear_ratio}`}
+                />
+              </div>
+            </div>
+
+            <div className="single-agent-grid">
+              <article className="single-agent-card">
+                <p className="eyebrow">Agent 1</p>
+                <h3>Researcher</h3>
+                <div className="single-agent-stat">{result.researcher.sentiment}</div>
+                <p className="single-agent-subtle">{result.researcher.sentiment_confidence}% confidence from current research signals.</p>
+                <div className="single-inline-metrics">
+                  <div>
+                    <span className="metric-label">Bull case</span>
+                    <strong>{result.researcher.bull_ratio}%</strong>
+                  </div>
+                  <div>
+                    <span className="metric-label">Bear case</span>
+                    <strong>{result.researcher.bear_ratio}%</strong>
+                  </div>
+                </div>
+                <div className="single-signal-list">
+                  {result.researcher.top_signals.map((signal) => (
+                    <div key={signal} className="single-signal-item">
+                      <span className="single-signal-dot" />
+                      <span className="text-muted">{signal}</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="single-agent-card">
+                <p className="eyebrow">Agent 2</p>
+                <h3>Analyst</h3>
+                <div className="single-agent-stat">{result.analyst.momentum_5d}</div>
+                <p className="single-agent-subtle">{result.analyst.momentum_context}</p>
+                <div className="single-agent-detail-block">
+                  <div>
+                    <span className="metric-label">Outlook</span>
+                    <strong>{result.analyst.outlook}</strong>
+                    <p className="text-muted">{result.analyst.outlook_timeframe}</p>
+                  </div>
+                  <div>
+                    <span className="metric-label">Valuation</span>
+                    <strong>{result.analyst.pe_ratio}</strong>
+                    <p className="text-muted">{result.analyst.pe_context}</p>
+                  </div>
+                </div>
+              </article>
+
+              <article className="single-agent-card">
+                <p className="eyebrow">Agent 3</p>
+                <h3>Risk manager</h3>
+                <div className="single-agent-stat">{result.risk_manager.suitability}</div>
+                <p className="single-agent-subtle">{result.risk_manager.opportunity_note}</p>
+                <div className="single-agent-note-stack">
+                  <div className="single-note-card">
+                    <span className="metric-label">Risk note</span>
+                    <p className="text-muted">{result.risk_manager.risk_note}</p>
+                  </div>
+                  <div className="single-note-card single-note-card-accent">
+                    <span className="metric-label">What to do today</span>
+                    <strong>{result.risk_manager.action}</strong>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <AgentStatusCard
+            statuses={[
+              { agent: "Researcher", state: "completed", message: `${result.researcher.sentiment} sentiment ready` },
+              { agent: "Analyst", state: "completed", message: `${result.analyst.outlook} outlook for ${result.analyst.outlook_timeframe}` },
+              { agent: "Risk Manager", state: "completed", message: result.risk_manager.suitability }
+            ]}
+          />
+        </>
+      )}
+
+      <section className="single-bottom-grid">
+        <article className="card single-radar-panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Saved Radar</p>
-              <h2>Your list</h2>
+              <p className="eyebrow">Saved radar</p>
+              <h2>Names you want to revisit</h2>
             </div>
           </div>
 
           {watchlistCards.length === 0 ? (
             <div className="empty-state">
               <strong>No saved names yet</strong>
+              <p className="text-muted">Save a ticker from the form above and it will stay here for quick access.</p>
             </div>
           ) : (
-            <div className="watchlist-grid">
+            <div className="single-radar-grid">
               {watchlistCards.map((item) => (
-                <article key={item.ticker} className="watchlist-card">
+                <article key={item.ticker} className="single-radar-card">
                   <div className="focus-card-top">
                     <div>
                       <strong>{item.ticker}</strong>
@@ -393,7 +689,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
 
                   <div className="mini-button-row">
                     <button className="inline-button" onClick={() => applyTickerFocus({ ticker: item.ticker, label: item.label })} type="button">
-                      Open Brief
+                      Build brief
                     </button>
                     <button className="inline-button inline-button-muted" onClick={() => removeFromWatchlist(item.ticker)} type="button">
                       Remove
@@ -404,185 +700,32 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
             </div>
           )}
         </article>
-      </div>
 
-      <article className="card trade-ticket compact-ticket">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Today&apos;s Question</p>
-            <h2>Your brief</h2>
-          </div>
-        </div>
-
-        <div className="quick-tools">
-          <div className="quick-block">
-            <span className="metric-label">Quick Start</span>
-            <div className="chip-row">
-              {quickPrompts.map((prompt) => (
-                <button
-                  key={prompt.label}
-                  className="quick-chip"
-                  onClick={() => applyPrompt(prompt)}
-                  type="button"
-                >
-                  {prompt.label}
-                </button>
-              ))}
+        <article className="card single-market-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Market pulse</p>
+              <h2>What is moving around you</h2>
             </div>
           </div>
 
-          {recentSearches.length > 0 && (
-            <div className="quick-block">
-              <span className="metric-label">Recent</span>
-              <div className="chip-row">
-                {recentSearches.map((item) => (
-                  <button
-                    key={`${item.query}-${item.ticker ?? "none"}`}
-                    className="recent-chip"
-                    onClick={() => applyPrompt(item)}
-                    type="button"
-                  >
-                    <strong>{item.label}</strong>
-                    <span>{item.query}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <form onSubmit={handleRun}>
-          <div className="form-row">
-            <label className="label" htmlFor="query">
-              What do you want to know today?
-            </label>
-            <textarea
-              className="textarea"
-              id="query"
-              rows={3}
-              placeholder="Example: Is Microsoft still a good long-term buy, or should I wait?"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-2 compact-grid">
-            <div className="form-row">
-              <label className="label" htmlFor="ticker">
-                Ticker (optional)
-              </label>
-              <input
-                className="input"
-                id="ticker"
-                value={ticker}
-                placeholder={placeholderTicker || "AAPL"}
-                onChange={(event) => setTicker(event.target.value.toUpperCase().replace(/[^A-Z0-9.-]/g, ""))}
-              />
-            </div>
-
-            <div className="form-row">
-              <label className="label" htmlFor="budget">
-                Amount you may invest
-              </label>
-              <input
-                className="input"
-                id="budget"
-                min={100}
-                step={100}
-                type="number"
-                value={budget}
-                onChange={(event) => setBudget(Number(event.target.value))}
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <span className="label">Your comfort level</span>
-            <div className="comfort-grid">
-              {comfortOptions.map((option) => (
-                <button
-                  key={option.value}
-                  className={`comfort-option ${riskProfile === option.value ? "comfort-option-active" : ""}`}
-                  onClick={() => setRiskProfile(option.value)}
-                  type="button"
-                >
-                  <strong>{option.label}</strong>
-                  <span>{option.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <details className="advanced-panel">
-            <summary className="details-summary">
-              <span>Advanced options</span>
-            </summary>
-
-            <div className="grid grid-2 advanced-grid">
-              <div className="form-row" style={{ marginBottom: 0 }}>
-                <label className="label" htmlFor="version">
-                  Analysis engine
-                </label>
-                <select
-                  className="select"
-                  id="version"
-                  value={version}
-                  onChange={(event) => setVersion(Number(event.target.value))}
-                >
-                  <option value={1}>V1 | Research only</option>
-                  <option value={2}>V2 | Research + analyst</option>
-                  <option value={3}>V3 | Policy weighted</option>
-                  <option value={4}>V4 | Full orchestration</option>
-                </select>
-              </div>
-            </div>
-          </details>
-
-          <div className="ticket-summary">
-            <div className="ticket-kpi">
-              <span className="metric-label">Amount checked</span>
-              <strong>{currency(budget)}</strong>
-            </div>
-            <div className="ticket-kpi">
-              <span className="metric-label">Suggested starting size</span>
-              <strong>{currency(allocationHint)}</strong>
-            </div>
-            <div className="ticket-kpi">
-              <span className="metric-label">Detected symbol</span>
-              <strong>{activeSymbol || "We will detect it for you"}</strong>
-            </div>
-          </div>
-
-          <div className="button-row">
-            <button className="button button-primary" disabled={!query.trim() || running} type="submit">
-              {running ? "Building your brief..." : "Get Today&apos;s Brief"}
-            </button>
-            {activeSymbol && (
-              <button className="button button-secondary" onClick={toggleCurrentSymbol} type="button">
-                {activeSymbolSaved ? "Remove From Radar" : "Save To Radar"}
+          <div className="single-market-pulse-grid">
+            {movers.map((item) => (
+              <button key={item.symbol} className="single-mover-card" onClick={() => applyTickerFocus({ ticker: item.symbol, label: item.name })} type="button">
+                <span className="metric-label">{item.symbol}</span>
+                <strong>{formatSignedPercent(item.changePercent)}</strong>
+                <p className="text-muted">{item.name}</p>
               </button>
-            )}
-            {result && (
-              <Link className="button button-secondary" href={`/report/${result.reportId}`}>
-                Open Full Report
-              </Link>
+            ))}
+            {movers.length === 0 && (
+              <div className="empty-state">
+                <strong>Loading market pulse</strong>
+                <p className="text-muted">Live movers will appear here when market data is available.</p>
+              </div>
             )}
           </div>
-        </form>
-      </article>
-
-      {error && (
-        <article className="card danger-card">
-          <p style={{ margin: 0 }}>{error}</p>
         </article>
-      )}
-
-      {result && (
-        <>
-          <ReportCard report={result.report} />
-          <AgentStatusCard statuses={result.report.agentLogs} />
-        </>
-      )}
+      </section>
     </section>
   );
 }

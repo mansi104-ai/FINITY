@@ -92,12 +92,6 @@ export function sendQuery(payload: {
   return request<QueryResponse>("/api/query", {
     method: "POST",
     body: JSON.stringify(payload)
-  }).then((response) => {
-    // Cache the report when it's generated
-    if (response.report) {
-      cacheReport(response.report);
-    }
-    return response;
   });
 }
 

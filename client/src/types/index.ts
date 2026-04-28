@@ -147,9 +147,30 @@ export interface AgentReport {
 }
 
 export interface QueryResponse {
-  ok: boolean;
-  reportId: string;
-  report: AgentReport;
+  estimated: boolean;
+  researcher: {
+    sentiment: "Bullish" | "Neutral" | "Bearish";
+    sentiment_confidence: number;
+    bull_ratio: number;
+    bear_ratio: number;
+    top_signals: [string, string, string];
+  };
+  analyst: {
+    pe_ratio: number;
+    pe_context: string;
+    momentum_5d: string;
+    momentum_context: string;
+    ai_confidence: number;
+    ai_confidence_context: string;
+    outlook: "Positive" | "Neutral" | "Cautious";
+    outlook_timeframe: string;
+  };
+  risk_manager: {
+    suitability: "Suited for you" | "Neutral" | "Not suited";
+    risk_note: string;
+    opportunity_note: string;
+    action: string;
+  };
 }
 
 export interface MarketSnapshotTicker {
