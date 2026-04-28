@@ -2284,3 +2284,434 @@ html[data-theme="dark"] .single-note-card-accent {
     height: 180px;
   }
 }
+
+.finity-minimal-page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  padding: 1.75rem 0 3rem;
+}
+
+.finity-minimal-shell {
+  width: min(100%, 838px);
+  margin: 0 auto;
+  color: #f3eee4;
+  font-family: "IBM Plex Mono", "IBM Plex Sans", monospace;
+}
+
+.finity-minimal-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.finity-brand {
+  letter-spacing: 0.22em;
+  font-size: 1.55rem;
+  line-height: 1;
+  color: #f7f0e3;
+}
+
+.finity-market-status {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #737373;
+  font-size: 0.79rem;
+}
+
+.finity-market-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #63a61f;
+  box-shadow: 0 0 0 4px rgba(99, 166, 31, 0.08);
+}
+
+.finity-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: 0.6rem;
+  border: 1px solid #272727;
+  border-radius: 12px;
+  background: #141414;
+}
+
+.finity-search-input,
+.finity-mini-input {
+  min-width: 0;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  background: #171717;
+  color: #f2efe8;
+  font: inherit;
+}
+
+.finity-search-input {
+  padding: 0.82rem 0.95rem;
+  border: none;
+  background: transparent;
+  color: #7c7f84;
+}
+
+.finity-search-input:focus,
+.finity-mini-input:focus {
+  outline: none;
+}
+
+.finity-search-button,
+.finity-watchlist-row,
+.finity-mover-card {
+  font: inherit;
+}
+
+.finity-search-button {
+  min-width: 78px;
+  border: 1px solid #353535;
+  border-radius: 9px;
+  background: #1b1b1b;
+  color: #d8d0c2;
+  padding: 0 1rem;
+  cursor: pointer;
+}
+
+.finity-search-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.finity-market-grid,
+.finity-results-grid,
+.finity-risk-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.finity-market-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 1.35rem;
+}
+
+.finity-panel {
+  border: 1px solid #252525;
+  border-radius: 12px;
+  background: #111111;
+}
+
+.finity-metric-panel {
+  min-height: 80px;
+  padding: 0.78rem 1rem 0.85rem;
+}
+
+.finity-kicker {
+  margin: 0;
+  color: #55585d;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.finity-metric-panel strong,
+.finity-watchlist-meta strong,
+.finity-watchlist-price strong,
+.finity-risk-grid strong,
+.finity-info-block strong {
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.98rem;
+  color: #f4efe6;
+  font-weight: 500;
+}
+
+.finity-subline,
+.finity-copy,
+.finity-info-block p,
+.finity-watchlist-meta span,
+.finity-watchlist-price span,
+.finity-empty-watchlist {
+  color: #696d72;
+}
+
+.finity-subline {
+  display: inline-block;
+  margin-top: 0.32rem;
+  font-size: 0.8rem;
+}
+
+.finity-subline-up {
+  color: #72b92b;
+}
+
+.finity-subline-down {
+  color: #cc5147;
+}
+
+.finity-subline-neutral {
+  color: #777;
+}
+
+.finity-results-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: 1.15rem;
+}
+
+.finity-agent-panel,
+.finity-risk-panel,
+.finity-watchlist-panel {
+  padding: 0.9rem 1rem;
+}
+
+.finity-agent-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.95rem;
+}
+
+.finity-copy {
+  margin: 0.42rem 0 0;
+  line-height: 1.45;
+  max-width: 18rem;
+  font-size: 0.84rem;
+}
+
+.finity-big-score {
+  font-size: 1.05rem;
+  color: #f3eee4;
+  font-weight: 600;
+}
+
+.finity-tag-row {
+  margin-top: 0.35rem;
+}
+
+.finity-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.55rem;
+  padding: 0 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #35531d;
+  background: rgba(87, 132, 29, 0.08);
+  color: #7bb436;
+  font-size: 0.79rem;
+}
+
+.finity-tag-red {
+  border-color: #5c2a2a;
+  background: rgba(204, 81, 71, 0.08);
+  color: #cc5147;
+}
+
+.finity-tag-amber {
+  border-color: #62521d;
+  background: rgba(178, 148, 49, 0.08);
+  color: #d2b64d;
+}
+
+.finity-tag-green {
+  border-color: #35531d;
+  background: rgba(87, 132, 29, 0.08);
+  color: #7bb436;
+}
+
+.finity-bar-labels,
+.finity-bar-values {
+  display: flex;
+  justify-content: space-between;
+  color: #6d6f72;
+  font-size: 0.72rem;
+}
+
+.finity-bar-labels {
+  margin-top: 0.85rem;
+}
+
+.finity-sentiment-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.finity-sentiment-bull,
+.finity-sentiment-bear {
+  height: 0.28rem;
+  border-radius: 999px;
+}
+
+.finity-sentiment-bull {
+  background: #6da727;
+}
+
+.finity-sentiment-bear {
+  background: #b64642;
+}
+
+.finity-bar-values {
+  margin-top: 0.35rem;
+}
+
+.finity-section-line {
+  height: 1px;
+  margin-top: 0.8rem;
+  background: #202020;
+}
+
+.finity-bullet-list {
+  margin-top: 0.9rem;
+  border-top: 1px solid #232323;
+}
+
+.finity-bullet-list p {
+  margin: 0;
+  padding: 0.62rem 0;
+  border-bottom: 1px solid #202020;
+  color: #7a7d82;
+  line-height: 1.45;
+  font-size: 0.83rem;
+}
+
+.finity-info-block {
+  padding: 0.84rem 0;
+  border-bottom: 1px solid #232323;
+}
+
+.finity-info-block-last {
+  border-bottom: none;
+}
+
+.finity-info-block span,
+.finity-risk-grid span {
+  display: block;
+  color: #696b70;
+  font-size: 0.76rem;
+}
+
+.finity-info-block p {
+  margin: 0.3rem 0 0;
+  line-height: 1.45;
+  font-size: 0.82rem;
+}
+
+.finity-risk-panel {
+  margin-top: 0.72rem;
+}
+
+.finity-risk-grid {
+  grid-template-columns: minmax(140px, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: 0.8rem;
+}
+
+.finity-action-banner {
+  margin-top: 0.72rem;
+  padding: 0.92rem 1rem 1rem;
+  border-left: 2px solid #205faa;
+  border-radius: 0 0 12px 12px;
+  background: #10290d;
+}
+
+.finity-action-banner strong {
+  display: block;
+  margin-top: 0.42rem;
+  color: #a8d66c;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.finity-watchlist-panel {
+  margin-top: 0.82rem;
+}
+
+.finity-watchlist-list {
+  margin-top: 0.78rem;
+}
+
+.finity-watchlist-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.88rem 0;
+  border: none;
+  border-top: 1px solid #202020;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.finity-watchlist-row-static {
+  cursor: default;
+}
+
+.finity-watchlist-row:first-child {
+  border-top: none;
+}
+
+.finity-watchlist-meta,
+.finity-watchlist-price {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.finity-watchlist-price {
+  justify-items: end;
+}
+
+.finity-empty-watchlist {
+  padding-top: 0.4rem;
+}
+
+.finity-error-panel {
+  margin-top: 0.72rem;
+  padding: 0.9rem 1rem;
+  background: #201111;
+  border-color: #4b2626;
+  color: #d88484;
+}
+
+@media (max-width: 960px) {
+  .finity-market-grid,
+  .finity-results-grid,
+  .finity-risk-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .finity-minimal-page {
+    padding-inline: 0.9rem;
+  }
+
+  .finity-minimal-shell {
+    width: 100%;
+  }
+
+  .finity-minimal-topbar,
+  .finity-agent-head,
+  .finity-watchlist-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .finity-search-row,
+  .finity-market-grid,
+  .finity-results-grid,
+  .finity-risk-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .finity-search-button {
+    min-height: 2.6rem;
+  }
+
+  .finity-watchlist-price {
+    justify-items: start;
+  }
+}
