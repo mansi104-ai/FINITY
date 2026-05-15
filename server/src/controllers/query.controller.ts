@@ -55,7 +55,7 @@ const STOP_WORDS = new Set([
   "TO"
 ]);
 
-type FinityAgentResponse = {
+type FindecAgentResponse = {
   estimated: boolean;
   researcher: {
     sentiment: "Bullish" | "Neutral" | "Bearish";
@@ -311,7 +311,7 @@ function isEstimatedReport(report: AgentReport): boolean {
   return usedSyntheticResearch || usedSyntheticPricing;
 }
 
-function toFinityResponse(report: AgentReport, riskProfile: RiskProfile): FinityAgentResponse {
+function toFindecResponse(report: AgentReport, riskProfile: RiskProfile): FindecAgentResponse {
   const estimated = isEstimatedReport(report);
   const sentimentScore = Number(report.sentiment?.score ?? 0);
   const bullRatio = Math.round(Math.max(0, Math.min(100, ((sentimentScore + 2) / 4) * 100)));
@@ -413,7 +413,7 @@ export async function runQueryController(req: Request, res: Response) {
       updatedAt: new Date().toISOString()
     });
 
-    return res.status(200).json(toFinityResponse(report, riskProfile));
+    return res.status(200).json(toFindecResponse(report, riskProfile));
   } catch (error) {
     await saveQuery({
       ...queryRecord,

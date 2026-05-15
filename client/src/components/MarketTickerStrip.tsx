@@ -40,10 +40,10 @@ export default function MarketTickerStrip() {
   const doubledTickers = [...snapshot.tickers, ...snapshot.tickers];
 
   return (
-    <section className="finity-strip-shell" aria-label="Market status and last close ticker tape">
-      <div className="finity-strip-topline">
-        <p className="finity-market-status">
-          <span aria-hidden="true" className={`finity-market-dot finity-market-dot-${snapshot.market.phase}`} />
+    <section className="findec-strip-shell" aria-label="Market status and last close ticker tape">
+      <div className="findec-strip-topline">
+        <p className="findec-market-status">
+          <span aria-hidden="true" className={`findec-market-dot findec-market-dot-${snapshot.market.phase}`} />
           {snapshot.market.label.toLowerCase()} · {snapshot.market.market} · {new Intl.DateTimeFormat("en-GB", {
             day: "2-digit",
             month: "short",
@@ -52,11 +52,11 @@ export default function MarketTickerStrip() {
         </p>
       </div>
 
-      <div className="finity-ticker-marquee">
-        <div className="finity-ticker-track">
+      <div className="findec-ticker-marquee">
+        <div className="findec-ticker-track">
           {doubledTickers.map((ticker, index) => (
             <article 
-              className="finity-ticker-chip" 
+              className="findec-ticker-chip" 
               key={`${ticker.symbol}-${index}`}
               onClick={() => router.push(`/brief?ticker=${ticker.symbol}`)}
               style={{ cursor: "pointer" }}
@@ -71,7 +71,7 @@ export default function MarketTickerStrip() {
             >
               <strong>{ticker.symbol.replace("^", "")}</strong>
               <span>{price(ticker.lastClose)}</span>
-              <span className={ticker.changePercent >= 0 ? "finity-subline-up" : "finity-subline-down"}>{pct(ticker.changePercent)}</span>
+              <span className={ticker.changePercent >= 0 ? "findec-subline-up" : "findec-subline-down"}>{pct(ticker.changePercent)}</span>
             </article>
           ))}
         </div>

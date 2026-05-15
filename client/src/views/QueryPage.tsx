@@ -139,12 +139,12 @@ function defaultMarketCards(snapshot: MarketSnapshot | null): Array<{ label: str
 
 function suitabilityTone(value: QueryResponse["risk_manager"]["suitability"]): string {
   if (value === "Suited for you") {
-    return "finity-tag-green";
+    return "findec-tag-green";
   }
   if (value === "Not suited") {
-    return "finity-tag-red";
+    return "findec-tag-red";
   }
-  return "finity-tag-amber";
+  return "findec-tag-amber";
 }
 
 function toChartPoints(points: MarketHistory["points"], width: number, height: number): string {
@@ -332,48 +332,48 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   };
 
   return (
-    <section className="finity-minimal-page">
-      <div className="finity-minimal-shell">
-        <form className="finity-search-row" onSubmit={handleRun}>
+    <section className="findec-minimal-page">
+      <div className="findec-minimal-shell">
+        <form className="findec-search-row" onSubmit={handleRun}>
           <input
-            className="finity-search-input"
+            className="findec-search-input"
             placeholder="ask about any stock, sector, or fund..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <button className="finity-search-button" disabled={!query.trim() || running} type="submit">
+          <button className="findec-search-button" disabled={!query.trim() || running} type="submit">
             {running ? "..." : "brief ->"}
           </button>
         </form>
 
-        <section className="finity-market-grid">
+        <section className="findec-market-grid">
           {marketCards.map((card) => (
-            <article key={card.label} className="finity-panel finity-metric-panel">
-              <p className="finity-kicker">{card.label}</p>
+            <article key={card.label} className="findec-panel findec-metric-panel">
+              <p className="findec-kicker">{card.label}</p>
               <strong>{card.value}</strong>
-              <span className={`finity-subline finity-subline-${card.tone}`}>{card.subtext}</span>
+              <span className={`findec-subline findec-subline-${card.tone}`}>{card.subtext}</span>
             </article>
           ))}
         </section>
 
         {error && (
-          <section className="finity-panel finity-error-panel">
+          <section className="findec-panel findec-error-panel">
             <p>{error}</p>
           </section>
         )}
 
-        <section className="finity-panel finity-chart-panel">
-          <div className="finity-chart-top">
+        <section className="findec-panel findec-chart-panel">
+          <div className="findec-chart-top">
             <div>
-              <p className="finity-kicker">30 day price graph · {displaySymbol}</p>
-              <strong className="finity-chart-price">
+              <p className="findec-kicker">30 day price graph · {displaySymbol}</p>
+              <strong className="findec-chart-price">
                 {marketHistory ? formatRupees(marketHistory.latestClose) : "₹1,482"}
               </strong>
             </div>
-            <div className="finity-chart-stats">
+            <div className="findec-chart-stats">
               <div>
                 <span>30d return</span>
-                <strong className={marketHistory && marketHistory.changePercent30d < 0 ? "finity-subline-down" : "finity-subline-up"}>
+                <strong className={marketHistory && marketHistory.changePercent30d < 0 ? "findec-subline-down" : "findec-subline-up"}>
                   {marketHistory ? formatSignedPercent(marketHistory.changePercent30d) : "+4.8%"}
                 </strong>
               </div>
@@ -386,84 +386,84 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
             </div>
           </div>
 
-          <div className="finity-chart-shell">
-            <svg className="finity-chart-svg" viewBox="0 0 760 180" aria-label="30 day company price chart" role="img">
-              <line x1="0" y1="30" x2="760" y2="30" className="finity-chart-grid" />
-              <line x1="0" y1="90" x2="760" y2="90" className="finity-chart-grid" />
-              <line x1="0" y1="150" x2="760" y2="150" className="finity-chart-grid" />
+          <div className="findec-chart-shell">
+            <svg className="findec-chart-svg" viewBox="0 0 760 180" aria-label="30 day company price chart" role="img">
+              <line x1="0" y1="30" x2="760" y2="30" className="findec-chart-grid" />
+              <line x1="0" y1="90" x2="760" y2="90" className="findec-chart-grid" />
+              <line x1="0" y1="150" x2="760" y2="150" className="findec-chart-grid" />
               {chartPolyline ? <polyline fill="none" stroke="#79b53a" strokeWidth="2.2" points={chartPolyline} /> : null}
             </svg>
           </div>
         </section>
 
-        <section className="finity-results-grid">
-          <article className="finity-panel finity-agent-panel">
-            <p className="finity-kicker">Researcher agent · {displaySymbol}</p>
-            <div className="finity-agent-head">
+        <section className="findec-results-grid">
+          <article className="findec-panel findec-agent-panel">
+            <p className="findec-kicker">Researcher agent · {displaySymbol}</p>
+            <div className="findec-agent-head">
               <div>
                 <span
-                  className={`finity-tag ${
+                  className={`findec-tag ${
                     displayResult.researcher.sentiment === "Bullish"
-                      ? "finity-tag-green"
+                      ? "findec-tag-green"
                       : displayResult.researcher.sentiment === "Bearish"
-                        ? "finity-tag-red"
-                        : "finity-tag-amber"
+                        ? "findec-tag-red"
+                        : "findec-tag-amber"
                   }`}
                 >
                   {displayResult.researcher.sentiment}
                 </span>
-                <p className="finity-copy">{marketMoodCopy(activeQuote?.changePercent, marketHistory?.changePercent30d)}</p>
+                <p className="findec-copy">{marketMoodCopy(activeQuote?.changePercent, marketHistory?.changePercent30d)}</p>
               </div>
-              <strong className="finity-big-score">{displayResult.researcher.sentiment_confidence}%</strong>
+              <strong className="findec-big-score">{displayResult.researcher.sentiment_confidence}%</strong>
             </div>
 
-            <div className="finity-section-line" />
+            <div className="findec-section-line" />
 
-            <div className="finity-bar-labels">
+            <div className="findec-bar-labels">
               <span>Bull</span>
               <span>Bear</span>
             </div>
-            <div className="finity-sentiment-bar">
-              <div className="finity-sentiment-bull" style={{ width: `${displayResult.researcher.bull_ratio}%` }} />
-              <div className="finity-sentiment-bear" style={{ width: `${displayResult.researcher.bear_ratio}%` }} />
+            <div className="findec-sentiment-bar">
+              <div className="findec-sentiment-bull" style={{ width: `${displayResult.researcher.bull_ratio}%` }} />
+              <div className="findec-sentiment-bear" style={{ width: `${displayResult.researcher.bear_ratio}%` }} />
             </div>
-            <div className="finity-bar-values">
+            <div className="findec-bar-values">
               <span>{displayResult.researcher.bull_ratio}</span>
               <span>{displayResult.researcher.bear_ratio}</span>
             </div>
 
-            <div className="finity-bullet-list">
+            <div className="findec-bullet-list">
               {displayResult.researcher.top_signals.map((signal) => (
                 <p key={signal}>- {signal}</p>
               ))}
             </div>
           </article>
 
-          <article className="finity-panel finity-agent-panel">
-            <p className="finity-kicker">Analyst agent · {displaySymbol}</p>
+          <article className="findec-panel findec-agent-panel">
+            <p className="findec-kicker">Analyst agent · {displaySymbol}</p>
 
-            <div className="finity-info-block">
+            <div className="findec-info-block">
               <span>P/E Ratio</span>
               <strong>{displayResult.analyst.pe_ratio}</strong>
               <p>{displayResult.analyst.pe_context}</p>
             </div>
 
-            <div className="finity-info-block">
+            <div className="findec-info-block">
               <span>5-day momentum</span>
               <strong>{displayResult.analyst.momentum_5d}</strong>
               <p>{displayResult.analyst.momentum_context}</p>
             </div>
 
-            <div className="finity-info-block">
+            <div className="findec-info-block">
               <span>AI confidence</span>
               <strong>{displayResult.analyst.ai_confidence} / 100</strong>
               <p>{displayResult.analyst.ai_confidence_context}</p>
             </div>
 
-            <div className="finity-info-block finity-info-block-last">
+            <div className="findec-info-block findec-info-block-last">
               <span>Short term outlook</span>
-              <div className="finity-tag-row">
-                <span className="finity-tag finity-tag-green">
+              <div className="findec-tag-row">
+                <span className="findec-tag findec-tag-green">
                   {displayResult.analyst.outlook} · {displayResult.analyst.outlook_timeframe}
                 </span>
               </div>
@@ -471,13 +471,13 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
           </article>
         </section>
 
-        <section className="finity-panel finity-risk-panel">
-          <p className="finity-kicker">Risk manager · your profile: {riskProfile.toUpperCase()} risk</p>
-          <div className="finity-risk-grid">
+        <section className="findec-panel findec-risk-panel">
+          <p className="findec-kicker">Risk manager · your profile: {riskProfile.toUpperCase()} risk</p>
+          <div className="findec-risk-grid">
             <div>
               <span>Suitability</span>
-              <div className="finity-tag-row">
-                <span className={`finity-tag ${suitabilityTone(displayResult.risk_manager.suitability)}`}>{displayResult.risk_manager.suitability}</span>
+              <div className="findec-tag-row">
+                <span className={`findec-tag ${suitabilityTone(displayResult.risk_manager.suitability)}`}>{displayResult.risk_manager.suitability}</span>
               </div>
             </div>
             <div>
@@ -491,38 +491,38 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
           </div>
         </section>
 
-        <section className="finity-action-banner">
-          <p className="finity-kicker">What to do today</p>
+        <section className="findec-action-banner">
+          <p className="findec-kicker">What to do today</p>
           <strong>{liveActionText(displayResult.risk_manager.action, marketHistory, activeQuote?.changePercent)}</strong>
         </section>
 
-        <section className="finity-panel finity-watchlist-panel">
-          <p className="finity-kicker">Your watchlist</p>
-          <div className="finity-watchlist-list">
+        <section className="findec-panel findec-watchlist-panel">
+          <p className="findec-kicker">Your watchlist</p>
+          <div className="findec-watchlist-list">
             {watchlistCards.length > 0
               ? watchlistCards.map((item) => (
-                  <div key={item.ticker} className="finity-watchlist-row finity-watchlist-row-static">
-                    <div className="finity-watchlist-meta">
+                  <div key={item.ticker} className="findec-watchlist-row findec-watchlist-row-static">
+                    <div className="findec-watchlist-meta">
                       <strong>{item.label}</strong>
                       <span>{item.ticker}</span>
                     </div>
-                    <div className="finity-watchlist-price">
+                    <div className="findec-watchlist-price">
                       <strong>{item.quote ? formatRupees(item.quote.lastClose) : item.ticker}</strong>
-                      <span className={item.quote && item.quote.changePercent < 0 ? "finity-subline-down" : "finity-subline-up"}>
+                      <span className={item.quote && item.quote.changePercent < 0 ? "findec-subline-down" : "findec-subline-up"}>
                         {item.quote ? formatSignedPercent(item.quote.changePercent) : "saved"}
                       </span>
                     </div>
                   </div>
                 ))
               : SAMPLE_WATCHLIST.map((item) => (
-                  <div key={item.label} className="finity-watchlist-row finity-watchlist-row-static">
-                    <div className="finity-watchlist-meta">
+                  <div key={item.label} className="findec-watchlist-row findec-watchlist-row-static">
+                    <div className="findec-watchlist-meta">
                       <strong>{item.label}</strong>
                       <span>{item.meta}</span>
                     </div>
-                    <div className="finity-watchlist-price">
+                    <div className="findec-watchlist-price">
                       <strong>{item.price}</strong>
-                      <span className={item.tone === "down" ? "finity-subline-down" : "finity-subline-up"}>{item.move}</span>
+                      <span className={item.tone === "down" ? "findec-subline-down" : "findec-subline-up"}>{item.move}</span>
                     </div>
                   </div>
                 ))}

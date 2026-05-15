@@ -8,15 +8,15 @@ import "./globals.css";
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html data-theme="dark" lang="en">
-      <body className="finity-app-body">
-        <div className="finity-app-shell">
-          <header className="finity-app-header">
-            <strong className="finity-brand">FINITY</strong>
+      <body className="findec-app-body">
+        <div className="findec-app-shell">
+          <header className="findec-app-header">
+            <strong className="findec-brand">FINDEC</strong>
           </header>
-          <div className="finity-app-strip">
+          <div className="findec-app-strip">
             <MarketTickerStrip />
           </div>
-          <main className="finity-app-main">{children}</main>
+          <main className="findec-app-main">{children}</main>
         </div>
         <Analytics />
       </body>
