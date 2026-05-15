@@ -96,6 +96,7 @@ export default function Dashboard() {
           <p className="text-muted">Budget: {currency(budget)}</p>
           <p className="text-muted">Risk profile: {riskProfile}</p>
           {error && <p style={{ color: "#ff9f9f" }}>{error}</p>}
+          {!error && <p className="text-muted">This browser auto-creates a session so saved reports and rate limits are visible immediately.</p>}
           <Link className="button button-primary" href="/query">
             Open Query Console
           </Link>

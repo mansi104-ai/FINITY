@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getMarketHistory, getMarketSnapshot, sendQuery } from "../services/api";
 import type { MarketHistory, MarketSnapshot, QueryResponse, RiskProfile } from "../types";
@@ -14,6 +15,8 @@ type WatchlistEntry = {
 };
 
 const SAMPLE_RESULT: QueryResponse = {
+  reportId: "",
+  disclaimer: "FINDEC is a decision support tool only and does not constitute financial advice.",
   estimated: true,
   researcher: {
     sentiment: "Bullish",
@@ -203,6 +206,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<QueryResponse | null>(null);
+  const [latestReportId, setLatestReportId] = useState("");
   const hydratedParamsRef = useRef("");
 
   const activeSymbol = useMemo(() => (ticker || extractTicker(query) || "").trim().toUpperCase(), [query, ticker]);
@@ -324,6 +328,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
       });
 
       setResult(response);
+      setLatestReportId(response.reportId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "We could not build your brief right now.");
     } finally {
@@ -494,6 +499,17 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
         <section className="findec-action-banner">
           <p className="findec-kicker">What to do today</p>
           <strong>{liveActionText(displayResult.risk_manager.action, marketHistory, activeQuote?.changePercent)}</strong>
+          <p className="findec-disclaimer-text">{displayResult.disclaimer}</p>
+          {latestReportId ? (
+            <div className="findec-inline-actions">
+              <Link className="findec-inline-link-button" href={`/report/${latestReportId}`}>
+                Open saved report
+              </Link>
+              <Link className="findec-inline-link-button findec-inline-link-button-muted" href="/report">
+                View report archive
+              </Link>
+            </div>
+          ) : null}
         </section>
 
         <section className="findec-panel findec-watchlist-panel">

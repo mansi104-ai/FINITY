@@ -2759,6 +2759,39 @@ html[data-theme="dark"] .single-note-card-accent {
   line-height: 1.5;
 }
 
+.findec-disclaimer-text {
+  margin: 0.78rem 0 0;
+  color: #d5e0f4;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.findec-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.95rem;
+}
+
+.findec-inline-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(231, 238, 255, 0.18);
+  background: #eef3ff;
+  color: #13203e;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.findec-inline-link-button-muted {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef3ff;
+}
+
 .findec-watchlist-panel {
   margin-top: 0.82rem;
 }

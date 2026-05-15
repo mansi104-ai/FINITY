@@ -69,6 +69,9 @@ export default function History() {
               <p className="text-muted" style={{ marginBottom: "0.8rem" }}>
                 {report.query}
               </p>
+              <p className="text-muted" style={{ marginBottom: "0.8rem" }}>
+                Risk profile: {report.risk_profile} | Score: {report.score.toFixed(2)}
+              </p>
               <Link className="button button-secondary" href={`/report/${report.id}`}>
                 Open Workspace
               </Link>

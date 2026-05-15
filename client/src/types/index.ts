@@ -150,6 +150,8 @@ export interface AgentReport {
 }
 
 export interface QueryResponse {
+  reportId: string;
+  disclaimer: string;
   estimated: boolean;
   researcher: {
     sentiment: "Bullish" | "Neutral" | "Bearish";

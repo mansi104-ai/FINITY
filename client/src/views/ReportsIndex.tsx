@@ -58,7 +58,7 @@ export default function ReportsIndex() {
         </div>
         {error && <p style={{ color: "#ff9f9f" }}>{error}</p>}
         {latest.length === 0 ? (
-          <p className="text-muted">No reports yet. Generate one from the brief page.</p>
+          <p className="text-muted">No reports yet. Run a brief once and it will appear here from persistent storage.</p>
         ) : (
           <div className="grid grid-2">
             {latest.map((report) => (
@@ -67,6 +67,7 @@ export default function ReportsIndex() {
                   <strong>{report.ticker}</strong> | {report.recommendation.action.toUpperCase()}
                 </p>
                 <p className="text-muted">{report.query}</p>
+                <p className="text-muted">Risk profile: {report.risk_profile} | Score: {report.score.toFixed(2)}</p>
                 <Link className="button button-secondary" href={`/report/${report.id}`}>
                   Open Report
                 </Link>
