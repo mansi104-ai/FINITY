@@ -17,12 +17,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link className="findec-topnav-link" href="/brief">
                 Brief
               </Link>
-              <Link className="findec-topnav-link" href="/report">
-                Reports
-              </Link>
-              <Link className="findec-topnav-link" href="/history">
-                History
-              </Link>
             </nav>
           </header>
           <div className="findec-app-strip">
