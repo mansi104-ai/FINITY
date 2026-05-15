@@ -136,10 +136,13 @@ export interface AgentReport {
   ticker: string;
   version: number;
   budget: number;
+  risk_profile: "low" | "medium" | "high";
+  score: number;
   sentiment?: SentimentResult;
   prediction?: PredictionResult;
   risk?: RiskResult;
   recommendation: FinalRecommendation;
   agentLogs: AgentStatus[];
+  disclaimer: string;
   createdAt: string;
 }

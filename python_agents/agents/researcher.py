@@ -6,6 +6,10 @@ from typing import Dict, List, Tuple
 
 import requests
 
+DECAY_LAMBDA = 0.85
+BULLISH_THRESHOLD = 0.2
+BEARISH_THRESHOLD = -0.2
+
 try:
     from ..models.sentiment_nlp import aggregate_sentiment, label_sentiment
 except Exception:
@@ -17,7 +21,7 @@ except Exception:
 
 class ResearcherAgent:
     def __init__(self) -> None:
-        self.news_api_key = os.getenv("NEWSAPI_KEY", "")
+        self.news_api_key = os.getenv("NEWS_API_KEY", os.getenv("NEWSAPI_KEY", ""))
 
     def analyze(self, ticker: str, query: str) -> dict:
         start_perf = time.perf_counter()
@@ -161,6 +165,9 @@ class ResearcherAgent:
             ),
             (
                 f"Weighted article influence used exact published timestamps, query-horizon recency decay, relevance, and source quality."
+            ),
+            (
+                f"Audited thresholds: bullish if S > {BULLISH_THRESHOLD}, bearish if S < {BEARISH_THRESHOLD}, decay lambda={DECAY_LAMBDA}."
             ),
             (
                 f"Final researcher sentiment={level} (weighted score={score}, "
@@ -413,7 +420,8 @@ class ResearcherAgent:
         if published:
             age_hours = max(0.0, (self._now_utc() - published).total_seconds() / 3600)
 
-        recency_score = 0.32 + 0.88 * math.exp(-age_hours / max(horizon_context["half_life_hours"], 1.0))
+        normalized_age = age_hours / max(horizon_context["half_life_hours"], 1.0)
+        recency_score = 0.32 + 0.88 * (DECAY_LAMBDA ** normalized_age)
         if age_hours <= 24:
             recency_score += horizon_context["fresh_bonus"]
         elif age_hours > horizon_context["stale_after_hours"]:

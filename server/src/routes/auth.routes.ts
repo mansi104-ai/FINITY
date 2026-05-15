@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID, createHash } from "crypto";
@@ -12,11 +12,14 @@ import {
   findUserByEmail,
   getSessionById,
   getUserById,
+  isRefreshTokenRevoked,
+  revokeRefreshToken,
   revokeAllSessionsForUser,
   revokeSession,
   saveSession,
   saveUser,
 } from "../store/db";
+import type { RevokedRefreshTokenRecord } from "../models/RevokedRefreshToken.model";
 
 type TokenType = "access" | "refresh";
 
@@ -27,6 +30,7 @@ type JwtPayload = {
   tv: number;
   typ: TokenType;
   jti: string;
+  exp?: number;
 };
 
 const authRoutes = Router();
@@ -36,20 +40,13 @@ const authSchema = z.object({
   password: z.string().min(8)
 });
 
-const refreshSchema = z.object({
-  refreshToken: z.string().trim().min(10)
-});
+const REFRESH_COOKIE_NAME = "refreshToken";
 
 function toTokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
 function signToken(user: UserRecord, sessionId: string, type: TokenType): string {
-  const expiresInSeconds =
-    type === "access"
-      ? Math.max(60, env.accessTokenTtlMinutes * 60)
-      : Math.max(60, env.refreshTokenTtlDays * 24 * 60 * 60);
-
   const payload: JwtPayload = {
     sub: user.id,
     email: user.email,
@@ -59,10 +56,10 @@ function signToken(user: UserRecord, sessionId: string, type: TokenType): string
     jti: randomUUID()
   };
 
-  return jwt.sign(payload, env.jwtSecret, {
+  return jwt.sign(payload, type === "access" ? env.jwtSecret : env.jwtRefreshSecret, {
     issuer: env.jwtIssuer,
     audience: "findec-clients",
-    expiresIn: expiresInSeconds
+    expiresIn: type === "access" ? "15m" : Math.max(60, env.refreshTokenTtlSeconds)
   });
 }
 
@@ -72,7 +69,7 @@ async function issueSessionTokens(user: UserRecord): Promise<{ accessToken: stri
   // Access and refresh tokens share one session id so revocation invalidates the whole session.
   const refreshToken = signToken(user, sessionId, "refresh");
   const refreshTokenHash = toTokenHash(refreshToken);
-  const expiresAt = new Date(now.getTime() + env.refreshTokenTtlDays * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(now.getTime() + env.refreshTokenTtlSeconds * 1000).toISOString();
 
   const session: AuthSessionRecord = {
     id: sessionId,
@@ -80,7 +77,7 @@ async function issueSessionTokens(user: UserRecord): Promise<{ accessToken: stri
     refreshTokenHash,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
-    expiresAt
+    expiresAt,
   };
 
   await saveSession(session);
@@ -96,6 +93,82 @@ function isSessionActive(session: AuthSessionRecord): boolean {
     return false;
   }
   return +new Date(session.expiresAt) > Date.now();
+}
+
+function readCookie(req: Request, name: string): string | undefined {
+  const raw = req.headers.cookie;
+  if (!raw) {
+    return undefined;
+  }
+
+  for (const part of raw.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) {
+      return decodeURIComponent(rest.join("="));
+    }
+  }
+  return undefined;
+}
+
+function getRefreshTokenFromRequest(req: Request): string | undefined {
+  const bodyToken = typeof req.body?.refreshToken === "string" ? req.body.refreshToken.trim() : "";
+  if (bodyToken) {
+    return bodyToken;
+  }
+
+  return readCookie(req, REFRESH_COOKIE_NAME);
+}
+
+function setRefreshCookie(res: Response, refreshToken: string): void {
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.isProduction,
+    maxAge: env.refreshTokenTtlSeconds * 1000,
+    path: "/api/auth"
+  });
+}
+
+function clearRefreshCookie(res: Response): void {
+  res.clearCookie(REFRESH_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.isProduction,
+    path: "/api/auth"
+  });
+}
+
+async function revokeRefreshTokenRecord(token: string, payload: JwtPayload): Promise<void> {
+  const record: RevokedRefreshTokenRecord = {
+    tokenHash: toTokenHash(token),
+    sessionId: payload.sid,
+    userId: payload.sub,
+    revokedAt: new Date().toISOString(),
+    expiresAt: new Date(
+      ("exp" in payload && typeof payload.exp === "number"
+        ? payload.exp * 1000
+        : Date.now() + env.refreshTokenTtlSeconds * 1000)
+    ).toISOString()
+  };
+  await revokeRefreshToken(record);
+}
+
+async function verifyRefreshToken(refreshToken: string): Promise<JwtPayload> {
+  const tokenHash = toTokenHash(refreshToken);
+  if (await isRefreshTokenRevoked(tokenHash)) {
+    throw new jwt.JsonWebTokenError("Refresh token revoked");
+  }
+
+  const payload = jwt.verify(refreshToken, env.jwtRefreshSecret, {
+    issuer: env.jwtIssuer,
+    audience: "findec-clients"
+  }) as JwtPayload;
+
+  if (payload.typ !== "refresh") {
+    throw new jwt.JsonWebTokenError("Invalid token type");
+  }
+
+  return payload;
 }
 
 authRoutes.post("/register", authRateLimiter, async (req, res, next) => {
@@ -128,6 +201,7 @@ authRoutes.post("/register", authRateLimiter, async (req, res, next) => {
     // Registration immediately creates a live session so the frontend can continue without a second login step.
     const tokens = await issueSessionTokens(user);
 
+    setRefreshCookie(res, tokens.refreshToken);
     return res.status(201).json({ ...tokens, user: toSafeUser(user) });
   } catch (error) {
     return next(error);
@@ -153,6 +227,7 @@ authRoutes.post("/login", authRateLimiter, async (req, res, next) => {
     }
 
     const tokens = await issueSessionTokens(user);
+    setRefreshCookie(res, tokens.refreshToken);
     return res.status(200).json({ ...tokens, user: toSafeUser(user) });
   } catch (error) {
     return next(error);
@@ -161,20 +236,13 @@ authRoutes.post("/login", authRateLimiter, async (req, res, next) => {
 
 authRoutes.post("/refresh", authSessionRateLimiter, async (req, res, next) => {
   try {
-    const parsed = refreshSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Invalid refresh payload", details: parsed.error.flatten() });
+    const refreshToken = getRefreshTokenFromRequest(req);
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Missing refresh token" });
     }
 
     try {
-      const payload = jwt.verify(parsed.data.refreshToken, env.jwtSecret, {
-        issuer: env.jwtIssuer,
-        audience: "findec-clients"
-      }) as JwtPayload;
-
-      if (payload.typ !== "refresh") {
-        return res.status(401).json({ error: "Invalid token type" });
-      }
+      const payload = await verifyRefreshToken(refreshToken);
 
       const user = await getUserById(payload.sub);
       if (!user) {
@@ -190,8 +258,9 @@ authRoutes.post("/refresh", authSessionRateLimiter, async (req, res, next) => {
         return res.status(401).json({ error: "Session is invalid or expired" });
       }
 
-      if (session.refreshTokenHash !== toTokenHash(parsed.data.refreshToken)) {
+      if (session.refreshTokenHash !== toTokenHash(refreshToken)) {
         // A refresh token mismatch usually means replay or a stale client token, so revoke the session defensively.
+        await revokeRefreshTokenRecord(refreshToken, payload);
         await revokeSession(session.id);
         return res.status(401).json({ error: "Refresh token mismatch" });
       }
@@ -199,12 +268,14 @@ authRoutes.post("/refresh", authSessionRateLimiter, async (req, res, next) => {
       // Rotate refresh tokens on every refresh so an old leaked token cannot be reused indefinitely.
       const rotatedRefreshToken = signToken(user, session.id, "refresh");
       const now = new Date().toISOString();
+      await revokeRefreshTokenRecord(refreshToken, payload);
       await saveSession({
         ...session,
         refreshTokenHash: toTokenHash(rotatedRefreshToken),
         updatedAt: now
       });
 
+      setRefreshCookie(res, rotatedRefreshToken);
       return res.status(200).json({
         accessToken: signToken(user, session.id, "access"),
         refreshToken: rotatedRefreshToken,
@@ -227,7 +298,18 @@ authRoutes.post("/logout", authSessionRateLimiter, authMiddleware, async (req, r
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    const refreshToken = getRefreshTokenFromRequest(req);
+    if (refreshToken) {
+      try {
+        const payload = await verifyRefreshToken(refreshToken);
+        await revokeRefreshTokenRecord(refreshToken, payload);
+      } catch {
+        // Logout should still revoke the current session even if the client sent a stale refresh token.
+      }
+    }
+
     await revokeSession(req.auth.sessionId);
+    clearRefreshCookie(res);
     return res.status(200).json({ ok: true });
   } catch (error) {
     return next(error);

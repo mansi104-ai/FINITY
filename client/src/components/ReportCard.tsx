@@ -70,6 +70,7 @@ export default function ReportCard({ report }: { report: AgentReport }) {
       </div>
 
       <p className="recommendation-copy">{report.recommendation.reason}</p>
+      {report.disclaimer ? <p className="recommendation-disclaimer">{report.disclaimer}</p> : null}
 
       <details className="simple-details">
         <summary className="details-summary">

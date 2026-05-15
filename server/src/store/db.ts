@@ -3,12 +3,14 @@ import { env } from "../config";
 import type { AgentReport } from "../models/Report.model";
 import type { AuthSessionRecord } from "../models/AuthSession.model";
 import type { QueryRecord } from "../models/Query.model";
+import type { RevokedRefreshTokenRecord } from "../models/RevokedRefreshToken.model";
 import type { UserRecord } from "../models/User.model";
 
 const memoryUsers = new Map<string, UserRecord>();
 const memoryReports = new Map<string, AgentReport>();
 const memoryQueries = new Map<string, QueryRecord>();
 const memoryAuthSessions = new Map<string, AuthSessionRecord>();
+const memoryRevokedRefreshTokens = new Map<string, RevokedRefreshTokenRecord>();
 
 let mongoDbPromise: Promise<Db | null> | null = null;
 let indexesReady = false;
@@ -35,6 +37,8 @@ async function getMongoDb(): Promise<Db | null> {
       db.collection<QueryRecord>("queries").createIndex({ id: 1 }, { unique: true }),
       db.collection<AgentReport>("reports").createIndex({ id: 1 }, { unique: true }),
       db.collection<AgentReport>("reports").createIndex({ userId: 1, createdAt: -1 }),
+      db.collection<RevokedRefreshTokenRecord>("revokedRefreshTokens").createIndex({ tokenHash: 1 }, { unique: true }),
+      db.collection<RevokedRefreshTokenRecord>("revokedRefreshTokens").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     ]);
     indexesReady = true;
   }
@@ -167,4 +171,36 @@ export async function listReportsByUser(userId: string): Promise<AgentReport[]> 
     .find({ userId }, { projection: { _id: 0 } })
     .sort({ createdAt: -1 })
     .toArray();
+}
+
+export async function revokeRefreshToken(record: RevokedRefreshTokenRecord): Promise<void> {
+  const db = await getMongoDb();
+  if (!db) {
+    memoryRevokedRefreshTokens.set(record.tokenHash, record);
+    return;
+  }
+
+  await db
+    .collection<RevokedRefreshTokenRecord>("revokedRefreshTokens")
+    .replaceOne({ tokenHash: record.tokenHash }, record, { upsert: true });
+}
+
+export async function isRefreshTokenRevoked(tokenHash: string): Promise<boolean> {
+  const db = await getMongoDb();
+  if (!db) {
+    const record = memoryRevokedRefreshTokens.get(tokenHash);
+    if (!record) {
+      return false;
+    }
+    if (+new Date(record.expiresAt) <= Date.now()) {
+      memoryRevokedRefreshTokens.delete(tokenHash);
+      return false;
+    }
+    return true;
+  }
+
+  const record = await db
+    .collection<RevokedRefreshTokenRecord>("revokedRefreshTokens")
+    .findOne({ tokenHash }, { projection: { tokenHash: 1 } });
+  return Boolean(record);
 }

@@ -366,10 +366,11 @@ export async function runQueryController(req: Request, res: Response) {
   }
 
   const version = 4;
+  const userId = req.authUser?.id ?? "public";
 
   const queryRecord: QueryRecord = {
     id: uuidv4(),
-    userId: "public",
+    userId,
     rawQuery: parsed.data.query,
     ticker,
     version,
@@ -393,16 +394,19 @@ export async function runQueryController(req: Request, res: Response) {
 
     const report: AgentReport = {
       id: uuidv4(),
-      userId: "public",
+      userId,
       query: queryRecord.rawQuery,
       ticker: queryRecord.ticker,
       version: queryRecord.version,
       budget: queryRecord.budget,
+      risk_profile: queryRecord.riskProfile,
+      score: Number(pythonResult.recommendation?.buyScore ?? 0),
       sentiment: pythonResult.sentiment,
       prediction: pythonResult.prediction,
       risk: pythonResult.risk,
       recommendation: pythonResult.recommendation,
       agentLogs: pythonResult.agentLogs,
+      disclaimer: pythonResult.disclaimer,
       createdAt: new Date().toISOString()
     };
 

@@ -7,6 +7,15 @@ const DIRECT_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://server-
   .replace(/\/$/, "");
 
 const REPORTS_CACHE_KEY = "findec-reports-cache";
+const ACCESS_TOKEN_KEY = "findec-access-token";
+
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage.getItem(ACCESS_TOKEN_KEY);
+}
 
 function getCachedReport(reportId: string): AgentReport | null {
   if (typeof window === "undefined") {
@@ -43,9 +52,13 @@ function cacheReport(report: AgentReport): void {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
+  const accessToken = getAccessToken();
 
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
+  }
+  if (accessToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
   const candidates = Array.from(new Set(["", DIRECT_API_BASE_URL].filter(Boolean)));
@@ -56,7 +69,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       const response = await fetch(`${baseUrl}${path}`, {
         ...init,
         headers,
-        cache: "no-store"
+        cache: "no-store",
+        credentials: "include"
       });
 
       const data = await response.json().catch(() => ({}));

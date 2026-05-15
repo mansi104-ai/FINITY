@@ -6,11 +6,16 @@ from typing import Dict, Tuple
 
 import numpy as np
 import pandas as pd
+from cachetools import TTLCache
 
 try:
     import yfinance as yf  # type: ignore
 except Exception:  # pragma: no cover
     yf = None
+
+
+OHLCV_CACHE_TTL_SECONDS = 300
+ohlcv_cache = TTLCache(maxsize=50, ttl=OHLCV_CACHE_TTL_SECONDS)
 
 
 @dataclass
@@ -42,8 +47,20 @@ class MarketDataService:
         if yf is None:
             return None
 
+        cache_key = (ticker.upper(), period, interval)
+        cached_frame = ohlcv_cache.get(cache_key)
+        if cached_frame is not None:
+            return MarketHistory(frame=cached_frame.copy(), source="yfinance")
+
         try:
-            frame = yf.Ticker(ticker).history(period=period, interval=interval, auto_adjust=True)
+            frame = yf.download(
+                tickers=ticker,
+                period=period,
+                interval=interval,
+                auto_adjust=True,
+                progress=False,
+                threads=False,
+            )
             if frame.empty or "Close" not in frame:
                 return None
 
@@ -57,6 +74,7 @@ class MarketDataService:
             normalized = normalized[["Date", "Close"]].dropna(subset=["Close"]).reset_index(drop=True)
             if len(normalized) < 80:
                 return None
+            ohlcv_cache[cache_key] = normalized.copy()
             return MarketHistory(frame=normalized, source="yfinance")
         except Exception:
             return None

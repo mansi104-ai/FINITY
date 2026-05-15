@@ -1,6 +1,14 @@
 version: "3.9"
 
 services:
+  mongo:
+    image: mongo:7
+    container_name: findec-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
   python-agents:
     build:
       context: ./python_agents
@@ -17,11 +25,16 @@ services:
     environment:
       PORT: 4000
       JWT_SECRET: findec-local-secret
+      JWT_REFRESH_SECRET: findec-local-refresh-secret
+      ACCESS_TOKEN_TTL: 900
+      REFRESH_TOKEN_TTL: 604800
+      MONGODB_URI: mongodb://mongo:27017/findec
       PYTHON_SERVICE_URL: http://python-agents:8000/run
       QUERY_LIMIT_PER_HOUR: 10
     ports:
       - "4000:4000"
     depends_on:
+      - mongo
       - python-agents
 
   client:
@@ -35,3 +48,6 @@ services:
       - "3000:3000"
     depends_on:
       - server
+
+volumes:
+  mongo-data:

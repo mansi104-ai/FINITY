@@ -54,7 +54,7 @@ export default function Profile() {
           <p className="eyebrow">Workspace Preferences</p>
           <h1 className="hero-title">Capital and risk settings for your public workspace.</h1>
           <p className="hero-copy">
-            These settings are stored in your browser and reused by the public query flow so you can run briefs without authentication.
+            These settings are stored in your browser and can be paired with your authenticated query flow for consistent sizing and risk posture.
           </p>
         </div>
         <div className="hero-strip">
@@ -142,7 +142,7 @@ export default function Profile() {
               <span className="brief-index">03</span>
               <div>
                 <strong>Public mode</strong>
-                <p className="text-muted">Preferences stay in your browser so you can query immediately without an account.</p>
+                <p className="text-muted">Preferences stay in your browser and can complement the authenticated backend session.</p>
               </div>
             </div>
           </div>

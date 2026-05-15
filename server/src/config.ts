@@ -15,9 +15,14 @@ function readNumber(value: string | undefined, fallback: number, key: string): n
 
 const nodeEnv = process.env.NODE_ENV ?? "development";
 const jwtSecret = process.env.JWT_SECRET ?? "findec-dev-secret";
+const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET ?? "findec-dev-refresh-secret";
 
 if (nodeEnv === "production" && jwtSecret === "findec-dev-secret") {
   console.warn("WARNING: JWT_SECRET should be configured in production! Using fallback for now.");
+}
+
+if (nodeEnv === "production" && jwtRefreshSecret === "findec-dev-refresh-secret") {
+  console.warn("WARNING: JWT_REFRESH_SECRET should be configured in production! Using fallback for now.");
 }
 
 export const env = {
@@ -25,9 +30,10 @@ export const env = {
   isProduction: nodeEnv === "production",
   port: readNumber(process.env.PORT, 4000, "PORT"),
   jwtSecret,
+  jwtRefreshSecret,
   jwtIssuer: process.env.JWT_ISSUER ?? "findec-server",
-  accessTokenTtlMinutes: readNumber(process.env.ACCESS_TOKEN_TTL_MINUTES, 15, "ACCESS_TOKEN_TTL_MINUTES"),
-  refreshTokenTtlDays: readNumber(process.env.REFRESH_TOKEN_TTL_DAYS, 30, "REFRESH_TOKEN_TTL_DAYS"),
+  accessTokenTtlSeconds: readNumber(process.env.ACCESS_TOKEN_TTL, 900, "ACCESS_TOKEN_TTL"),
+  refreshTokenTtlSeconds: readNumber(process.env.REFRESH_TOKEN_TTL, 604800, "REFRESH_TOKEN_TTL"),
   pythonServiceUrl: process.env.PYTHON_SERVICE_URL ?? "http://localhost:8000/run",
   queryLimitPerHour: readNumber(process.env.QUERY_LIMIT_PER_HOUR, 10, "QUERY_LIMIT_PER_HOUR"),
   authAttemptsPer15Minutes: readNumber(process.env.AUTH_ATTEMPTS_PER_15_MINUTES, 10, "AUTH_ATTEMPTS_PER_15_MINUTES"),

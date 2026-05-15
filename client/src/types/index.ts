@@ -138,11 +138,14 @@ export interface AgentReport {
   ticker: string;
   version: number;
   budget: number;
+  risk_profile: RiskProfile;
+  score: number;
   sentiment?: SentimentResult;
   prediction?: PredictionResult;
   risk?: RiskResult;
   recommendation: FinalRecommendation;
   agentLogs: AgentStatus[];
+  disclaimer: string;
   createdAt: string;
 }
 

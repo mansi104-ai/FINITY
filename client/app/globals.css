@@ -919,6 +919,13 @@ a {
   line-height: 1.7;
 }
 
+.recommendation-disclaimer {
+  margin: 0.75rem 0 0;
+  color: #7a6140;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
 .score-band {
   position: relative;
   height: 58px;
@@ -1173,6 +1180,7 @@ html[data-theme="dark"] .recent-chip span,
 html[data-theme="dark"] .comfort-option span,
 html[data-theme="dark"] .form-hint,
 html[data-theme="dark"] .recommendation-copy,
+html[data-theme="dark"] .recommendation-disclaimer,
 html[data-theme="dark"] .chart-summary {
   color: #b5c0da;
 }

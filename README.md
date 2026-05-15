@@ -78,15 +78,37 @@ docker compose up --build
 - `GET /api/reports`
 - `GET /api/reports/:id`
 
+`POST /api/query` is rate-limited to 10 requests per hour per authenticated user.
+
+Access tokens expire after 15 minutes. Refresh tokens are rotated on every `POST /api/auth/refresh` call, and reused or revoked refresh tokens are rejected.
+
 ### Python
 - `POST /run`
 - `GET /health`
 
+## Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `MONGODB_URI` | MongoDB connection string | — |
+| `JWT_SECRET` | Secret for access tokens (15min TTL) | — |
+| `JWT_REFRESH_SECRET` | Secret for refresh tokens | — |
+| `NEWS_API_KEY` | NewsAPI key (falls back to synthetic) | — |
+| `USE_LIVE_MARKET_DATA` | Enable live yfinance pulls | `false` |
+
+## Rate Limits
+
+`POST /api/query`: 10 requests per hour per authenticated user (sliding window).
+
+## Disclaimer
+
+FINDEC is a decision support tool only and does not constitute financial advice.
+
 ## Notes
 
-- Backend auth, users, reports, and queries can persist in MongoDB when `MONGODB_URI` is set; otherwise the server falls back to in-memory storage for rapid prototyping.
-- Auth uses short-lived access tokens + refresh token rotation with per-session revocation.
+- Start MongoDB locally or with Docker before running the backend, and set `MONGODB_URI` in your environment.
+- `docker compose up --build` now includes a `mongo:7` service with a named `mongo-data` volume.
+- Auth uses 15-minute access tokens plus refresh-token rotation with per-session revocation.
 - News and market calls gracefully fall back to synthetic/local logic when external APIs are unavailable.
-- Set `USE_LIVE_MARKET_DATA=true` for live yfinance pulls.
 - `risk_profile` supports `low | medium | high`.
 

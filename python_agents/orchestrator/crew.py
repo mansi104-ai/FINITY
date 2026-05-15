@@ -16,6 +16,8 @@ except Exception:
 
 
 class FinanceCrew:
+    DISCLAIMER = "FINDEC is a decision support tool only and does not constitute financial advice."
+
     def __init__(self) -> None:
         self.researcher = ResearcherAgent()
         self.analyst = AnalystAgent()
@@ -94,6 +96,7 @@ class FinanceCrew:
             "query": user_query,
             "ticker": ticker,
             "version": version,
+            "disclaimer": self.DISCLAIMER,
             "sentiment": {
                 "level": sentiment["level"],
                 "score": sentiment["score"],

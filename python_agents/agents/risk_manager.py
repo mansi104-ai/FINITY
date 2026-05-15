@@ -1,5 +1,15 @@
 import time
 
+SIGMA_REF = 0.03
+DRAWDOWN_REF = 0.15
+RISK_WEIGHTS = {
+    "low": (0.2, 0.8),
+    "medium": (0.5, 0.5),
+    "high": (0.8, 0.2),
+}
+RSI_OVERSOLD = 30
+RSI_OVERBOUGHT = 70
+
 try:
     from ..risk.var_calculator import calculate_var
 except Exception:
@@ -30,7 +40,10 @@ class RiskManagerAgent:
             "valueAtRiskPct": round(var["var_pct"], 2),
             "level": risk_level,
             "recommendedPositionSizePct": round(recommended_pct, 2),
-            "message": "VaR computed with 90-day historical returns",
+            "message": (
+                f"VaR computed with 90-day historical returns. Risk refs sigma={SIGMA_REF}, drawdown={DRAWDOWN_REF}, "
+                f"RSI band {RSI_OVERSOLD}-{RSI_OVERBOUGHT}."
+            ),
             "durationMs": int((time.perf_counter() - start) * 1000),
         }
 

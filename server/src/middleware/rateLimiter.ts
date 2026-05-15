@@ -1,14 +1,35 @@
 import rateLimit from "express-rate-limit";
+import type { NextFunction, Request, Response } from "express";
 import { env } from "../config";
 
-export const queryRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: env.queryLimitPerHour,
-  keyGenerator: (req) => req.authUser?.id ?? req.ip ?? "anonymous",
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: `Rate limit reached: max ${env.queryLimitPerHour} queries per hour` }
-});
+const queryWindowMs = 60 * 60 * 1000;
+const queryUserBuckets = new Map<string, number[]>();
+
+function pruneWindow(timestamps: number[], now: number): number[] {
+  return timestamps.filter((timestamp) => now - timestamp < queryWindowMs);
+}
+
+export function queryRateLimiter(req: Request, res: Response, next: NextFunction) {
+  const userId = req.authUser?.id;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const now = Date.now();
+  const history = pruneWindow(queryUserBuckets.get(userId) ?? [], now);
+
+  if (history.length >= env.queryLimitPerHour) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((queryWindowMs - (now - history[0])) / 1000));
+    res.setHeader("Retry-After", retryAfterSeconds.toString());
+    return res.status(429).json({
+      error: `Rate limit reached: max ${env.queryLimitPerHour} queries per hour`
+    });
+  }
+
+  history.push(now);
+  queryUserBuckets.set(userId, history);
+  return next();
+}
 
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

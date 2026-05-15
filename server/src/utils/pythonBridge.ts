@@ -11,7 +11,10 @@ export type PythonRunPayload = {
   version: number;
 };
 
-export type PythonRunResponse = Omit<AgentReport, "id" | "userId" | "createdAt">;
+export type PythonRunResponse = Pick<
+  AgentReport,
+  "query" | "ticker" | "version" | "sentiment" | "prediction" | "risk" | "recommendation" | "agentLogs" | "disclaimer"
+>;
 
 export class PythonServiceError extends Error {
   constructor(
