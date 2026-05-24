@@ -228,3 +228,36 @@ export interface MarketHistory {
   low30d: number;
   source: "yahoo" | "synthetic";
 }
+
+export interface StockQuote {
+  symbol: string;
+  name: string;
+  exchange: string;
+  currency: string;
+  price: number;
+  lastClose: number;
+  change: number;
+  changePercent: number;
+  volume?: number;
+  avgVolume?: number;
+  marketCap?: number;
+  peRatio?: number;
+  forwardPE?: number;
+  dividendYield?: number;
+  high52w?: number;
+  low52w?: number;
+  ma50?: number;
+  ma200?: number;
+  eps?: number;
+  epsForward?: number;
+  priceToBook?: number;
+  beta?: number;
+  isIndex: boolean;
+}
+
+export interface StocksResponse {
+  stocks: StockQuote[];
+  indices: StockQuote[];
+  countryCode: string;
+  asOf: string;
+}

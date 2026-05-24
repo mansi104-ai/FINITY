@@ -1,4 +1,4 @@
-import type { AgentReport, MarketHistory, MarketSnapshot, QueryResponse, RiskProfile } from "../types";
+import type { AgentReport, MarketHistory, MarketSnapshot, QueryResponse, RiskProfile, StockQuote, StocksResponse } from "../types";
 
 // Prefer same-origin requests so deployed clients can use a rewrite/proxy and avoid
 // browser-side CORS/network failures. Keep the explicit backend URL as a fallback.
@@ -298,4 +298,12 @@ export function getMarketSnapshot(): Promise<MarketSnapshot> {
 
 export function getMarketHistory(ticker: string): Promise<MarketHistory> {
   return request<MarketHistory>(`/api/market/history/${encodeURIComponent(ticker)}`);
+}
+
+export function getStocks(): Promise<StocksResponse> {
+  return request<StocksResponse>("/api/market/stocks");
+}
+
+export function getStockDetail(ticker: string): Promise<StockQuote> {
+  return request<StockQuote>(`/api/market/stock/${encodeURIComponent(ticker)}`);
 }

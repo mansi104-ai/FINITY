@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMarketHistory, getMarketSnapshot, sendQuery } from "../services/api";
-import type { MarketHistory, MarketSnapshot, QueryResponse, RiskProfile } from "../types";
+import { getMarketHistory, getMarketSnapshot, getStockDetail, sendQuery } from "../services/api";
+import type { MarketHistory, MarketSnapshot, QueryResponse, RiskProfile, StockQuote } from "../types";
 
 const LOCAL_SETTINGS_KEY = "findec-local-settings";
 const WATCHLIST_KEY = "findec-watchlist";
@@ -207,6 +207,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   const [error, setError] = useState("");
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [latestReportId, setLatestReportId] = useState("");
+  const [stockFundamentals, setStockFundamentals] = useState<StockQuote | null>(null);
   const hydratedParamsRef = useRef("");
 
   const activeSymbol = useMemo(() => (ticker || extractTicker(query) || "").trim().toUpperCase(), [query, ticker]);
@@ -308,6 +309,21 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
     void loadHistory();
   }, [activeTicker]);
 
+  useEffect(() => {
+    if (!activeTicker || activeTicker.startsWith("^")) {
+      setStockFundamentals(null);
+      return;
+    }
+    const loadFundamentals = async () => {
+      try {
+        setStockFundamentals(await getStockDetail(activeTicker));
+      } catch {
+        setStockFundamentals(null);
+      }
+    };
+    void loadFundamentals();
+  }, [activeTicker]);
+
   const chartPolyline = useMemo(() => {
     return marketHistory ? toChartPoints(marketHistory.points, 760, 180) : "";
   }, [marketHistory]);
@@ -335,6 +351,18 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
       setRunning(false);
     }
   };
+
+  function fmtCap(v: number): string {
+    if (v >= 1e12) return `${(v / 1e12).toFixed(2)}T`;
+    if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+    if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+    return v.toLocaleString();
+  }
+
+  function posIn52w(price: number, low: number, high: number): number {
+    if (high <= low) return 50;
+    return Math.min(100, Math.max(0, ((price - low) / (high - low)) * 100));
+  }
 
   return (
     <section className="findec-minimal-page">
@@ -400,6 +428,86 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
             </svg>
           </div>
         </section>
+
+        {stockFundamentals && (
+          <section className="findec-panel findec-fundamentals-panel">
+            <p className="findec-kicker">Fundamentals · {stockFundamentals.name}</p>
+            <div className="findec-fund-grid">
+              {stockFundamentals.marketCap != null && (
+                <div className="findec-fund-item">
+                  <span>Market Cap</span>
+                  <strong>{fmtCap(stockFundamentals.marketCap)}</strong>
+                </div>
+              )}
+              {stockFundamentals.peRatio != null && (
+                <div className="findec-fund-item">
+                  <span>P/E (TTM)</span>
+                  <strong>{stockFundamentals.peRatio}</strong>
+                </div>
+              )}
+              {stockFundamentals.forwardPE != null && (
+                <div className="findec-fund-item">
+                  <span>Forward P/E</span>
+                  <strong>{stockFundamentals.forwardPE}</strong>
+                </div>
+              )}
+              {stockFundamentals.eps != null && (
+                <div className="findec-fund-item">
+                  <span>EPS (TTM)</span>
+                  <strong>{stockFundamentals.eps}</strong>
+                </div>
+              )}
+              {stockFundamentals.dividendYield != null && (
+                <div className="findec-fund-item">
+                  <span>Div Yield</span>
+                  <strong>{stockFundamentals.dividendYield.toFixed(2)}%</strong>
+                </div>
+              )}
+              {stockFundamentals.beta != null && (
+                <div className="findec-fund-item">
+                  <span>Beta</span>
+                  <strong>{stockFundamentals.beta}</strong>
+                </div>
+              )}
+              {stockFundamentals.priceToBook != null && (
+                <div className="findec-fund-item">
+                  <span>P/B Ratio</span>
+                  <strong>{stockFundamentals.priceToBook}</strong>
+                </div>
+              )}
+              {stockFundamentals.volume != null && (
+                <div className="findec-fund-item">
+                  <span>Volume</span>
+                  <strong>{(stockFundamentals.volume / 1e6).toFixed(1)}M</strong>
+                </div>
+              )}
+            </div>
+            {stockFundamentals.high52w != null && stockFundamentals.low52w != null && (
+              <div className="findec-fund-52w">
+                <span className="findec-fund-52w-label">52-Week Range</span>
+                <div className="findec-fund-52w-bar">
+                  <span className="findec-fund-52w-lo">{stockFundamentals.low52w.toLocaleString()}</span>
+                  <div className="findec-fund-52w-track">
+                    <div
+                      className="findec-fund-52w-dot"
+                      style={{ left: `${posIn52w(stockFundamentals.price, stockFundamentals.low52w, stockFundamentals.high52w)}%` }}
+                    />
+                  </div>
+                  <span className="findec-fund-52w-hi">{stockFundamentals.high52w.toLocaleString()}</span>
+                </div>
+                {stockFundamentals.ma50 != null && stockFundamentals.ma200 != null && (
+                  <div className="findec-fund-ma-row">
+                    <span>MA50 <strong>{stockFundamentals.ma50.toLocaleString()}</strong></span>
+                    <span>MA200 <strong>{stockFundamentals.ma200.toLocaleString()}</strong></span>
+                    <span className={stockFundamentals.price > stockFundamentals.ma50 ? "findec-subline-up" : "findec-subline-down"}>
+                      {stockFundamentals.price > stockFundamentals.ma50 ? "Above MA50" : "Below MA50"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="findec-results-grid">
           <article className="findec-panel findec-agent-panel">

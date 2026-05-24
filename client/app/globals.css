@@ -2875,6 +2875,484 @@ html[data-theme="dark"] .single-note-card-accent {
   }
 }
 
+/* ═══════════════════════════════════════
+   FUNDAMENTALS PANEL (brief page)
+═══════════════════════════════════════ */
+
+.findec-fundamentals-panel {
+  margin-top: 0.72rem;
+  padding: 0.95rem 1rem 1rem;
+}
+
+.findec-fund-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.findec-fund-item {
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  background: #131313;
+}
+
+.findec-fund-item span {
+  display: block;
+  font-size: 0.68rem;
+  color: #55585d;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.findec-fund-item strong {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: #f4efe6;
+  font-weight: 500;
+}
+
+.findec-fund-52w {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #1e1e1e;
+}
+
+.findec-fund-52w-label {
+  font-size: 0.68rem;
+  color: #55585d;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.findec-fund-52w-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.45rem;
+}
+
+.findec-fund-52w-lo,
+.findec-fund-52w-hi {
+  font-size: 0.75rem;
+  color: #696d72;
+  white-space: nowrap;
+}
+
+.findec-fund-52w-track {
+  flex: 1;
+  position: relative;
+  height: 4px;
+  background: #2a2a2a;
+  border-radius: 999px;
+}
+
+.findec-fund-52w-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #7ab32e;
+}
+
+.findec-fund-ma-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.55rem;
+  font-size: 0.78rem;
+  color: #696d72;
+}
+
+.findec-fund-ma-row strong {
+  color: #c8c4bc;
+  font-weight: 500;
+  margin-left: 0.25rem;
+}
+
+/* ═══════════════════════════════════════
+   MARKETS PAGE
+═══════════════════════════════════════ */
+
+.mkt-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.mkt-page-title {
+  margin: 0.2rem 0 0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 700;
+  color: #f4efe6;
+  line-height: 1.05;
+}
+
+.mkt-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #2a2a2a;
+  border-radius: 999px;
+  background: #141414;
+  color: #c8c4bc;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  margin-top: 0.35rem;
+}
+
+.mkt-status-hours {
+  color: #55585d;
+  font-size: 0.73rem;
+}
+
+.mkt-indices-grid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.mkt-index-card {
+  cursor: default;
+}
+
+.mkt-change-chip {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 0.22rem;
+}
+
+.mkt-movers-grid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.mkt-movers-panel {
+  padding: 0.9rem 1rem;
+}
+
+.mkt-mover-list {
+  display: grid;
+  gap: 0;
+}
+
+.mkt-mover-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #1e1e1e;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mkt-mover-row:last-child {
+  border-bottom: none;
+}
+
+.mkt-mover-row:hover .mkt-mover-sym {
+  color: #d8d0c2;
+}
+
+.mkt-mover-sym {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f4efe6;
+  min-width: 80px;
+}
+
+.mkt-mover-name {
+  flex: 1;
+  color: #696d72;
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mkt-table-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.mkt-tab-row {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.mkt-tab {
+  padding: 0.45rem 0.8rem;
+  border: 1px solid #252525;
+  border-radius: 8px;
+  background: transparent;
+  color: #696d72;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.mkt-tab-active {
+  border-color: #3a3a3a;
+  background: #1c1c1c;
+  color: #d8d0c2;
+}
+
+.mkt-search {
+  width: min(260px, 100%);
+  padding: 0.5rem 0.8rem;
+  border: 1px solid #2a2a2a;
+  border-radius: 9px;
+  background: #141414;
+  color: #c8c4bc;
+}
+
+.mkt-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mkt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.mkt-th {
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  color: #55585d;
+  font-size: 0.69rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #1e1e1e;
+  white-space: nowrap;
+}
+
+.mkt-sort-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mkt-sort-btn:hover {
+  color: #9ca0a8;
+}
+
+.mkt-tr {
+  border-bottom: 1px solid #1a1a1a;
+  transition: background 0.12s;
+}
+
+.mkt-tr:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.mkt-td {
+  padding: 0.72rem 0.65rem;
+  color: #c8c4bc;
+  vertical-align: middle;
+}
+
+.mkt-td-sym strong {
+  color: #f4efe6;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.mkt-td-name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-width: 200px;
+}
+
+.mkt-td-name span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mkt-exchange-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  color: #55585d;
+  border: 1px solid #252525;
+  border-radius: 4px;
+  padding: 0 0.3rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.mkt-td-price {
+  white-space: nowrap;
+}
+
+.mkt-price-val {
+  font-weight: 500;
+  color: #f4efe6;
+}
+
+.mkt-currency-tag {
+  font-size: 0.7rem;
+  color: #55585d;
+  margin-left: 0.3rem;
+}
+
+.mkt-na {
+  color: #373737;
+}
+
+.mkt-th-hide-sm,
+.mkt-th-hide-md {
+  /* shown on larger screens only */
+}
+
+.mkt-td-action {
+  text-align: right;
+}
+
+.mkt-brief-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #2e2e2e;
+  border-radius: 7px;
+  background: #191919;
+  color: #b0c4e8;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mkt-brief-btn:hover {
+  border-color: #404a60;
+  background: #1c2032;
+}
+
+.mkt-range-wrap {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 120px;
+}
+
+.mkt-range-track {
+  position: relative;
+  height: 4px;
+  background: #2a2a2a;
+  border-radius: 999px;
+}
+
+.mkt-range-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7ab32e;
+}
+
+.mkt-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.66rem;
+  color: #55585d;
+}
+
+.mkt-featured-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.mkt-featured-card {
+  border: 1px solid #252525;
+  border-radius: 10px;
+  padding: 0.9rem;
+  background: #141414;
+}
+
+.mkt-featured-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mkt-featured-top strong {
+  display: block;
+  color: #f4efe6;
+  font-size: 0.92rem;
+}
+
+.mkt-vol-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.mkt-vol-card {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.8rem;
+  border: 1px solid #252525;
+  border-radius: 10px;
+  background: #141414;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.mkt-vol-card:hover {
+  border-color: #3a3a3a;
+}
+
+@media (max-width: 780px) {
+  .mkt-movers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mkt-th-hide-sm,
+  .mkt-td.mkt-th-hide-sm {
+    display: none;
+  }
+}
+
+@media (max-width: 1040px) {
+  .mkt-th-hide-md,
+  .mkt-td.mkt-th-hide-md {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════
+   END MARKETS PAGE
+═══════════════════════════════════════ */
+
 @media (max-width: 640px) {
   .findec-app-body {
     padding-inline: 0.9rem;
