@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import Compare from "../../src/views/Compare";
 
 export default function ComparePage() {
-  return <Compare />;
+  return (
+    <Suspense>
+      <Compare />
+    </Suspense>
+  );
 }
