@@ -567,54 +567,102 @@ function scoreSentiment(text: string): "bullish" | "bearish" | "neutral" {
   return "neutral";
 }
 
-export async function getNewsController(req: Request, res: Response) {
-  const ticker = String(req.query.ticker ?? "").trim().toUpperCase();
-  const query = ticker || "stock market";
+type YahooNewsItem = {
+  uuid?: string;
+  title?: string;
+  link?: string;
+  publisher?: string;
+  providerPublishTime?: number;
+};
 
-  if (!env.newsApiKey) {
-    return res.status(200).json({ articles: [], source: "unavailable", note: "NEWS_API_KEY not configured" });
+type YahooSearchResponse = {
+  news?: YahooNewsItem[];
+};
+
+async function fetchYahooNews(query: string): Promise<NewsArticle[]> {
+  const response = await axios.get<YahooSearchResponse>(
+    "https://query2.finance.yahoo.com/v1/finance/search",
+    {
+      params: { q: query, newsCount: 20, quotesCount: 0, enableFuzzyQuery: false },
+      headers: { "User-Agent": "Mozilla/5.0" },
+      timeout: 8000
+    }
+  );
+
+  const items = response.data?.news ?? [];
+  if (!items.length) throw new Error("No Yahoo news results");
+
+  return items
+    .filter((n) => n.title && n.link)
+    .map((n) => ({
+      title: n.title!,
+      url: n.link!,
+      source: { name: n.publisher ?? "Yahoo Finance" },
+      publishedAt: n.providerPublishTime
+        ? new Date(n.providerPublishTime * 1000).toISOString()
+        : new Date().toISOString(),
+      sentiment: scoreSentiment(n.title ?? "")
+    }));
+}
+
+async function fetchNewsApiArticles(query: string, ticker: string): Promise<NewsArticle[]> {
+  if (!env.newsApiKey) throw new Error("No NewsAPI key");
+
+  const response = await axios.get<{
+    status: string;
+    articles?: Array<{
+      title?: string;
+      description?: string;
+      url?: string;
+      source?: { name?: string };
+      publishedAt?: string;
+    }>;
+  }>("https://newsapi.org/v2/everything", {
+    params: {
+      q: ticker ? `"${ticker}" stock` : "stock market investing",
+      apiKey: env.newsApiKey,
+      sortBy: "publishedAt",
+      language: "en",
+      pageSize: 20
+    },
+    timeout: 8000
+  });
+
+  if (response.data.status !== "ok" || !response.data.articles) {
+    throw new Error("NewsAPI returned no articles");
   }
 
+  return response.data.articles
+    .filter((a) => a.title && a.title !== "[Removed]")
+    .map((a) => ({
+      title: a.title!,
+      description: a.description ?? undefined,
+      url: a.url ?? "",
+      source: { name: a.source?.name ?? "Unknown" },
+      publishedAt: a.publishedAt ?? new Date().toISOString(),
+      sentiment: scoreSentiment((a.title ?? "") + " " + (a.description ?? ""))
+    }));
+}
+
+export async function getNewsController(req: Request, res: Response) {
+  const ticker = String(req.query.ticker ?? "").trim().toUpperCase();
+  const searchQuery = ticker || "stock market investing";
+
+  // Try Yahoo Finance first (no API key required, works in production)
   try {
-    const response = await axios.get<{
-      status: string;
-      articles?: Array<{
-        title?: string;
-        description?: string;
-        url?: string;
-        source?: { name?: string };
-        publishedAt?: string;
-      }>;
-    }>("https://newsapi.org/v2/everything", {
-      params: {
-        q: ticker ? `"${ticker}" stock` : "stock market investing",
-        apiKey: env.newsApiKey,
-        sortBy: "publishedAt",
-        language: "en",
-        pageSize: 15
-      },
-      timeout: 8000
-    });
+    const articles = await fetchYahooNews(searchQuery);
+    return res.status(200).json({ articles, source: "yahoo", ticker: ticker || null });
+  } catch (yahooErr) {
+    console.warn("Yahoo news failed, trying NewsAPI", yahooErr);
+  }
 
-    if (response.data.status !== "ok" || !response.data.articles) {
-      return res.status(200).json({ articles: [], source: "empty" });
-    }
-
-    const articles: NewsArticle[] = response.data.articles
-      .filter((a) => a.title && a.title !== "[Removed]")
-      .map((a) => ({
-        title: a.title ?? "",
-        description: a.description ?? undefined,
-        url: a.url ?? "",
-        source: { name: a.source?.name ?? "Unknown" },
-        publishedAt: a.publishedAt ?? new Date().toISOString(),
-        sentiment: scoreSentiment((a.title ?? "") + " " + (a.description ?? ""))
-      }));
-
+  // Fall back to NewsAPI.org
+  try {
+    const articles = await fetchNewsApiArticles(searchQuery, ticker);
     return res.status(200).json({ articles, source: "newsapi", ticker: ticker || null });
-  } catch (error) {
-    console.warn("News fetch failed", error);
-    return res.status(200).json({ articles: [], source: "error" });
+  } catch (err) {
+    console.warn("All news sources failed", err);
+    return res.status(200).json({ articles: [], source: "unavailable", ticker: ticker || null });
   }
 }
 

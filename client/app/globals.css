@@ -2351,6 +2351,23 @@ html[data-theme="dark"] .single-note-card-accent {
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.findec-topnav-link:hover {
+  border-color: rgba(243, 238, 228, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.findec-topnav-cta {
+  border-color: #2d4d22 !important;
+  background: #1a2e14 !important;
+  color: #72b92b !important;
+}
+
+.findec-topnav-cta:hover {
+  border-color: #72b92b !important;
+  background: #1e3618 !important;
 }
 
 .findec-app-strip {
@@ -3946,6 +3963,13 @@ html[data-theme="dark"] .single-note-card-accent {
   color: #f4efe6;
 }
 
+.scr-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
 .scr-count {
   padding: 0.3rem 0.75rem;
   border: 1px solid #252525;
@@ -3954,8 +3978,40 @@ html[data-theme="dark"] .single-note-card-accent {
   color: #888;
   font-size: 0.8rem;
   white-space: nowrap;
-  margin-top: 0.5rem;
 }
+
+.scr-compare-btn {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid #272727;
+  border-radius: 20px;
+  background: #141414;
+  color: #4f8ef7;
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.scr-compare-btn:hover { border-color: #4f8ef7; }
+
+.scr-notice {
+  padding: 0.65rem 1rem;
+  border: 1px solid #2a2010;
+  border-radius: 8px;
+  background: #1a1408;
+  color: #c9963a;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.scr-no-results {
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+}
+
+.scr-no-results-title { color: #f4efe6; font-size: 0.95rem; margin: 0 0 0.35rem; }
+.scr-no-results-sub { color: #666; font-size: 0.82rem; margin: 0 0 1rem; max-width: 420px; margin-inline: auto; }
+
+.scr-reset-inline { display: inline-flex; }
 
 .scr-filters { padding: 1rem 1.25rem; margin-bottom: 0.75rem; }
 
@@ -4203,8 +4259,66 @@ html[data-theme="dark"] .single-note-card-accent {
 
 .cmp-add-btn:disabled { opacity: 0.4; cursor: default; }
 
+.cmp-input-error { color: #cc5147; font-size: 0.78rem; margin: 0.4rem 0 0; }
 .cmp-hint { color: #555; font-size: 0.82rem; margin: 0.5rem 0 0; }
 .cmp-loading { margin: 0.5rem 0 0; }
+
+.cmp-pairs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #1a1a1a;
+}
+
+.cmp-pairs-label { color: #555; font-size: 0.75rem; }
+
+.cmp-pair-btn {
+  padding: 0.28rem 0.65rem;
+  border: 1px solid #252525;
+  border-radius: 20px;
+  background: #141414;
+  color: #777;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.cmp-pair-btn:hover { border-color: #4f8ef7; color: #4f8ef7; }
+
+.cmp-empty {
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.cmp-empty-title { color: #f4efe6; font-size: 1rem; margin: 0 0 0.35rem; }
+.cmp-empty-sub { color: #666; font-size: 0.85rem; margin: 0 0 1.25rem; }
+
+.cmp-empty-pairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.5rem;
+}
+
+.cmp-empty-pair-btn {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #1e1e1e;
+  border-radius: 10px;
+  background: #141414;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  font: inherit;
+}
+
+.cmp-empty-pair-btn strong { color: #f4efe6; font-size: 0.85rem; }
+.cmp-empty-pair-btn span { color: #666; font-size: 0.75rem; }
+.cmp-empty-pair-btn:hover { border-color: #4f8ef7; }
 
 .cmp-chart-panel { padding: 1.1rem 1.25rem; margin-bottom: 0.75rem; }
 
@@ -4306,6 +4420,22 @@ html[data-theme="dark"] .single-note-card-accent {
 }
 
 .cmp-cta-btn:hover { background: #1a2e14; border-color: #72b92b; }
+
+.cmp-col-name {
+  display: block;
+  color: #666;
+  font-size: 0.68rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 0.15rem;
+  white-space: normal;
+  max-width: 120px;
+}
+
+.cmp-err-label { color: #cc5147; font-size: 0.7rem; display: block; margin-top: 0.2rem; }
+
+.cmp-table-scroll { overflow-x: auto; }
 
 /* ═══════════════════════════════════════
    NEWS PAGE  (news-*)

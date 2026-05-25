@@ -42,10 +42,16 @@ const CAP_OPTIONS = [
   { label: "> $1T", value: "1e12" },
 ];
 
+function isFiltersActive(f: Filters): boolean {
+  return f.search !== "" || f.peMin !== "" || f.peMax !== "" || f.capMin !== "" ||
+    f.yieldMin !== "" || f.betaMax !== "" || f.maCross !== "all" || f.changeDir !== "all";
+}
+
 export default function Screener() {
   const [stocks, setStocks] = useState<StockQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [hasFundamentals, setHasFundamentals] = useState(true);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "marketCap", dir: "desc" });
 
@@ -53,7 +59,11 @@ export default function Screener() {
     const load = async () => {
       try {
         const { stocks: s } = await getStocks();
-        setStocks(s.filter((st) => !st.isIndex));
+        const equities = s.filter((st) => !st.isIndex);
+        setStocks(equities);
+        // Check if we have real fundamental data
+        const withFundamentals = equities.filter((st) => st.peRatio != null || st.marketCap != null);
+        setHasFundamentals(withFundamentals.length > 0);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load stocks.");
       } finally {
@@ -95,11 +105,8 @@ export default function Screener() {
     } else if (filters.maCross === "death") {
       list = list.filter((s) => s.ma50 != null && s.ma200 != null && s.ma50 < s.ma200);
     }
-    if (filters.changeDir === "up") {
-      list = list.filter((s) => s.changePercent > 0);
-    } else if (filters.changeDir === "down") {
-      list = list.filter((s) => s.changePercent < 0);
-    }
+    if (filters.changeDir === "up") list = list.filter((s) => s.changePercent > 0);
+    else if (filters.changeDir === "down") list = list.filter((s) => s.changePercent < 0);
 
     list.sort((a, b) => {
       const av = (a[sort.key] as number | undefined) ?? (sort.dir === "asc" ? Infinity : -Infinity);
@@ -123,6 +130,9 @@ export default function Screener() {
   const sortArrow = (key: SortKey) =>
     sort.key === key ? (sort.dir === "desc" ? " ↓" : " ↑") : "";
 
+  const activeFilters = isFiltersActive(filters);
+  const noResults = !loading && !error && filtered.length === 0;
+
   return (
     <section className="findec-minimal-page">
       <div className="findec-minimal-shell scr-shell">
@@ -131,8 +141,21 @@ export default function Screener() {
             <p className="findec-kicker">Stock Screener</p>
             <h1 className="scr-title">Filter &amp; Find</h1>
           </div>
-          <span className="scr-count">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
+          <div className="scr-header-right">
+            {!loading && !error && (
+              <span className="scr-count">{filtered.length} of {stocks.length}</span>
+            )}
+            {!loading && !error && (
+              <Link href="/compare" className="scr-compare-btn">Compare →</Link>
+            )}
+          </div>
         </div>
+
+        {!loading && !hasFundamentals && (
+          <div className="scr-notice">
+            Live fundamentals unavailable — showing price and direction data only. Fundamental filters (P/E, cap, yield) will not apply.
+          </div>
+        )}
 
         {/* Filters */}
         <div className="findec-panel scr-filters">
@@ -141,12 +164,11 @@ export default function Screener() {
               <label className="findec-kicker">Search</label>
               <input
                 className="scr-input"
-                placeholder="Symbol or name…"
+                placeholder="Symbol or company name…"
                 value={filters.search}
                 onChange={(e) => setF("search", e.target.value)}
               />
             </div>
-
             <div className="scr-filter-group">
               <label className="findec-kicker">P/E Min</label>
               <input className="scr-input" type="number" placeholder="e.g. 5" value={filters.peMin} onChange={(e) => setF("peMin", e.target.value)} />
@@ -155,24 +177,20 @@ export default function Screener() {
               <label className="findec-kicker">P/E Max</label>
               <input className="scr-input" type="number" placeholder="e.g. 30" value={filters.peMax} onChange={(e) => setF("peMax", e.target.value)} />
             </div>
-
             <div className="scr-filter-group">
               <label className="findec-kicker">Market Cap</label>
               <select className="scr-input scr-select" value={filters.capMin} onChange={(e) => setF("capMin", e.target.value)}>
                 {CAP_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-
             <div className="scr-filter-group">
               <label className="findec-kicker">Div Yield ≥ %</label>
               <input className="scr-input" type="number" placeholder="e.g. 2" step="0.1" value={filters.yieldMin} onChange={(e) => setF("yieldMin", e.target.value)} />
             </div>
-
             <div className="scr-filter-group">
               <label className="findec-kicker">Beta ≤</label>
               <input className="scr-input" type="number" placeholder="e.g. 1.5" step="0.1" value={filters.betaMax} onChange={(e) => setF("betaMax", e.target.value)} />
             </div>
-
             <div className="scr-filter-group">
               <label className="findec-kicker">MA Cross</label>
               <select className="scr-input scr-select" value={filters.maCross} onChange={(e) => setF("maCross", e.target.value as Filters["maCross"])}>
@@ -181,7 +199,6 @@ export default function Screener() {
                 <option value="death">Death Cross ↓</option>
               </select>
             </div>
-
             <div className="scr-filter-group">
               <label className="findec-kicker">Today</label>
               <select className="scr-input scr-select" value={filters.changeDir} onChange={(e) => setF("changeDir", e.target.value as Filters["changeDir"])}>
@@ -191,14 +208,29 @@ export default function Screener() {
               </select>
             </div>
           </div>
-
-          <button className="scr-reset-btn" onClick={() => setFilters(DEFAULT_FILTERS)}>Reset filters</button>
+          {activeFilters && (
+            <button className="scr-reset-btn" onClick={() => setFilters(DEFAULT_FILTERS)}>
+              ✕ Clear filters
+            </button>
+          )}
         </div>
 
         {error && <div className="findec-panel scr-error">{error}</div>}
         {loading && <p className="findec-kicker scr-loading">Loading stocks…</p>}
 
-        {!loading && !error && (
+        {noResults && activeFilters && (
+          <div className="findec-panel scr-no-results">
+            <p className="scr-no-results-title">No stocks match these filters</p>
+            <p className="scr-no-results-sub">
+              {!hasFundamentals
+                ? "Fundamental data (P/E, market cap, yield) is not available for the current dataset. Try filtering by price direction or symbol name."
+                : "Try widening your filter ranges."}
+            </p>
+            <button className="scr-reset-btn scr-reset-inline" onClick={() => setFilters(DEFAULT_FILTERS)}>Reset all filters</button>
+          </div>
+        )}
+
+        {!loading && !error && filtered.length > 0 && (
           <div className="findec-panel scr-table-wrap">
             <table className="scr-table">
               <thead>
@@ -215,11 +247,6 @@ export default function Screener() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={9} className="scr-empty-row">No stocks match your filters.</td>
-                  </tr>
-                )}
                 {filtered.map((s) => {
                   const cross = s.ma50 != null && s.ma200 != null
                     ? s.ma50 > s.ma200 ? "golden" : "death"
@@ -234,12 +261,12 @@ export default function Screener() {
                       <td className={`scr-td scr-td-r ${s.changePercent >= 0 ? "findec-subline-up" : "findec-subline-down"}`}>
                         {s.changePercent >= 0 ? "+" : ""}{fmtNum(s.changePercent)}%
                       </td>
-                      <td className="scr-td scr-td-r scr-hide-sm">{s.marketCap != null ? fmtCap(s.marketCap) : "—"}</td>
-                      <td className="scr-td scr-td-r scr-hide-sm">{s.peRatio != null ? s.peRatio : "—"}</td>
+                      <td className="scr-td scr-td-r scr-hide-sm">{s.marketCap != null ? fmtCap(s.marketCap) : <span className="scr-dim">—</span>}</td>
+                      <td className="scr-td scr-td-r scr-hide-sm">{s.peRatio != null ? s.peRatio : <span className="scr-dim">—</span>}</td>
                       <td className="scr-td scr-td-r scr-hide-md">
-                        {s.dividendYield != null && s.dividendYield > 0 ? `${s.dividendYield.toFixed(2)}%` : "—"}
+                        {s.dividendYield != null && s.dividendYield > 0 ? `${s.dividendYield.toFixed(2)}%` : <span className="scr-dim">—</span>}
                       </td>
-                      <td className="scr-td scr-td-r scr-hide-md">{s.beta != null ? s.beta : "—"}</td>
+                      <td className="scr-td scr-td-r scr-hide-md">{s.beta != null ? s.beta : <span className="scr-dim">—</span>}</td>
                       <td className="scr-td scr-td-r scr-hide-md">
                         {cross === "golden" && <span className="findec-subline-up">Golden ↑</span>}
                         {cross === "death" && <span className="findec-subline-down">Death ↓</span>}
@@ -247,6 +274,7 @@ export default function Screener() {
                       </td>
                       <td className="scr-td scr-td-actions">
                         <Link href={`/stock/${encodeURIComponent(s.symbol)}`} className="scr-action">View</Link>
+                        <Link href={`/compare?tickers=${encodeURIComponent(s.symbol)}`} className="scr-action">Compare</Link>
                         <Link href={`/brief?ticker=${encodeURIComponent(s.symbol)}`} className="scr-action scr-action-brief">Brief</Link>
                       </td>
                     </tr>

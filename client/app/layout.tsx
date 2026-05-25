@@ -17,10 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link className="findec-topnav-link" href="/markets">Markets</Link>
               <Link className="findec-topnav-link" href="/screener">Screener</Link>
               <Link className="findec-topnav-link" href="/watchlist">Watchlist</Link>
-              <Link className="findec-topnav-link" href="/compare">Compare</Link>
-              <Link className="findec-topnav-link" href="/news">News</Link>
-              <Link className="findec-topnav-link" href="/brief">Brief</Link>
-              <Link className="findec-topnav-link" href="/report">Reports</Link>
+              <Link className="findec-topnav-link findec-topnav-cta" href="/brief">AI Brief</Link>
               <Link className="findec-topnav-link" href="/history">History</Link>
             </nav>
           </header>
