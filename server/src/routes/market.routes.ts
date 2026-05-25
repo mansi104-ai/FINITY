@@ -4,7 +4,8 @@ import {
   getMarketSnapshotController,
   getStocksController,
   getStockDetailController,
-  getNewsController
+  getNewsController,
+  searchStocksController
 } from "../controllers/market.controller";
 
 const marketRoutes = Router();
@@ -14,5 +15,6 @@ marketRoutes.get("/history/:ticker", getMarketHistoryController);
 marketRoutes.get("/stocks", getStocksController);
 marketRoutes.get("/stock/:ticker", getStockDetailController);
 marketRoutes.get("/news", getNewsController);
+marketRoutes.get("/search", searchStocksController);
 
 export default marketRoutes;

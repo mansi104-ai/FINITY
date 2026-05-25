@@ -185,6 +185,11 @@ export async function revokeRefreshToken(record: RevokedRefreshTokenRecord): Pro
     .replaceOne({ tokenHash: record.tokenHash }, record, { upsert: true });
 }
 
+// Expose raw DB for controllers that need it (e.g. stocks cache)
+export async function getDb(): Promise<import("mongodb").Db | null> {
+  return getMongoDb();
+}
+
 export async function isRefreshTokenRevoked(tokenHash: string): Promise<boolean> {
   const db = await getMongoDb();
   if (!db) {

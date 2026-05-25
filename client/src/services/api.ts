@@ -312,3 +312,14 @@ export function getNews(ticker?: string): Promise<NewsResponse> {
   const qs = ticker ? `?ticker=${encodeURIComponent(ticker)}` : "";
   return request<NewsResponse>(`/api/market/news${qs}`);
 }
+
+export interface StockSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  type: string;
+}
+
+export function searchStocks(q: string): Promise<{ results: StockSearchResult[] }> {
+  return request<{ results: StockSearchResult[] }>(`/api/market/search?q=${encodeURIComponent(q)}`);
+}
