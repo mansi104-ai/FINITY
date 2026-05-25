@@ -5,6 +5,7 @@ import {
   type StockMarket,
   type GeoLocation
 } from "../utils/geolocation";
+import { env } from "../config";
 
 const NEW_YORK_TIMEZONE = "America/New_York";
 
@@ -542,6 +543,78 @@ export async function getStocksController(req: Request, res: Response) {
       countryCode: geo.countryCode,
       asOf: now.toISOString()
     } satisfies StocksListResponse);
+  }
+}
+
+type NewsArticle = {
+  title: string;
+  description?: string;
+  url: string;
+  source: { name: string };
+  publishedAt: string;
+  sentiment: "bullish" | "bearish" | "neutral";
+};
+
+const BULLISH_WORDS = ["surge", "rally", "gain", "profit", "beat", "record", "strong", "growth", "upgrade", "buy", "soar", "rise", "bull", "positive", "outperform"];
+const BEARISH_WORDS = ["fall", "drop", "miss", "loss", "decline", "sell", "crash", "weak", "downgrade", "cut", "bear", "negative", "underperform", "concern", "risk", "plunge"];
+
+function scoreSentiment(text: string): "bullish" | "bearish" | "neutral" {
+  const lower = text.toLowerCase();
+  const bull = BULLISH_WORDS.filter((w) => lower.includes(w)).length;
+  const bear = BEARISH_WORDS.filter((w) => lower.includes(w)).length;
+  if (bull > bear) return "bullish";
+  if (bear > bull) return "bearish";
+  return "neutral";
+}
+
+export async function getNewsController(req: Request, res: Response) {
+  const ticker = String(req.query.ticker ?? "").trim().toUpperCase();
+  const query = ticker || "stock market";
+
+  if (!env.newsApiKey) {
+    return res.status(200).json({ articles: [], source: "unavailable", note: "NEWS_API_KEY not configured" });
+  }
+
+  try {
+    const response = await axios.get<{
+      status: string;
+      articles?: Array<{
+        title?: string;
+        description?: string;
+        url?: string;
+        source?: { name?: string };
+        publishedAt?: string;
+      }>;
+    }>("https://newsapi.org/v2/everything", {
+      params: {
+        q: ticker ? `"${ticker}" stock` : "stock market investing",
+        apiKey: env.newsApiKey,
+        sortBy: "publishedAt",
+        language: "en",
+        pageSize: 15
+      },
+      timeout: 8000
+    });
+
+    if (response.data.status !== "ok" || !response.data.articles) {
+      return res.status(200).json({ articles: [], source: "empty" });
+    }
+
+    const articles: NewsArticle[] = response.data.articles
+      .filter((a) => a.title && a.title !== "[Removed]")
+      .map((a) => ({
+        title: a.title ?? "",
+        description: a.description ?? undefined,
+        url: a.url ?? "",
+        source: { name: a.source?.name ?? "Unknown" },
+        publishedAt: a.publishedAt ?? new Date().toISOString(),
+        sentiment: scoreSentiment((a.title ?? "") + " " + (a.description ?? ""))
+      }));
+
+    return res.status(200).json({ articles, source: "newsapi", ticker: ticker || null });
+  } catch (error) {
+    console.warn("News fetch failed", error);
+    return res.status(200).json({ articles: [], source: "error" });
   }
 }
 

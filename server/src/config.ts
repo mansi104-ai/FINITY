@@ -40,5 +40,6 @@ export const env = {
   trustProxy: process.env.TRUST_PROXY === "true",
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
   mongodbUri: process.env.MONGODB_URI ?? "",
-  mongodbDbName: process.env.MONGODB_DB_NAME ?? "findec"
+  mongodbDbName: process.env.MONGODB_DB_NAME ?? "findec",
+  newsApiKey: process.env.NEWSAPI_KEY ?? process.env.NEWS_API_KEY ?? ""
 };

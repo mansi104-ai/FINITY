@@ -261,3 +261,26 @@ export interface StocksResponse {
   countryCode: string;
   asOf: string;
 }
+
+export interface NewsArticle {
+  title: string;
+  description?: string;
+  url: string;
+  source: { name: string };
+  publishedAt: string;
+  sentiment: "bullish" | "bearish" | "neutral";
+}
+
+export interface NewsResponse {
+  articles: NewsArticle[];
+  source: string;
+  ticker?: string | null;
+  note?: string;
+}
+
+export interface WatchlistEntry {
+  ticker: string;
+  label: string;
+  buyPrice?: number;
+  addedAt: string;
+}
