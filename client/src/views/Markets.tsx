@@ -25,9 +25,10 @@ function fmtVol(v: number): string {
 
 function fmtPrice(v: number, currency: string): string {
   if (currency === "GBp") return `${(v / 100).toFixed(2)} GBP`;
+  const fracs = v >= 10000 ? 0 : 2;
   return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: v >= 100 ? 1 : 2,
-    minimumFractionDigits: 2
+    minimumFractionDigits: fracs,
+    maximumFractionDigits: fracs
   }).format(v);
 }
 
