@@ -76,17 +76,34 @@ export default function Compare() {
     setLoading(true);
     void Promise.all(
       toLoad.map(async (ticker): Promise<LoadedTicker> => {
-        try {
-          const [quote, history] = await Promise.all([
-            getStockDetail(ticker),
-            getMarketHistory(ticker),
-          ]);
-          loadedRef.current.add(ticker);
-          return { ticker, quote, history, error: null };
-        } catch (e) {
-          loadedRef.current.add(ticker);
-          return { ticker, quote: null, history: null, error: e instanceof Error ? e.message : "Failed" };
-        }
+        const [quoteResult, historyResult] = await Promise.allSettled([
+          getStockDetail(ticker),
+          getMarketHistory(ticker),
+        ]);
+
+        loadedRef.current.add(ticker);
+
+        const quote = quoteResult.status === "fulfilled" ? quoteResult.value : null;
+        const history = historyResult.status === "fulfilled" ? historyResult.value : null;
+        const errors = [
+          quoteResult.status === "rejected"
+            ? quoteResult.reason instanceof Error
+              ? quoteResult.reason.message
+              : "Quote unavailable"
+            : null,
+          historyResult.status === "rejected"
+            ? historyResult.reason instanceof Error
+              ? historyResult.reason.message
+              : "History unavailable"
+            : null,
+        ].filter(Boolean);
+
+        return {
+          ticker,
+          quote,
+          history,
+          error: errors.length > 0 ? errors.join(" | ") : null,
+        };
       })
     ).then((results) => {
       setData((prev) => {
@@ -102,8 +119,14 @@ export default function Compare() {
     const t = input.trim().toUpperCase();
     setInputError("");
     if (!t) return;
-    if (tickers.includes(t)) { setInputError(`${t} is already added.`); return; }
-    if (tickers.length >= MAX_TICKERS) { setInputError(`Max ${MAX_TICKERS} tickers.`); return; }
+    if (tickers.includes(t)) {
+      setInputError(`${t} is already added.`);
+      return;
+    }
+    if (tickers.length >= MAX_TICKERS) {
+      setInputError(`Max ${MAX_TICKERS} tickers.`);
+      return;
+    }
     setInput("");
     setTickers((prev) => [...prev, t]);
   }
@@ -123,7 +146,7 @@ export default function Compare() {
   const chartData = useMemo(() => {
     return data
       .filter((d) => d.history && d.history.points.length > 0)
-      .map((d, i) => ({
+      .map((d) => ({
         ticker: d.ticker,
         color: PALETTE[tickers.indexOf(d.ticker) % PALETTE.length],
         pts: normalise(d.history!.points.map((p) => p.close)),
@@ -150,6 +173,7 @@ export default function Compare() {
   ];
 
   const isEmpty = tickers.length === 0;
+  const availableQuotes = data.filter((d) => d.quote);
 
   return (
     <section className="findec-minimal-page">
@@ -159,17 +183,16 @@ export default function Compare() {
             <p className="findec-kicker">Side-by-side analysis</p>
             <h1 className="cmp-title">Compare Stocks</h1>
           </div>
-          <Link href="/screener" className="cmp-nav-btn">Screener →</Link>
+          <Link href="/screener" className="cmp-nav-btn">Screener -&gt;</Link>
         </div>
 
-        {/* Ticker input */}
         <div className="findec-panel cmp-add-panel">
           <p className="findec-kicker">Add up to {MAX_TICKERS} tickers</p>
           <div className="cmp-chips-row">
             {tickers.map((t, i) => (
               <div key={t} className="cmp-chip" style={{ borderColor: PALETTE[i % PALETTE.length] }}>
                 <span style={{ color: PALETTE[i % PALETTE.length] }}>{t}</span>
-                <button className="cmp-chip-remove" onClick={() => removeTicker(t)} title="Remove">×</button>
+                <button className="cmp-chip-remove" onClick={() => removeTicker(t)} title="Remove">x</button>
               </div>
             ))}
             {tickers.length < MAX_TICKERS && (
@@ -178,17 +201,21 @@ export default function Compare() {
                   className="cmp-input"
                   placeholder="Ticker, e.g. AAPL"
                   value={input}
-                  onChange={(e) => { setInput(e.target.value.toUpperCase()); setInputError(""); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") addTicker(); }}
+                  onChange={(e) => {
+                    setInput(e.target.value.toUpperCase());
+                    setInputError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") addTicker();
+                  }}
                 />
                 <button className="cmp-add-btn" onClick={addTicker} disabled={!input.trim()}>+ Add</button>
               </div>
             )}
           </div>
           {inputError && <p className="cmp-input-error">{inputError}</p>}
-          {loading && <p className="findec-kicker cmp-loading">Loading data…</p>}
+          {loading && <p className="findec-kicker cmp-loading">Loading data...</p>}
 
-          {/* Popular pairs */}
           <div className="cmp-pairs-row">
             <span className="cmp-pairs-label">Quick compare:</span>
             {POPULAR_PAIRS.map((pair) => (
@@ -199,7 +226,6 @@ export default function Compare() {
           </div>
         </div>
 
-        {/* Empty state */}
         {isEmpty && (
           <div className="findec-panel cmp-empty">
             <p className="cmp-empty-title">Select stocks to compare</p>
@@ -215,7 +241,6 @@ export default function Compare() {
           </div>
         )}
 
-        {/* Normalised price chart */}
         {hasChart && (
           <div className="findec-panel cmp-chart-panel">
             <div className="cmp-chart-top">
@@ -252,7 +277,6 @@ export default function Compare() {
           </div>
         )}
 
-        {/* Metrics table */}
         {data.length > 0 && (
           <div className="findec-panel cmp-table-wrap">
             <p className="findec-kicker cmp-table-kicker">Metrics Comparison</p>
@@ -267,7 +291,7 @@ export default function Compare() {
                           {d.ticker}
                         </Link>
                         {d.quote && <span className="cmp-col-name">{d.quote.name}</span>}
-                        {d.error && <span className="cmp-err-label">Error</span>}
+                        {d.error && !d.quote && <span className="cmp-err-label">Error</span>}
                       </th>
                     ))}
                   </tr>
@@ -288,18 +312,20 @@ export default function Compare() {
                           const isBest = best !== null && v === best;
                           return (
                             <td key={d.ticker} className={`cmp-td cmp-td-val ${isBest ? "cmp-best" : ""}`}>
-                              {d.error ? (
-                                <span className="cmp-dim">—</span>
+                              {!d.quote ? (
+                                <span className="cmp-dim">-</span>
                               ) : v != null ? (
-                                <span style={{
-                                  color: key === "changePercent"
-                                    ? (v >= 0 ? "#72b92b" : "#cc5147")
-                                    : isBest ? PALETTE[i % PALETTE.length] : undefined
-                                }}>
+                                <span
+                                  style={{
+                                    color: key === "changePercent"
+                                      ? (v >= 0 ? "#72b92b" : "#cc5147")
+                                      : isBest ? PALETTE[i % PALETTE.length] : undefined,
+                                  }}
+                                >
                                   {fmt(v)}
                                 </span>
                               ) : (
-                                <span className="cmp-dim">—</span>
+                                <span className="cmp-dim">-</span>
                               )}
                             </td>
                           );
@@ -313,12 +339,11 @@ export default function Compare() {
           </div>
         )}
 
-        {/* CTA row */}
-        {data.filter((d) => !d.error).length > 0 && (
+        {availableQuotes.length > 0 && (
           <div className="cmp-cta-row">
-            {data.filter((d) => !d.error).map((d, i) => (
-              <Link key={d.ticker} href={`/brief?ticker=${encodeURIComponent(d.ticker)}`} className="cmp-cta-btn" style={{ borderColor: PALETTE[i % PALETTE.length] + "55" }}>
-                ▶ AI Brief · {d.ticker}
+            {availableQuotes.map((d, i) => (
+              <Link key={d.ticker} href={`/brief?ticker=${encodeURIComponent(d.ticker)}`} className="cmp-cta-btn" style={{ borderColor: `${PALETTE[i % PALETTE.length]}55` }}>
+                AI Brief · {d.ticker}
               </Link>
             ))}
           </div>
