@@ -10,6 +10,7 @@ import type { AuthSessionRecord } from "../models/AuthSession.model";
 import { toSafeUser, type UserRecord } from "../models/User.model";
 import {
   findUserByEmail,
+  getDb,
   getSessionById,
   getUserById,
   isRefreshTokenRevoked,
@@ -41,6 +42,20 @@ const authSchema = z.object({
 });
 
 const REFRESH_COOKIE_NAME = "refreshToken";
+
+async function ensureAuthPersistence(res: Response): Promise<boolean> {
+  if (!env.isProduction) {
+    return true;
+  }
+
+  const db = await getDb();
+  if (db) {
+    return true;
+  }
+
+  res.status(503).json({ error: "Authentication is temporarily unavailable because the database is not connected." });
+  return false;
+}
 
 function toTokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -173,6 +188,10 @@ async function verifyRefreshToken(refreshToken: string): Promise<JwtPayload> {
 
 authRoutes.post("/register", authRateLimiter, async (req, res, next) => {
   try {
+    if (!(await ensureAuthPersistence(res))) {
+      return;
+    }
+
     const parsed = authSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -210,6 +229,10 @@ authRoutes.post("/register", authRateLimiter, async (req, res, next) => {
 
 authRoutes.post("/login", authRateLimiter, async (req, res, next) => {
   try {
+    if (!(await ensureAuthPersistence(res))) {
+      return;
+    }
+
     const parsed = authSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -236,6 +259,10 @@ authRoutes.post("/login", authRateLimiter, async (req, res, next) => {
 
 authRoutes.post("/refresh", authSessionRateLimiter, async (req, res, next) => {
   try {
+    if (!(await ensureAuthPersistence(res))) {
+      return;
+    }
+
     const refreshToken = getRefreshTokenFromRequest(req);
     if (!refreshToken) {
       return res.status(400).json({ error: "Missing refresh token" });
@@ -294,6 +321,10 @@ authRoutes.post("/refresh", authSessionRateLimiter, async (req, res, next) => {
 
 authRoutes.post("/logout", authSessionRateLimiter, authMiddleware, async (req, res, next) => {
   try {
+    if (!(await ensureAuthPersistence(res))) {
+      return;
+    }
+
     if (!req.auth) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -318,6 +349,10 @@ authRoutes.post("/logout", authSessionRateLimiter, authMiddleware, async (req, r
 
 authRoutes.post("/logout-all", authSessionRateLimiter, authMiddleware, async (req, res, next) => {
   try {
+    if (!(await ensureAuthPersistence(res))) {
+      return;
+    }
+
     if (!req.authUser) {
       return res.status(401).json({ error: "Unauthorized" });
     }
