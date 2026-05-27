@@ -5,12 +5,16 @@ import type { AuthSessionRecord } from "../models/AuthSession.model";
 import type { QueryRecord } from "../models/Query.model";
 import type { RevokedRefreshTokenRecord } from "../models/RevokedRefreshToken.model";
 import type { UserRecord } from "../models/User.model";
+import type { WatchlistRecord } from "../models/Watchlist.model";
+import type { NotificationRecord } from "../models/Notification.model";
 
 const memoryUsers = new Map<string, UserRecord>();
 const memoryReports = new Map<string, AgentReport>();
 const memoryQueries = new Map<string, QueryRecord>();
 const memoryAuthSessions = new Map<string, AuthSessionRecord>();
 const memoryRevokedRefreshTokens = new Map<string, RevokedRefreshTokenRecord>();
+const memoryWatchlists = new Map<string, WatchlistRecord>();
+const memoryNotifications = new Map<string, NotificationRecord>();
 
 let mongoDbPromise: Promise<Db | null> | null = null;
 let indexesReady = false;
@@ -39,6 +43,9 @@ async function getMongoDb(): Promise<Db | null> {
       db.collection<AgentReport>("reports").createIndex({ userId: 1, createdAt: -1 }),
       db.collection<RevokedRefreshTokenRecord>("revokedRefreshTokens").createIndex({ tokenHash: 1 }, { unique: true }),
       db.collection<RevokedRefreshTokenRecord>("revokedRefreshTokens").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+      db.collection<WatchlistRecord>("watchlists").createIndex({ userId: 1 }, { unique: true }),
+      db.collection<NotificationRecord>("notifications").createIndex({ id: 1 }, { unique: true }),
+      db.collection<NotificationRecord>("notifications").createIndex({ userId: 1, createdAt: -1 }),
     ]);
     indexesReady = true;
   }
@@ -188,6 +195,77 @@ export async function revokeRefreshToken(record: RevokedRefreshTokenRecord): Pro
 // Expose raw DB for controllers that need it (e.g. stocks cache)
 export async function getDb(): Promise<import("mongodb").Db | null> {
   return getMongoDb();
+}
+
+// ─── Watchlist ────────────────────────────────────────────────────────────────
+
+export async function getWatchlist(userId: string): Promise<WatchlistRecord | null> {
+  const db = await getMongoDb();
+  if (!db) return memoryWatchlists.get(userId) ?? null;
+  return (await db.collection<WatchlistRecord>("watchlists").findOne({ userId }, { projection: { _id: 0 } })) ?? null;
+}
+
+export async function saveWatchlist(record: WatchlistRecord): Promise<void> {
+  const db = await getMongoDb();
+  if (!db) { memoryWatchlists.set(record.userId, record); return; }
+  await db.collection<WatchlistRecord>("watchlists").replaceOne({ userId: record.userId }, record, { upsert: true });
+}
+
+export async function getAllWatchlists(): Promise<WatchlistRecord[]> {
+  const db = await getMongoDb();
+  if (!db) return Array.from(memoryWatchlists.values());
+  return db.collection<WatchlistRecord>("watchlists").find({}, { projection: { _id: 0 } }).toArray();
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export async function getNotifications(userId: string, limit = 20): Promise<NotificationRecord[]> {
+  const db = await getMongoDb();
+  if (!db) {
+    return Array.from(memoryNotifications.values())
+      .filter(n => n.userId === userId)
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+      .slice(0, limit);
+  }
+  return db.collection<NotificationRecord>("notifications")
+    .find({ userId }, { projection: { _id: 0 } })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray();
+}
+
+export async function getUnreadCount(userId: string): Promise<number> {
+  const db = await getMongoDb();
+  if (!db) return Array.from(memoryNotifications.values()).filter(n => n.userId === userId && !n.read).length;
+  return db.collection<NotificationRecord>("notifications").countDocuments({ userId, read: false });
+}
+
+export async function saveNotification(notification: NotificationRecord): Promise<void> {
+  const db = await getMongoDb();
+  if (!db) { memoryNotifications.set(notification.id, notification); return; }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (db.collection("notifications") as any).insertOne({ ...notification });
+}
+
+export async function markNotificationRead(id: string, userId: string): Promise<void> {
+  const db = await getMongoDb();
+  if (!db) {
+    const n = memoryNotifications.get(id);
+    if (n && n.userId === userId) memoryNotifications.set(id, { ...n, read: true });
+    return;
+  }
+  await db.collection<NotificationRecord>("notifications").updateOne({ id, userId }, { $set: { read: true } });
+}
+
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  const db = await getMongoDb();
+  if (!db) {
+    for (const [k, n] of memoryNotifications.entries()) {
+      if (n.userId === userId) memoryNotifications.set(k, { ...n, read: true });
+    }
+    return;
+  }
+  await db.collection<NotificationRecord>("notifications").updateMany({ userId, read: false }, { $set: { read: true } });
 }
 
 export async function isRefreshTokenRevoked(tokenHash: string): Promise<boolean> {

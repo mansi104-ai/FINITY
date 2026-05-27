@@ -9,6 +9,9 @@ import marketRoutes from "./routes/market.routes";
 import profileRoutes from "./routes/profile.routes";
 import queryRoutes from "./routes/query.routes";
 import reportRoutes from "./routes/report.routes";
+import watchlistRoutes from "./routes/watchlist.routes";
+import notificationRoutes from "./routes/notification.routes";
+import { startMorningDigestJobs } from "./jobs/morningDigest";
 import { env } from "./config";
 
 const app = express();
@@ -34,6 +37,8 @@ app.use("/api/market", marketRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/query", queryRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/watchlist", watchlistRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
@@ -49,6 +54,7 @@ if (!process.env.VERCEL) {
   app.listen(env.port, () => {
     // eslint-disable-next-line no-console
     console.log(`Server listening on http://localhost:${env.port}`);
+    startMorningDigestJobs();
   });
 }
 

@@ -184,7 +184,9 @@ async function ensureSession(): Promise<string | null> {
 }
 
 function requiresAuth(path: string): boolean {
-  return path.startsWith("/api/query") || path.startsWith("/api/reports") || path.startsWith("/api/profile");
+  return path.startsWith("/api/query") || path.startsWith("/api/reports") ||
+    path.startsWith("/api/profile") || path.startsWith("/api/watchlist") ||
+    path.startsWith("/api/notifications") || path.startsWith("/api/auth/logout");
 }
 
 function getCachedReport(reportId: string): AgentReport | null {
@@ -322,4 +324,89 @@ export interface StockSearchResult {
 
 export function searchStocks(q: string): Promise<{ results: StockSearchResult[] }> {
   return request<{ results: StockSearchResult[] }>(`/api/market/search?q=${encodeURIComponent(q)}`);
+}
+
+// ─── Auth UX helpers ──────────────────────────────────────────────────────────
+
+export async function loginUser(email: string, password: string): Promise<AuthResponse> {
+  const response = await loginDemoUser(email, password);
+  setAccessToken(response.accessToken);
+  saveSessionUser(response.user);
+  return response;
+}
+
+export async function registerUser(email: string, password: string): Promise<AuthResponse> {
+  const response = await registerDemoUser(email, password);
+  setAccessToken(response.accessToken);
+  saveSessionUser(response.user);
+  return response;
+}
+
+export async function logoutUser(): Promise<void> {
+  try { await request("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
+  clearAccessToken();
+  if (typeof window !== "undefined") window.localStorage.removeItem(SESSION_USER_KEY);
+}
+
+export function getSessionUser(): AuthResponse["user"] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const s = window.localStorage.getItem(SESSION_USER_KEY);
+    return s ? (JSON.parse(s) as AuthResponse["user"]) : null;
+  } catch { return null; }
+}
+
+// ─── Watchlist API ────────────────────────────────────────────────────────────
+
+export interface WatchlistItemApi {
+  ticker: string;
+  name: string;
+  addedAt: string;
+  buyPrice?: number;
+}
+
+export function getWatchlist(): Promise<{ items: WatchlistItemApi[] }> {
+  return request<{ items: WatchlistItemApi[] }>("/api/watchlist");
+}
+
+export function addToWatchlist(ticker: string, name: string, buyPrice?: number): Promise<{ item: WatchlistItemApi }> {
+  return request<{ item: WatchlistItemApi }>("/api/watchlist", {
+    method: "POST",
+    body: JSON.stringify({ ticker, name, ...(buyPrice != null ? { buyPrice } : {}) })
+  });
+}
+
+export function removeFromWatchlist(ticker: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/watchlist/${encodeURIComponent(ticker)}`, { method: "DELETE" });
+}
+
+export function updateWatchlistBuyPrice(ticker: string, buyPrice: number | null): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/watchlist/${encodeURIComponent(ticker)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ buyPrice })
+  });
+}
+
+// ─── Notifications API ────────────────────────────────────────────────────────
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: "morning_digest" | "price_alert" | "system";
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export function getNotifications(): Promise<{ notifications: AppNotification[]; unreadCount: number }> {
+  return request<{ notifications: AppNotification[]; unreadCount: number }>("/api/notifications");
+}
+
+export function markNotificationRead(id: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: "PATCH" });
+}
+
+export function markAllNotificationsRead(): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>("/api/notifications/read-all", { method: "PATCH" });
 }

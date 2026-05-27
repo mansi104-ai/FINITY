@@ -2,21 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getStocks, getStockDetail, searchStocks, type StockSearchResult } from "../services/api";
-import type { StockQuote, WatchlistEntry } from "../types";
-
-const WL_KEY = "findec-watchlist";
-
-function loadWatchlist(): WatchlistEntry[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(window.localStorage.getItem(WL_KEY) ?? "[]") as WatchlistEntry[]; }
-  catch { return []; }
-}
-
-function saveWatchlist(entries: WatchlistEntry[]): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(WL_KEY, JSON.stringify(entries));
-}
+import {
+  getStocks, getStockDetail, searchStocks,
+  getWatchlist, addToWatchlist, removeFromWatchlist, updateWatchlistBuyPrice,
+  type WatchlistItemApi, type StockSearchResult
+} from "../services/api";
+import type { StockQuote } from "../types";
 
 function fmtNum(v: number, d = 2): string {
   return new Intl.NumberFormat("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
@@ -29,7 +20,7 @@ function fmtCap(v: number): string {
   return v.toLocaleString();
 }
 
-interface WatchlistRow extends WatchlistEntry { quote: StockQuote | null; }
+interface WatchlistRow extends WatchlistItemApi { quote: StockQuote | null; }
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = useState(value);
@@ -54,20 +45,15 @@ export default function Watchlist() {
 
   const debouncedInput = useDebounce(addInput, 300);
 
-  // Search autocomplete
   useEffect(() => {
     if (debouncedInput.length < 1) { setSearchResults([]); setShowDropdown(false); return; }
     setSearching(true);
     searchStocks(debouncedInput)
-      .then((res) => {
-        setSearchResults(res.results);
-        setShowDropdown(res.results.length > 0);
-      })
+      .then((res) => { setSearchResults(res.results); setShowDropdown(res.results.length > 0); })
       .catch(() => setSearchResults([]))
       .finally(() => setSearching(false));
   }, [debouncedInput]);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!dropdownRef.current?.contains(e.target as Node) && !inputRef.current?.contains(e.target as Node)) {
@@ -78,15 +64,23 @@ export default function Watchlist() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  useEffect(() => {
-    void loadQuotes(loadWatchlist());
-  }, []);
+  useEffect(() => { void loadWatchlist(); }, []);
 
-  async function loadQuotes(stored: WatchlistEntry[]) {
+  async function loadWatchlist() {
     setLoading(true);
-    if (!stored.length) { setEntries([]); setLoading(false); return; }
+    try {
+      const { items } = await getWatchlist();
+      await enrichWithQuotes(items);
+    } catch {
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-    const rows: WatchlistRow[] = stored.map((e) => ({ ...e, quote: null }));
+  async function enrichWithQuotes(items: WatchlistItemApi[]) {
+    if (!items.length) { setEntries([]); return; }
+    const rows: WatchlistRow[] = items.map((e) => ({ ...e, quote: null }));
     setEntries(rows);
 
     try {
@@ -95,22 +89,16 @@ export default function Watchlist() {
       [...stocks, ...indices].forEach((s) => { bySymbol[s.symbol.toUpperCase()] = s; });
 
       const updated = await Promise.all(
-        stored.map(async (e): Promise<WatchlistRow> => {
+        items.map(async (e): Promise<WatchlistRow> => {
           const found = bySymbol[e.ticker.toUpperCase()];
           if (found) return { ...e, quote: found };
-          try {
-            const q = await getStockDetail(e.ticker);
-            return { ...e, quote: q };
-          } catch {
-            return { ...e, quote: null };
-          }
+          try { return { ...e, quote: await getStockDetail(e.ticker) }; }
+          catch { return { ...e, quote: null }; }
         })
       );
       setEntries(updated);
     } catch {
       setEntries(rows);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -118,70 +106,51 @@ export default function Watchlist() {
     setShowDropdown(false);
     setAddInput("");
     setAddError("");
-    const stored = loadWatchlist();
-    if (stored.find((e) => e.ticker.toUpperCase() === result.symbol.toUpperCase())) {
-      setAddError(`${result.symbol} is already in your watchlist.`);
-      return;
+    try {
+      const { item } = await addToWatchlist(result.symbol, result.name);
+      setEntries((prev) => [...prev, { ...item, quote: null }]);
+      void enrichWithQuotes([...(entries.map(e => ({ ticker: e.ticker, name: e.name, addedAt: e.addedAt, buyPrice: e.buyPrice }))), item]);
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : `${result.symbol} could not be added.`);
     }
-    const entry: WatchlistEntry = {
-      ticker: result.symbol,
-      label: result.name,
-      addedAt: new Date().toISOString()
-    };
-    const updated = [...stored, entry];
-    saveWatchlist(updated);
-    void loadQuotes(updated);
-  }, []);
+  }, [entries]);
 
   async function handleManualAdd() {
     const ticker = addInput.trim().toUpperCase();
     if (!ticker) return;
     setAddError("");
     setShowDropdown(false);
-    const stored = loadWatchlist();
-    if (stored.find((e) => e.ticker.toUpperCase() === ticker)) {
-      setAddError(`${ticker} is already in your watchlist.`);
-      return;
-    }
     try {
       const q = await getStockDetail(ticker);
-      const entry: WatchlistEntry = { ticker: q.symbol, label: q.name, addedAt: new Date().toISOString() };
-      const updated = [...stored, entry];
-      saveWatchlist(updated);
+      const { item } = await addToWatchlist(q.symbol, q.name);
       setAddInput("");
-      void loadQuotes(updated);
-    } catch {
-      setAddError(`"${ticker}" not found. Try searching by company name, or use the full Yahoo Finance symbol (e.g. RELIANCE.NS, SHEL.L).`);
+      setEntries((prev) => [...prev, { ...item, quote: q }]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg === "Already in watchlist") {
+        setAddError(`${ticker} is already in your watchlist.`);
+      } else {
+        setAddError(`"${ticker}" not found. Try searching by company name, or use the full Yahoo Finance symbol (e.g. RELIANCE.NS, SHEL.L).`);
+      }
     }
   }
 
-  function handleRemove(ticker: string) {
-    const stored = loadWatchlist().filter((e) => e.ticker.toUpperCase() !== ticker.toUpperCase());
-    saveWatchlist(stored);
+  async function handleRemove(ticker: string) {
     setEntries((prev) => prev.filter((r) => r.ticker.toUpperCase() !== ticker.toUpperCase()));
+    await removeFromWatchlist(ticker).catch(() => { /* best-effort */ });
   }
 
-  function handleBuyPrice(ticker: string) {
+  async function handleBuyPrice(ticker: string) {
     const price = parseFloat(buyInputs[ticker] ?? "");
     if (isNaN(price) || price <= 0) return;
-    const stored = loadWatchlist().map((e) =>
-      e.ticker.toUpperCase() === ticker.toUpperCase() ? { ...e, buyPrice: price } : e
-    );
-    saveWatchlist(stored);
-    setEntries((prev) =>
-      prev.map((r) => r.ticker.toUpperCase() === ticker.toUpperCase() ? { ...r, buyPrice: price } : r)
-    );
+    setEntries((prev) => prev.map((r) => r.ticker.toUpperCase() === ticker.toUpperCase() ? { ...r, buyPrice: price } : r));
     setBuyInputs((prev) => ({ ...prev, [ticker]: "" }));
+    await updateWatchlistBuyPrice(ticker, price).catch(() => { /* best-effort */ });
   }
 
-  function clearBuyPrice(ticker: string) {
-    const stored = loadWatchlist().map((e) =>
-      e.ticker.toUpperCase() === ticker.toUpperCase() ? { ...e, buyPrice: undefined } : e
-    );
-    saveWatchlist(stored);
-    setEntries((prev) =>
-      prev.map((r) => r.ticker.toUpperCase() === ticker.toUpperCase() ? { ...r, buyPrice: undefined } : r)
-    );
+  async function clearBuyPrice(ticker: string) {
+    setEntries((prev) => prev.map((r) => r.ticker.toUpperCase() === ticker.toUpperCase() ? { ...r, buyPrice: undefined } : r));
+    await updateWatchlistBuyPrice(ticker, null).catch(() => { /* best-effort */ });
   }
 
   return (
@@ -200,7 +169,6 @@ export default function Watchlist() {
           )}
         </div>
 
-        {/* Add panel with autocomplete */}
         <div className="findec-panel wtch-add-panel">
           <p className="findec-kicker">Add any stock, ETF, or index</p>
           <div className="wtch-add-row">
@@ -232,10 +200,10 @@ export default function Watchlist() {
             </button>
           </div>
           {addError && <p className="wtch-add-error">{addError}</p>}
-          <p className="wtch-add-hint">Supports NYSE, NASDAQ, NSE (.NS), BSE (.BO), LSE (.L), TSE (.T), and more.</p>
+          <p className="wtch-add-hint">Synced to your account. Supports NYSE, NASDAQ, NSE (.NS), BSE (.BO), LSE (.L), TSE (.T), and more.</p>
         </div>
 
-        {loading && <p className="findec-kicker wtch-loading">Loading prices…</p>}
+        {loading && <p className="findec-kicker wtch-loading">Loading watchlist…</p>}
 
         {!loading && entries.length === 0 && (
           <div className="findec-panel wtch-empty">
@@ -249,17 +217,14 @@ export default function Watchlist() {
           <div className="wtch-list">
             {entries.map((row) => {
               const q = row.quote;
-              const pnlPct = q && row.buyPrice
-                ? ((q.price - row.buyPrice) / row.buyPrice) * 100 : null;
+              const pnlPct = q && row.buyPrice ? ((q.price - row.buyPrice) / row.buyPrice) * 100 : null;
 
               return (
                 <div key={row.ticker} className="findec-panel wtch-card">
                   <div className="wtch-card-top">
                     <div className="wtch-card-left">
-                      <Link href={`/stock/${encodeURIComponent(row.ticker)}`} className="wtch-symbol">
-                        {row.ticker}
-                      </Link>
-                      <span className="wtch-name">{q?.name ?? row.label}</span>
+                      <Link href={`/stock/${encodeURIComponent(row.ticker)}`} className="wtch-symbol">{row.ticker}</Link>
+                      <span className="wtch-name">{q?.name ?? row.name}</span>
                       {q && <span className="wtch-exchange">{q.exchange} · {q.currency}</span>}
                     </div>
                     <div className="wtch-card-right">
@@ -271,7 +236,7 @@ export default function Watchlist() {
                           </span>
                         </>
                       ) : (
-                        <span className="wtch-no-data">Price unavailable</span>
+                        <span className="wtch-no-data">Loading…</span>
                       )}
                     </div>
                   </div>
@@ -288,7 +253,6 @@ export default function Watchlist() {
                     </div>
                   )}
 
-                  {/* P&L tracker */}
                   <div className="wtch-pnl-row">
                     <div className="wtch-buy-entry">
                       <span className="findec-kicker">Buy price</span>
@@ -300,7 +264,7 @@ export default function Watchlist() {
                               {pnlPct >= 0 ? "+" : ""}{fmtNum(pnlPct)}% P&amp;L
                             </span>
                           )}
-                          <button className="wtch-clear-buy" onClick={() => clearBuyPrice(row.ticker)} title="Clear buy price">×</button>
+                          <button className="wtch-clear-buy" onClick={() => void clearBuyPrice(row.ticker)} title="Clear buy price">×</button>
                         </div>
                       ) : (
                         <div className="wtch-buy-input-row">
@@ -310,9 +274,9 @@ export default function Watchlist() {
                             placeholder="Enter buy price"
                             value={buyInputs[row.ticker] ?? ""}
                             onChange={(e) => setBuyInputs((prev) => ({ ...prev, [row.ticker]: e.target.value }))}
-                            onKeyDown={(e) => { if (e.key === "Enter") handleBuyPrice(row.ticker); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") void handleBuyPrice(row.ticker); }}
                           />
-                          <button className="wtch-set-btn" onClick={() => handleBuyPrice(row.ticker)}>Set</button>
+                          <button className="wtch-set-btn" onClick={() => void handleBuyPrice(row.ticker)}>Set</button>
                         </div>
                       )}
                     </div>
@@ -320,7 +284,7 @@ export default function Watchlist() {
                       <Link href={`/brief?ticker=${encodeURIComponent(row.ticker)}`} className="wtch-action-btn wtch-action-brief">AI Brief</Link>
                       <Link href={`/stock/${encodeURIComponent(row.ticker)}`} className="wtch-action-btn">Detail</Link>
                       <Link href={`/compare?tickers=${encodeURIComponent(row.ticker)}`} className="wtch-action-btn">Compare</Link>
-                      <button className="wtch-action-btn wtch-action-remove" onClick={() => handleRemove(row.ticker)}>Remove</button>
+                      <button className="wtch-action-btn wtch-action-remove" onClick={() => void handleRemove(row.ticker)}>Remove</button>
                     </div>
                   </div>
                 </div>
