@@ -156,9 +156,15 @@ export default function Screener() {
           </div>
         </div>
 
-        {!loading && !hasFundamentals && (
+        {!loading && !hasFundamentals && false && (
           <div className="scr-notice">
             Live fundamentals unavailable — showing price and direction data only. Fundamental filters (P/E, cap, yield) will not apply.
+          </div>
+        )}
+
+        {!loading && !error && !hasFundamentals && (
+          <div className="scr-notice">
+            Live fundamentals are unavailable from the current market data provider right now. Fundamental filters (P/E, cap, yield) will not apply.
           </div>
         )}
 

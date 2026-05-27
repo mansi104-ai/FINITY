@@ -602,7 +602,7 @@ export async function getMarketHistoryController(req: Request, res: Response) {
   try {
     return res.status(200).json(await fetchHistory(ticker));
   } catch {
-    return res.status(200).json(syntheticHistory(ticker));
+    return res.status(502).json({ error: `Live history is unavailable for "${ticker}" right now.` });
   }
 }
 
@@ -613,14 +613,6 @@ export async function getStocksController(req: Request, res: Response) {
 
   const { countryCode } = geo;
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
-
-  // 1. Try MongoDB cache
-  const cached = await getStocksCache(countryCode);
-  if (cached) {
-    return res.status(200).json({ ...cached, countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
-  }
-
-  // 2. Fetch fresh from Yahoo Finance
   const symbols = getTrackedSymbolsForCountry(countryCode);
   try {
     const all = await fetchDetailedQuotes(symbols, countryCode);
@@ -629,19 +621,7 @@ export async function getStocksController(req: Request, res: Response) {
     void setStocksCache(countryCode, stocks, indices); // cache async
     return res.status(200).json({ stocks, indices, countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
   } catch {
-    // 3. Fall back to stale cache before using static data
-    const staleCache = await getStocksCache(countryCode, { allowStale: true });
-    if (staleCache) {
-      return res.status(200).json({ ...staleCache, countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
-    }
-
-    // 4. Fallback to static data
-    const fallback = fallbackStockData(countryCode);
-    return res.status(200).json({
-      stocks: fallback.filter((s) => !indexSymbols.has(s.symbol)),
-      indices: fallback.filter((s) => indexSymbols.has(s.symbol)),
-      countryCode, asOf: now.toISOString()
-    } satisfies StocksListResponse);
+    return res.status(502).json({ error: "Live stock data is unavailable right now. No fallback dataset is being used." });
   }
 }
 
@@ -656,75 +636,14 @@ export async function getStockDetailController(req: Request, res: Response) {
   else if (ticker.endsWith(".SS") || ticker.endsWith(".SZ")) countryCode = "CN";
 
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
-
-  // 1. Check MongoDB stocks cache first (fast, avoids Yahoo entirely)
-  const cached = await getStocksCache(countryCode);
-  if (cached) {
-    const cachedMatch = [...cached.stocks, ...cached.indices].find((s) => s.symbol.toUpperCase() === ticker);
-    if (cachedMatch) return res.status(200).json(cachedMatch);
-  }
-
-  // 2. Try Yahoo Finance (with query2 fallback built into fetchDetailedQuotesBatch)
   try {
     const [result] = await fetchDetailedQuotesBatch([ticker], indexSymbols);
     if (result) return res.status(200).json(result);
-  } catch { /* fall through */ }
-
-  // 3. Stale cache
-  const staleCache = await getStocksCache(countryCode, { allowStale: true });
-  if (staleCache) {
-    const staleMatch = [...staleCache.stocks, ...staleCache.indices].find((s) => s.symbol.toUpperCase() === ticker);
-    if (staleMatch) return res.status(200).json(staleMatch);
-  }
-
-  // 4. Static fallback
-  const fallbackMatch = fallbackStockData(countryCode).find((s) => s.symbol.toUpperCase() === ticker);
-  if (fallbackMatch) return res.status(200).json(fallbackMatch);
-
-  // 5. Build minimal quote from chart history
-  try {
-    const history = await fetchHistory(ticker);
-    const latestClose = history.latestClose;
-    const firstClose = history.points[0]?.close ?? latestClose;
-    return res.status(200).json({
-      symbol: history.symbol, name: history.name, exchange: "",
-      currency: history.currency, price: latestClose, lastClose: firstClose,
-      change: +(latestClose - firstClose).toFixed(2),
-      changePercent: firstClose ? +(((latestClose - firstClose) / firstClose) * 100).toFixed(4) : 0,
-      isIndex: indexSymbols.has(history.symbol)
-    } satisfies StockQuoteResponse);
   } catch {
-    const trackedSymbols = getTrackedSymbolsForCountry(countryCode);
-    const fallbackTrackedMatch = trackedSymbols.includes(ticker)
-      ? fallbackStockData(countryCode).find((s) => s.symbol.toUpperCase() === ticker)
-      : undefined;
-
-    return res.status(200).json({
-      symbol: ticker,
-      name: fallbackTrackedMatch?.name ?? ticker,
-      exchange: fallbackTrackedMatch?.exchange ?? "",
-      currency: fallbackTrackedMatch?.currency ?? "USD",
-      price: fallbackTrackedMatch?.price ?? 0,
-      lastClose: fallbackTrackedMatch?.lastClose ?? fallbackTrackedMatch?.price ?? 0,
-      change: fallbackTrackedMatch?.change ?? 0,
-      changePercent: fallbackTrackedMatch?.changePercent ?? 0,
-      volume: fallbackTrackedMatch?.volume,
-      avgVolume: fallbackTrackedMatch?.avgVolume,
-      marketCap: fallbackTrackedMatch?.marketCap,
-      peRatio: fallbackTrackedMatch?.peRatio,
-      forwardPE: fallbackTrackedMatch?.forwardPE,
-      dividendYield: fallbackTrackedMatch?.dividendYield,
-      high52w: fallbackTrackedMatch?.high52w,
-      low52w: fallbackTrackedMatch?.low52w,
-      ma50: fallbackTrackedMatch?.ma50,
-      ma200: fallbackTrackedMatch?.ma200,
-      eps: fallbackTrackedMatch?.eps,
-      epsForward: fallbackTrackedMatch?.epsForward,
-      priceToBook: fallbackTrackedMatch?.priceToBook,
-      beta: fallbackTrackedMatch?.beta,
-      isIndex: indexSymbols.has(ticker)
-    } satisfies StockQuoteResponse);
+    return res.status(502).json({ error: `Live quote is unavailable for "${ticker}" right now.` });
   }
+
+  return res.status(404).json({ error: `Could not find live data for "${ticker}". Check the ticker symbol and try again.` });
 }
 
 // Ticker search — supports any company name or symbol via Yahoo Finance autocomplete
