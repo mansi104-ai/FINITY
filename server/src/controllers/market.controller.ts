@@ -394,10 +394,10 @@ async function fetchDetailedQuotes(symbols: string[], countryCode: string): Prom
   const batches: string[][] = [];
   for (let i = 0; i < symbols.length; i += BATCH) batches.push(symbols.slice(i, i + BATCH));
 
-  const results = await Promise.all(
+  const settled = await Promise.allSettled(
     batches.map((b) => fetchDetailedQuotesBatch(b, indexSymbols).catch(() => [] as StockQuoteResponse[]))
   );
-  const all = results.flat();
+  const all = settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
   if (!all.length) throw new Error("No quote data returned");
   return all;
 }
@@ -694,7 +694,36 @@ export async function getStockDetailController(req: Request, res: Response) {
       isIndex: indexSymbols.has(history.symbol)
     } satisfies StockQuoteResponse);
   } catch {
-    return res.status(404).json({ error: `Could not find data for "${ticker}". Check the ticker symbol and try again.` });
+    const trackedSymbols = getTrackedSymbolsForCountry(countryCode);
+    const fallbackTrackedMatch = trackedSymbols.includes(ticker)
+      ? fallbackStockData(countryCode).find((s) => s.symbol.toUpperCase() === ticker)
+      : undefined;
+
+    return res.status(200).json({
+      symbol: ticker,
+      name: fallbackTrackedMatch?.name ?? ticker,
+      exchange: fallbackTrackedMatch?.exchange ?? "",
+      currency: fallbackTrackedMatch?.currency ?? "USD",
+      price: fallbackTrackedMatch?.price ?? 0,
+      lastClose: fallbackTrackedMatch?.lastClose ?? fallbackTrackedMatch?.price ?? 0,
+      change: fallbackTrackedMatch?.change ?? 0,
+      changePercent: fallbackTrackedMatch?.changePercent ?? 0,
+      volume: fallbackTrackedMatch?.volume,
+      avgVolume: fallbackTrackedMatch?.avgVolume,
+      marketCap: fallbackTrackedMatch?.marketCap,
+      peRatio: fallbackTrackedMatch?.peRatio,
+      forwardPE: fallbackTrackedMatch?.forwardPE,
+      dividendYield: fallbackTrackedMatch?.dividendYield,
+      high52w: fallbackTrackedMatch?.high52w,
+      low52w: fallbackTrackedMatch?.low52w,
+      ma50: fallbackTrackedMatch?.ma50,
+      ma200: fallbackTrackedMatch?.ma200,
+      eps: fallbackTrackedMatch?.eps,
+      epsForward: fallbackTrackedMatch?.epsForward,
+      priceToBook: fallbackTrackedMatch?.priceToBook,
+      beta: fallbackTrackedMatch?.beta,
+      isIndex: indexSymbols.has(ticker)
+    } satisfies StockQuoteResponse);
   }
 }
 

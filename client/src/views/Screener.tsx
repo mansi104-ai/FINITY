@@ -62,7 +62,12 @@ export default function Screener() {
         const equities = s.filter((st) => !st.isIndex);
         setStocks(equities);
         // Check if we have real fundamental data
-        const withFundamentals = equities.filter((st) => st.peRatio != null || st.marketCap != null);
+        const withFundamentals = equities.filter((st) =>
+          st.peRatio != null ||
+          st.marketCap != null ||
+          st.ma50 != null ||
+          st.high52w != null
+        );
         setHasFundamentals(withFundamentals.length > 0);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load stocks.");

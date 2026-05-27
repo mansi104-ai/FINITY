@@ -53,6 +53,15 @@ interface LoadedTicker {
   quote: StockQuote | null;
   history: MarketHistory | null;
   error: string | null;
+  errorKind: "network" | "not-found" | null;
+}
+
+function classifyLoadError(error: unknown): { message: string; kind: "network" | "not-found" } {
+  const message = error instanceof Error ? error.message : "Data unavailable";
+  if (/not found|could not find data|check the ticker symbol/i.test(message)) {
+    return { message, kind: "not-found" };
+  }
+  return { message, kind: "network" };
 }
 
 export default function Compare() {
@@ -85,24 +94,22 @@ export default function Compare() {
 
         const quote = quoteResult.status === "fulfilled" ? quoteResult.value : null;
         const history = historyResult.status === "fulfilled" ? historyResult.value : null;
-        const errors = [
-          quoteResult.status === "rejected"
-            ? quoteResult.reason instanceof Error
-              ? quoteResult.reason.message
-              : "Quote unavailable"
-            : null,
-          historyResult.status === "rejected"
-            ? historyResult.reason instanceof Error
-              ? historyResult.reason.message
-              : "History unavailable"
-            : null,
-        ].filter(Boolean);
+        const quoteError = quoteResult.status === "rejected" ? classifyLoadError(quoteResult.reason) : null;
+        const historyError = historyResult.status === "rejected" ? classifyLoadError(historyResult.reason) : null;
+        const errors = [quoteError?.message, historyError?.message].filter(Boolean);
+        const errorKind =
+          quoteError?.kind === "not-found" || historyError?.kind === "not-found"
+            ? "not-found"
+            : quoteError?.kind === "network" || historyError?.kind === "network"
+              ? "network"
+              : null;
 
         return {
           ticker,
           quote,
           history,
           error: errors.length > 0 ? errors.join(" | ") : null,
+          errorKind,
         };
       })
     ).then((results) => {
@@ -291,7 +298,8 @@ export default function Compare() {
                           {d.ticker}
                         </Link>
                         {d.quote && <span className="cmp-col-name">{d.quote.name}</span>}
-                        {d.error && !d.quote && <span className="cmp-err-label">Error</span>}
+                        {d.errorKind === "not-found" && !d.quote && <span className="cmp-err-label">not found</span>}
+                        {d.errorKind === "network" && !d.quote && <span className="cmp-col-name cmp-dim">Unavailable</span>}
                       </th>
                     ))}
                   </tr>
