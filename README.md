@@ -1,114 +1,139 @@
-# FINDEC
+# FINITY
 
-Current workspace milestone: `v0.0.2`
+A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-Multi-Agent Finance Orchestrator with:
-- Next.js + TypeScript frontend
-- Node.js + Express + TypeScript backend
-- Python FastAPI multi-agent ML service
+**Current version: v0.1.0**
 
-## Versioned Build Roadmap
+---
 
-### v0.0.2 UI Direction
+## Architecture
 
-- New workspace home focused on "Conversational Dashboarding"
-- Split-pane architecture with a contextual AI copilot sidebar
-- Dark pro palette for a more terminal-like investing workspace
-- Visual-first morning dashboard to reduce metric overload
-
-1. Version 1: Frontend + Agent 1 (Researcher sentiment)
-2. Version 2: Add Agent 2 (Analyst prediction)
-3. Version 3: Add backend orchestration and storage APIs
-4. Version 4: Full pipeline (Researcher + Analyst + Risk Manager)
-
-The `version` field sent in `/api/query` selects staged behavior (`1..4`).
-
-## Project Structure
-
-- `client/`: Next.js app (App Router, TypeScript)
-- `server/`: Express API (TypeScript)
-- `python_agents/`: FastAPI multi-agent service
-
-## Quick Start (Local)
-
-### 1) Python agents
-```bash
-cd python_agents
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+```
+┌─────────────────────────────────────────────────────┐
+│                    Browser (Next.js 14)              │
+│  Markets · Screener · Watchlist · Compare · Brief    │
+│  History · News · Stock Detail · Portfolio           │
+└────────────────────┬────────────────────────────────┘
+                     │ HTTPS REST
+┌────────────────────▼────────────────────────────────┐
+│              Express + TypeScript Server             │
+│  /api/market   /api/auth   /api/brief   /api/query   │
+│                                                      │
+│  ┌──────────────┐   ┌────────────────────────────┐   │
+│  │ Yahoo Finance│   │   Google News RSS          │   │
+│  │ v7/v8 quote  │   │   (no API key needed)      │   │
+│  │ + autocomplete│  └────────────────────────────┘   │
+│  └──────────────┘                                    │
+│                                                      │
+│  ┌──────────────────────────────────────────────┐   │
+│  │   MongoDB Atlas                               │   │
+│  │   users · authSessions · queries · reports   │   │
+│  │   revokedRefreshTokens · stocks_cache (30m)  │   │
+│  └──────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
 ```
 
-### 2) Backend
+---
+
+## Quick Start
+
+### Prerequisites
+- Node.js 20+
+- MongoDB Atlas URI (optional — omit for in-memory dev fallback)
+- Anthropic API key (for AI Brief)
+
+### Server
+
 ```bash
 cd server
+cp .env.example .env   # fill MONGODB_URI, ANTHROPIC_API_KEY, JWT_SECRET, JWT_REFRESH_SECRET
 npm install
-npm run dev
+npm run dev            # tsx watch — hot reload on port 3001
 ```
 
-### 3) Frontend
+### Client
+
 ```bash
 cd client
+cp .env.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:3001
 npm install
-npm run dev
+npm run dev                  # Next.js dev on port 3000
 ```
 
-Open `http://localhost:3000`.
-
-## Quick Start (Docker)
-
-```bash
-docker compose up --build
-```
-
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:4000/api/health`
-- Python service: `http://localhost:8000/health`
-
-## Core APIs
-
-### Backend
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/refresh`
-- `POST /api/auth/logout`
-- `POST /api/auth/logout-all`
-- `GET /api/profile`
-- `PATCH /api/profile`
-- `POST /api/query`
-- `GET /api/reports`
-- `GET /api/reports/:id`
-
-`POST /api/query` is rate-limited to 10 requests per hour per authenticated user.
-
-Access tokens expire after 15 minutes. Refresh tokens are rotated on every `POST /api/auth/refresh` call, and reused or revoked refresh tokens are rejected.
-
-### Python
-- `POST /run`
-- `GET /health`
+---
 
 ## Environment Variables
 
-| Variable | Description | Default |
+### Server (`server/.env`)
+
+| Variable | Required | Description |
 |---|---|---|
-| `MONGODB_URI` | MongoDB connection string | — |
-| `JWT_SECRET` | Secret for access tokens (15min TTL) | — |
-| `JWT_REFRESH_SECRET` | Secret for refresh tokens | — |
-| `NEWS_API_KEY` | NewsAPI key (falls back to synthetic) | — |
-| `USE_LIVE_MARKET_DATA` | Enable live yfinance pulls | `false` |
+| `PORT` | No | Server port (default 3001) |
+| `MONGODB_URI` | No | MongoDB Atlas connection string. Omit for in-memory dev mode. |
+| `MONGODB_DB_NAME` | No | Database name (default `findec`) |
+| `JWT_SECRET` | Yes | Secret for signing access tokens (15 min TTL) |
+| `JWT_REFRESH_SECRET` | Yes | Secret for signing refresh tokens |
+| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI Brief |
+| `CLIENT_ORIGIN` | No | CORS allowed origin (default `http://localhost:3000`) |
 
-## Rate Limits
+### Client (`client/.env.local`)
 
-`POST /api/query`: 10 requests per hour per authenticated user (sliding window).
+| Variable | Required | Description |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Yes | Backend URL e.g. `http://localhost:3001` |
+
+---
+
+## API Endpoints
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/market/snapshot` | No | Market overview + geo-detected market status |
+| GET | `/api/market/stocks` | No | Full stock list with fundamentals (MongoDB cache, 30 min TTL) |
+| GET | `/api/market/stock/:ticker` | No | Single stock quote + fundamentals |
+| GET | `/api/market/history/:ticker` | No | 30-day price history |
+| GET | `/api/market/news?ticker=` | No | News articles via Google News RSS |
+| GET | `/api/market/search?q=` | No | Ticker/company name autocomplete (Yahoo Finance) |
+| POST | `/api/auth/register` | No | Create account |
+| POST | `/api/auth/login` | No | Login, returns access + refresh tokens |
+| POST | `/api/auth/refresh` | No | Rotate refresh token |
+| POST | `/api/auth/logout` | Yes | Revoke current session |
+| GET | `/api/profile` | Yes | Get user profile |
+| PATCH | `/api/profile` | Yes | Update user profile |
+| POST | `/api/query` | Yes | Run AI Brief (rate-limited: 10/hr) |
+| GET | `/api/query/history` | Yes | List past queries |
+| GET | `/api/report/:id` | Yes | Get full AI report |
+
+---
+
+## Auth
+
+- Access tokens: 15-minute TTL (JWT, HS256)
+- Refresh tokens: rotated on every `/api/auth/refresh` call
+- Revoked refresh tokens stored in MongoDB with TTL index
+- Rate limits: 10 queries/hour per user; 10 auth attempts/15 minutes per IP
+
+---
+
+## Roadmap
+
+| Version | Focus | Status |
+|---|---|---|
+| v0.1 | Yahoo Finance reliability (headers, query2 retry, cache-first detail) | **Done** |
+| v0.2 | Real auth UX (/login, /register), watchlist → MongoDB | Planned |
+| v0.3 | Portfolio management (positions, transactions, P&L) | Planned |
+| v0.4 | Advanced charting (candlesticks, RSI, MACD, Bollinger Bands) | Planned |
+| v0.5 | Research tools (earnings calendar, dividend tracker, sector heatmap) | Planned |
+| v0.6 | Alerts & notifications (price alerts, daily digest email) | Planned |
+| v0.7 | AI v2 (portfolio analysis, social sentiment, market regime) | Planned |
+| v0.8 | Sharing (public report URLs, PDF export, paper trading) | Planned |
+| v0.9 | Security hardening (Google OAuth, 2FA TOTP, Redis cache) | Planned |
+| v1.0 | Production launch (mobile polish, Sentry, OpenAPI docs) | Planned |
+
+See [CHANGELOG.md](./CHANGELOG.md) for full release notes.
+
+---
 
 ## Disclaimer
 
-FINDEC is a decision support tool only and does not constitute financial advice.
-
-## Notes
-
-- Start MongoDB locally or with Docker before running the backend, and set `MONGODB_URI` in your environment.
-- `docker compose up --build` now includes a `mongo:7` service with a named `mongo-data` volume.
-- Auth uses 15-minute access tokens plus refresh-token rotation with per-session revocation.
-- News and market calls gracefully fall back to synthetic/local logic when external APIs are unavailable.
-- `risk_profile` supports `low | medium | high`.
-
+FINITY is a decision support tool only and does not constitute financial advice.

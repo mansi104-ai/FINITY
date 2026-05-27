@@ -5,12 +5,15 @@ import {
   type StockMarket,
   type GeoLocation
 } from "../utils/geolocation";
-import { env } from "../config";
 import { getDb } from "../store/db";
 
 const NEW_YORK_TIMEZONE = "America/New_York";
 const STOCK_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const YAHOO_REQUEST_HEADERS = { "User-Agent": "Mozilla/5.0" };
+const YAHOO_REQUEST_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "application/json, text/plain, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+};
 
 // ─── Expanded tracked symbols ─────────────────────────────────────────────────
 const COUNTRY_TRACKED_SYMBOLS: Record<string, string[]> = {
@@ -281,7 +284,16 @@ function fallbackTickerData(countryCode: string): MarketSnapshotResponse["ticker
     { symbol: "MSFT", name: "Microsoft", lastClose: 428, changePercent: 0.44 },
     { symbol: "NVDA", name: "NVIDIA", lastClose: 903, changePercent: 1.12 },
     { symbol: "AMZN", name: "Amazon", lastClose: 181, changePercent: -0.18 },
+    { symbol: "GOOGL", name: "Alphabet", lastClose: 175, changePercent: 0.33 },
+    { symbol: "META", name: "Meta Platforms", lastClose: 510, changePercent: 0.71 },
     { symbol: "TSLA", name: "Tesla", lastClose: 172, changePercent: -1.03 },
+    { symbol: "JPM", name: "JPMorgan Chase", lastClose: 198, changePercent: 0.22 },
+    { symbol: "BAC", name: "Bank of America", lastClose: 38, changePercent: 0.15 },
+    { symbol: "GS", name: "Goldman Sachs", lastClose: 445, changePercent: 0.41 },
+    { symbol: "F", name: "Ford Motor", lastClose: 12, changePercent: -0.52 },
+    { symbol: "GM", name: "General Motors", lastClose: 45, changePercent: -0.31 },
+    { symbol: "COIN", name: "Coinbase", lastClose: 225, changePercent: 1.44 },
+    { symbol: "PLTR", name: "Palantir", lastClose: 23, changePercent: 0.87 },
   ];
 }
 
@@ -357,11 +369,21 @@ function mapDetailedQuote(q: YahooDetailedQuote, indexSymbols: Set<string>): Sto
 }
 
 async function fetchDetailedQuotesBatch(symbols: string[], indexSymbols: Set<string>): Promise<StockQuoteResponse[]> {
-  const response = await axios.get<{ quoteResponse?: { result?: YahooDetailedQuote[] } }>(
-    "https://query1.finance.yahoo.com/v7/finance/quote",
-    { params: { symbols: symbols.join(","), fields: YAHOO_FIELDS }, timeout: 10000, headers: YAHOO_REQUEST_HEADERS }
-  );
-  const result = response.data.quoteResponse?.result ?? [];
+  const params = { symbols: symbols.join(","), fields: YAHOO_FIELDS };
+  let result: YahooDetailedQuote[] = [];
+  try {
+    const response = await axios.get<{ quoteResponse?: { result?: YahooDetailedQuote[] } }>(
+      "https://query1.finance.yahoo.com/v7/finance/quote",
+      { params, timeout: 10000, headers: YAHOO_REQUEST_HEADERS }
+    );
+    result = response.data.quoteResponse?.result ?? [];
+  } catch {
+    const response = await axios.get<{ quoteResponse?: { result?: YahooDetailedQuote[] } }>(
+      "https://query2.finance.yahoo.com/v7/finance/quote",
+      { params, timeout: 10000, headers: YAHOO_REQUEST_HEADERS }
+    );
+    result = response.data.quoteResponse?.result ?? [];
+  }
   return result.map((q) => mapDetailedQuote(q, indexSymbols));
 }
 
@@ -407,11 +429,26 @@ function syntheticHistory(ticker: string, baseline = 1500): MarketHistoryRespons
 }
 
 async function fetchHistory(ticker: string): Promise<MarketHistoryResponse> {
-  const response = await axios.get(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
-    { params: { range: "1mo", interval: "1d", includePrePost: false }, timeout: 8000, headers: YAHOO_REQUEST_HEADERS }
-  );
-  const result = response.data?.chart?.result?.[0];
+  const chartParams = { range: "1mo", interval: "1d", includePrePost: false };
+  let rawData: unknown;
+  try {
+    const response = await axios.get(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
+      { params: chartParams, timeout: 8000, headers: YAHOO_REQUEST_HEADERS }
+    );
+    rawData = response.data;
+  } catch {
+    const response = await axios.get(
+      `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
+      { params: chartParams, timeout: 8000, headers: YAHOO_REQUEST_HEADERS }
+    );
+    rawData = response.data;
+  }
+  const result = (rawData as { chart?: { result?: unknown[] } })?.chart?.result?.[0] as {
+    meta?: { symbol?: string; shortName?: string; longName?: string; currency?: string };
+    timestamp?: number[];
+    indicators?: { quote?: Array<{ close?: Array<number | null> }> };
+  } | undefined;
   const meta = result?.meta;
   const timestamps = result?.timestamp as number[] | undefined;
   const closes = result?.indicators?.quote?.[0]?.close as Array<number | null> | undefined;
@@ -618,52 +655,46 @@ export async function getStockDetailController(req: Request, res: Response) {
   else if (ticker.endsWith(".T")) countryCode = "JP";
   else if (ticker.endsWith(".SS") || ticker.endsWith(".SZ")) countryCode = "CN";
 
+  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+
+  // 1. Check MongoDB stocks cache first (fast, avoids Yahoo entirely)
+  const cached = await getStocksCache(countryCode);
+  if (cached) {
+    const cachedMatch = [...cached.stocks, ...cached.indices].find((s) => s.symbol.toUpperCase() === ticker);
+    if (cachedMatch) return res.status(200).json(cachedMatch);
+  }
+
+  // 2. Try Yahoo Finance (with query2 fallback built into fetchDetailedQuotesBatch)
   try {
-    const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
     const [result] = await fetchDetailedQuotesBatch([ticker], indexSymbols);
-    if (!result) return res.status(404).json({ error: "Symbol not found" });
-    return res.status(200).json(result);
+    if (result) return res.status(200).json(result);
+  } catch { /* fall through */ }
+
+  // 3. Stale cache
+  const staleCache = await getStocksCache(countryCode, { allowStale: true });
+  if (staleCache) {
+    const staleMatch = [...staleCache.stocks, ...staleCache.indices].find((s) => s.symbol.toUpperCase() === ticker);
+    if (staleMatch) return res.status(200).json(staleMatch);
+  }
+
+  // 4. Static fallback
+  const fallbackMatch = fallbackStockData(countryCode).find((s) => s.symbol.toUpperCase() === ticker);
+  if (fallbackMatch) return res.status(200).json(fallbackMatch);
+
+  // 5. Build minimal quote from chart history
+  try {
+    const history = await fetchHistory(ticker);
+    const latestClose = history.latestClose;
+    const firstClose = history.points[0]?.close ?? latestClose;
+    return res.status(200).json({
+      symbol: history.symbol, name: history.name, exchange: "",
+      currency: history.currency, price: latestClose, lastClose: firstClose,
+      change: +(latestClose - firstClose).toFixed(2),
+      changePercent: firstClose ? +(((latestClose - firstClose) / firstClose) * 100).toFixed(4) : 0,
+      isIndex: indexSymbols.has(history.symbol)
+    } satisfies StockQuoteResponse);
   } catch {
-    const trackedSymbols = getTrackedSymbolsForCountry(countryCode);
-    const isTrackedSymbol = trackedSymbols.includes(ticker);
-    const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
-
-    if (isTrackedSymbol) {
-      const cached = await getStocksCache(countryCode);
-      const cachedMatch = cached
-        ? [...cached.stocks, ...cached.indices].find((stock) => stock.symbol.toUpperCase() === ticker)
-        : undefined;
-      if (cachedMatch) {
-        return res.status(200).json(cachedMatch);
-      }
-    }
-
-    const fallbackMatch = fallbackStockData(countryCode).find((stock) => stock.symbol.toUpperCase() === ticker);
-    if (fallbackMatch) {
-      return res.status(200).json(fallbackMatch);
-    }
-
-    try {
-      const history = await fetchHistory(ticker);
-      const latestClose = history.latestClose;
-      const firstClose = history.points[0]?.close ?? latestClose;
-      const change = +(latestClose - firstClose).toFixed(2);
-      const changePercent = firstClose ? +(((latestClose - firstClose) / firstClose) * 100).toFixed(4) : 0;
-
-      return res.status(200).json({
-        symbol: history.symbol,
-        name: history.name,
-        exchange: "",
-        currency: history.currency,
-        price: latestClose,
-        lastClose: firstClose,
-        change,
-        changePercent,
-        isIndex: indexSymbols.has(history.symbol)
-      } satisfies StockQuoteResponse);
-    } catch {
-      return res.status(404).json({ error: `Could not find data for "${ticker}". Check the ticker symbol and try again.` });
-    }
+    return res.status(404).json({ error: `Could not find data for "${ticker}". Check the ticker symbol and try again.` });
   }
 }
 
