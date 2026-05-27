@@ -26,9 +26,13 @@ async function getMongoDb(): Promise<Db | null> {
   }
 
   if (!mongoDbPromise) {
-    mongoDbPromise = MongoClient.connect(env.mongodbUri).then((client) =>
-      client.db(env.mongodbDbName || "findec"),
-    );
+    mongoDbPromise = MongoClient.connect(env.mongodbUri, { serverSelectionTimeoutMS: 5000 })
+      .then((client) => client.db(env.mongodbDbName || "findec"))
+      .catch((err: unknown) => {
+        console.warn("MongoDB connection failed, falling back to in-memory store:", err instanceof Error ? err.message : err);
+        mongoDbPromise = null;
+        return null;
+      });
   }
 
   const db = await mongoDbPromise;
