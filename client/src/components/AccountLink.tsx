@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getSessionUser, logoutUser } from "../services/api";
+import { getSessionUser, logoutUser, subscribeToAuthChanges } from "../services/api";
 
 export default function AccountLink() {
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    const user = getSessionUser();
-    if (user && !user.email.includes("@findec.local")) {
-      setEmail(user.email);
-    }
+    const syncUser = () => {
+      const user = getSessionUser();
+      setEmail(user?.email ?? null);
+    };
+
+    syncUser();
+    return subscribeToAuthChanges(syncUser);
   }, []);
 
   if (email) {

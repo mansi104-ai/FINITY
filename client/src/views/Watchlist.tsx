@@ -3,9 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  getStocks, getStockDetail, searchStocks,
-  getWatchlist, addToWatchlist, removeFromWatchlist, updateWatchlistBuyPrice,
-  type WatchlistItemApi, type StockSearchResult
+  addToWatchlist,
+  getSessionUser,
+  getStockDetail,
+  getStocks,
+  getWatchlist,
+  removeFromWatchlist,
+  searchStocks,
+  subscribeToAuthChanges,
+  updateWatchlistBuyPrice,
+  type StockSearchResult,
+  type WatchlistItemApi
 } from "../services/api";
 import type { StockQuote } from "../types";
 
@@ -20,7 +28,9 @@ function fmtCap(v: number): string {
   return v.toLocaleString();
 }
 
-interface WatchlistRow extends WatchlistItemApi { quote: StockQuote | null; }
+interface WatchlistRow extends WatchlistItemApi {
+  quote: StockQuote | null;
+}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = useState(value);
@@ -40,19 +50,54 @@ export default function Watchlist() {
   const [searchResults, setSearchResults] = useState<StockSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const debouncedInput = useDebounce(addInput, 300);
 
   useEffect(() => {
-    if (debouncedInput.length < 1) { setSearchResults([]); setShowDropdown(false); return; }
+    const syncAuth = () => {
+      const isSignedIn = getSessionUser() !== null;
+      setSignedIn(isSignedIn);
+
+      if (!isSignedIn) {
+        setEntries([]);
+        setAddInput("");
+        setAddError("");
+        setSearchResults([]);
+        setShowDropdown(false);
+        setLoading(false);
+        return;
+      }
+
+      void loadWatchlist();
+    };
+
+    syncAuth();
+    return subscribeToAuthChanges(syncAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!signedIn) {
+      return;
+    }
+
+    if (debouncedInput.length < 1) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
     setSearching(true);
     searchStocks(debouncedInput)
-      .then((res) => { setSearchResults(res.results); setShowDropdown(res.results.length > 0); })
+      .then((res) => {
+        setSearchResults(res.results);
+        setShowDropdown(res.results.length > 0);
+      })
       .catch(() => setSearchResults([]))
       .finally(() => setSearching(false));
-  }, [debouncedInput]);
+  }, [debouncedInput, signedIn]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -63,8 +108,6 @@ export default function Watchlist() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  useEffect(() => { void loadWatchlist(); }, []);
 
   async function loadWatchlist() {
     setLoading(true);
@@ -79,21 +122,30 @@ export default function Watchlist() {
   }
 
   async function enrichWithQuotes(items: WatchlistItemApi[]) {
-    if (!items.length) { setEntries([]); return; }
+    if (!items.length) {
+      setEntries([]);
+      return;
+    }
+
     const rows: WatchlistRow[] = items.map((e) => ({ ...e, quote: null }));
     setEntries(rows);
 
     try {
       const { stocks, indices } = await getStocks();
       const bySymbol: Record<string, StockQuote> = {};
-      [...stocks, ...indices].forEach((s) => { bySymbol[s.symbol.toUpperCase()] = s; });
+      [...stocks, ...indices].forEach((s) => {
+        bySymbol[s.symbol.toUpperCase()] = s;
+      });
 
       const updated = await Promise.all(
         items.map(async (e): Promise<WatchlistRow> => {
           const found = bySymbol[e.ticker.toUpperCase()];
           if (found) return { ...e, quote: found };
-          try { return { ...e, quote: await getStockDetail(e.ticker) }; }
-          catch { return { ...e, quote: null }; }
+          try {
+            return { ...e, quote: await getStockDetail(e.ticker) };
+          } catch {
+            return { ...e, quote: null };
+          }
         })
       );
       setEntries(updated);
@@ -109,7 +161,10 @@ export default function Watchlist() {
     try {
       const { item } = await addToWatchlist(result.symbol, result.name);
       setEntries((prev) => [...prev, { ...item, quote: null }]);
-      void enrichWithQuotes([...(entries.map(e => ({ ticker: e.ticker, name: e.name, addedAt: e.addedAt, buyPrice: e.buyPrice }))), item]);
+      void enrichWithQuotes([
+        ...entries.map((e) => ({ ticker: e.ticker, name: e.name, addedAt: e.addedAt, buyPrice: e.buyPrice })),
+        item
+      ]);
     } catch (e) {
       setAddError(e instanceof Error ? e.message : `${result.symbol} could not be added.`);
     }
@@ -153,6 +208,27 @@ export default function Watchlist() {
     await updateWatchlistBuyPrice(ticker, null).catch(() => { /* best-effort */ });
   }
 
+  if (!signedIn) {
+    return (
+      <section className="findec-minimal-page">
+        <div className="findec-minimal-shell">
+          <div className="wtch-header-row">
+            <div>
+              <p className="findec-kicker">Personal Tracker</p>
+              <h1 className="wtch-title">Watchlist</h1>
+            </div>
+          </div>
+
+          <div className="findec-panel wtch-empty">
+            <p className="wtch-empty-title">Sign in to use your watchlist</p>
+            <p className="wtch-empty-sub">Customization is available only for signed-in accounts. Browse markets without a personal watchlist, or sign in to track symbols.</p>
+            <Link href="/login" className="wtch-empty-link">Login -&gt;</Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="findec-minimal-page">
       <div className="findec-minimal-shell">
@@ -176,7 +252,7 @@ export default function Watchlist() {
               <input
                 ref={inputRef}
                 className="wtch-input"
-                placeholder="Search by company name or ticker — e.g. Apple, RELIANCE, MSFT"
+                placeholder="Search by company name or ticker - e.g. Apple, RELIANCE, MSFT"
                 value={addInput}
                 onChange={(e) => { setAddInput(e.target.value); setAddError(""); }}
                 onKeyDown={(e) => { if (e.key === "Enter") void handleManualAdd(); if (e.key === "Escape") setShowDropdown(false); }}
@@ -193,7 +269,7 @@ export default function Watchlist() {
                   ))}
                 </div>
               )}
-              {searching && <span className="wtch-searching">Searching…</span>}
+              {searching && <span className="wtch-searching">Searching...</span>}
             </div>
             <button className="wtch-add-btn" onClick={() => void handleManualAdd()} disabled={!addInput.trim()}>
               + Add
@@ -203,13 +279,13 @@ export default function Watchlist() {
           <p className="wtch-add-hint">Synced to your account. Supports NYSE, NASDAQ, NSE (.NS), BSE (.BO), LSE (.L), TSE (.T), and more.</p>
         </div>
 
-        {loading && <p className="findec-kicker wtch-loading">Loading watchlist…</p>}
+        {loading && <p className="findec-kicker wtch-loading">Loading watchlist...</p>}
 
         {!loading && entries.length === 0 && (
           <div className="findec-panel wtch-empty">
             <p className="wtch-empty-title">Your watchlist is empty</p>
             <p className="wtch-empty-sub">Search for any company above to start tracking prices and P&amp;L.</p>
-            <Link href="/markets" className="wtch-empty-link">Browse Markets →</Link>
+            <Link href="/markets" className="wtch-empty-link">Browse Markets -&gt;</Link>
           </div>
         )}
 
@@ -236,7 +312,7 @@ export default function Watchlist() {
                           </span>
                         </>
                       ) : (
-                        <span className="wtch-no-data">Loading…</span>
+                        <span className="wtch-no-data">Live stock unavailable</span>
                       )}
                     </div>
                   </div>
@@ -248,7 +324,7 @@ export default function Watchlist() {
                       {q.dividendYield != null && q.dividendYield > 0 && <div className="wtch-metric"><span>Yield</span><strong>{q.dividendYield.toFixed(2)}%</strong></div>}
                       {q.beta != null && <div className="wtch-metric"><span>Beta</span><strong>{q.beta}</strong></div>}
                       {q.high52w != null && q.low52w != null && (
-                        <div className="wtch-metric"><span>52W Range</span><strong>{fmtNum(q.low52w)} – {fmtNum(q.high52w)}</strong></div>
+                        <div className="wtch-metric"><span>52W Range</span><strong>{fmtNum(q.low52w)} - {fmtNum(q.high52w)}</strong></div>
                       )}
                     </div>
                   )}
@@ -264,7 +340,7 @@ export default function Watchlist() {
                               {pnlPct >= 0 ? "+" : ""}{fmtNum(pnlPct)}% P&amp;L
                             </span>
                           )}
-                          <button className="wtch-clear-buy" onClick={() => void clearBuyPrice(row.ticker)} title="Clear buy price">×</button>
+                          <button className="wtch-clear-buy" onClick={() => void clearBuyPrice(row.ticker)} title="Clear buy price">x</button>
                         </div>
                       ) : (
                         <div className="wtch-buy-input-row">

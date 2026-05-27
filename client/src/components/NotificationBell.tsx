@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getNotifications, markAllNotificationsRead, type AppNotification } from "../services/api";
+import { getNotifications, getSessionUser, markAllNotificationsRead, subscribeToAuthChanges, type AppNotification } from "../services/api";
 
 function timeAgo(iso: string): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -15,13 +15,33 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [signedIn, setSignedIn] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const syncAuth = () => {
+      const isSignedIn = getSessionUser() !== null;
+      setSignedIn(isSignedIn);
+      if (!isSignedIn) {
+        setOpen(false);
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    };
+
+    syncAuth();
+    return subscribeToAuthChanges(syncAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!signedIn) {
+      return;
+    }
+
     void fetchNotifications();
     const interval = setInterval(() => void fetchNotifications(), 60_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [signedIn]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -37,6 +57,10 @@ export default function NotificationBell() {
       setNotifications(data.notifications);
       setUnreadCount(data.unreadCount);
     } catch { /* not logged in or server unavailable — stay silent */ }
+  }
+
+  if (!signedIn) {
+    return null;
   }
 
   async function handleOpen() {

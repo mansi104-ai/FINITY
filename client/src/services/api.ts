@@ -8,9 +8,8 @@ const DIRECT_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://server-
 
 const REPORTS_CACHE_KEY = "findec-reports-cache";
 const ACCESS_TOKEN_KEY = "findec-access-token";
-const DEMO_EMAIL_KEY = "findec-demo-email";
-const DEMO_PASSWORD_KEY = "findec-demo-password";
 const SESSION_USER_KEY = "findec-session-user";
+const AUTH_CHANGED_EVENT = "findec-auth-changed";
 
 type AuthResponse = {
   accessToken: string;
@@ -47,35 +46,30 @@ function clearAccessToken(): void {
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
 }
 
+function dispatchAuthChanged(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+}
+
 function saveSessionUser(user: AuthResponse["user"]): void {
   if (typeof window === "undefined") {
     return;
   }
 
   window.localStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
+  dispatchAuthChanged();
 }
 
-function buildDemoCredentials(): { email: string; password: string } {
+function clearSessionUser(): void {
   if (typeof window === "undefined") {
-    return {
-      email: "demo@findec.local",
-      password: "FindecDemoPass123!"
-    };
+    return;
   }
 
-  const existingEmail = window.localStorage.getItem(DEMO_EMAIL_KEY);
-  const existingPassword = window.localStorage.getItem(DEMO_PASSWORD_KEY);
-  if (existingEmail && existingPassword) {
-    return { email: existingEmail, password: existingPassword };
-  }
-
-  const seed = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`;
-  const compactSeed = seed.replace(/[^a-zA-Z0-9]/g, "");
-  const email = `demo-${compactSeed.toLowerCase()}@findec.local`;
-  const password = `Findec!${compactSeed.slice(0, 12)}Ab9`;
-  window.localStorage.setItem(DEMO_EMAIL_KEY, email);
-  window.localStorage.setItem(DEMO_PASSWORD_KEY, password);
-  return { email, password };
+  window.localStorage.removeItem(SESSION_USER_KEY);
+  dispatchAuthChanged();
 }
 
 async function unauthenticatedRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -85,7 +79,9 @@ async function unauthenticatedRequest<T>(path: string, init: RequestInit = {}): 
     headers.set("Content-Type", "application/json");
   }
 
-  const candidates = Array.from(new Set(["", DIRECT_API_BASE_URL].filter(Boolean)));
+  const candidates = typeof window === "undefined"
+    ? Array.from(new Set([DIRECT_API_BASE_URL].filter(Boolean)))
+    : [""];
   let lastError: Error | null = null;
 
   for (const baseUrl of candidates) {
@@ -144,6 +140,7 @@ async function refreshSession(): Promise<string | null> {
     return response.accessToken;
   } catch {
     clearAccessToken();
+    clearSessionUser();
     return null;
   }
 }
@@ -162,19 +159,7 @@ async function ensureSession(): Promise<string | null> {
       if (refreshedToken) {
         return refreshedToken;
       }
-
-      const { email, password } = buildDemoCredentials();
-      try {
-        const response = await loginDemoUser(email, password);
-        setAccessToken(response.accessToken);
-        saveSessionUser(response.user);
-        return response.accessToken;
-      } catch {
-        const response = await registerDemoUser(email, password);
-        setAccessToken(response.accessToken);
-        saveSessionUser(response.user);
-        return response.accessToken;
-      }
+      return null;
     })().finally(() => {
       sessionBootstrapPromise = null;
     });
@@ -250,6 +235,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const message = error instanceof Error ? error.message : "Request failed";
     if (requiresAuth(path) && /unauthorized|invalid token|missing refresh token|session/i.test(message)) {
       clearAccessToken();
+      clearSessionUser();
       const refreshed = await ensureSession();
       if (refreshed) {
         return makeAttempt();
@@ -360,7 +346,7 @@ export async function registerUser(email: string, password: string): Promise<Aut
 export async function logoutUser(): Promise<void> {
   try { await request("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
   clearAccessToken();
-  if (typeof window !== "undefined") window.localStorage.removeItem(SESSION_USER_KEY);
+  clearSessionUser();
 }
 
 export function getSessionUser(): AuthResponse["user"] | null {
@@ -369,6 +355,24 @@ export function getSessionUser(): AuthResponse["user"] | null {
     const s = window.localStorage.getItem(SESSION_USER_KEY);
     return s ? (JSON.parse(s) as AuthResponse["user"]) : null;
   } catch { return null; }
+}
+
+export function hasSignedInUser(): boolean {
+  return getSessionUser() !== null;
+}
+
+export function subscribeToAuthChanges(callback: () => void): () => void {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const handler = () => callback();
+  window.addEventListener(AUTH_CHANGED_EVENT, handler);
+  window.addEventListener("storage", handler);
+  return () => {
+    window.removeEventListener(AUTH_CHANGED_EVENT, handler);
+    window.removeEventListener("storage", handler);
+  };
 }
 
 // ─── Watchlist API ────────────────────────────────────────────────────────────

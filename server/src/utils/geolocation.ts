@@ -140,7 +140,7 @@ export function getGeolocationFromHeaders(req: RequestLike): GeoLocation | null 
     return null;
   }
 
-  const timezone = COUNTRY_TO_TIMEZONE[countryCode] || timezoneHeader || "America/New_York";
+  const timezone = timezoneHeader || COUNTRY_TO_TIMEZONE[countryCode] || "America/New_York";
   const market = MARKET_DEFINITIONS[timezone] || MARKET_DEFINITIONS["America/New_York"]!;
 
   return {
