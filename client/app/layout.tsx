@@ -20,6 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <nav className="findec-topnav" aria-label="Primary">
               <Link className="findec-topnav-link" href="/markets">Markets</Link>
               <Link className="findec-topnav-link" href="/screener">Screener</Link>
+              <Link className="findec-topnav-link" href="/earnings">Earnings</Link>
               <Link className="findec-topnav-link" href="/watchlist">Watchlist</Link>
               <Link className="findec-topnav-link findec-topnav-cta" href="/brief">AI Brief</Link>
               <Link className="findec-topnav-link" href="/history">History</Link>

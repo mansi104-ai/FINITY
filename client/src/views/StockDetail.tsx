@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { getMarketHistory, getNews, getStockDetail } from "../services/api";
-import type { MarketHistory, NewsArticle, StockQuote } from "../types";
+import { getAnalystRecommendations, getMarketHistory, getNews, getStockDetail } from "../services/api";
+import type { AnalystRecommendation, MarketHistory, NewsArticle, StockQuote } from "../types";
 
 function toChartPoints(points: MarketHistory["points"], w: number, h: number): string {
   if (!points.length) return "";
@@ -89,6 +89,7 @@ export default function StockDetail({ ticker }: { ticker: string }) {
   const [stock, setStock] = useState<StockQuote | null>(null);
   const [history, setHistory] = useState<MarketHistory | null>(null);
   const [news, setNews] = useState<NewsArticle[]>([]);
+  const [recommendations, setRecommendations] = useState<AnalystRecommendation[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -114,6 +115,16 @@ export default function StockDetail({ ticker }: { ticker: string }) {
       }
     };
     void loadNews();
+  }, [ticker]);
+
+  useEffect(() => {
+    const loadRecs = async () => {
+      try {
+        const res = await getAnalystRecommendations(ticker);
+        setRecommendations(res.recommendations);
+      } catch { /* not available for all tickers */ }
+    };
+    void loadRecs();
   }, [ticker]);
 
   const chartPoints = useMemo(
@@ -311,6 +322,33 @@ export default function StockDetail({ ticker }: { ticker: string }) {
               </div>
             </article>
 
+            {/* ── Analyst Recommendations ── */}
+            {recommendations.length > 0 && (() => {
+              const latest = recommendations[0];
+              const total = latest.strongBuy + latest.buy + latest.hold + latest.sell + latest.strongSell;
+              if (total === 0) return null;
+              return (
+                <article className="findec-panel stk-analyst-panel">
+                  <p className="findec-kicker">Analyst Consensus · {latest.period}</p>
+                  <div className="stk-analyst-bar">
+                    {latest.strongBuy > 0 && <div className="stk-analyst-seg stk-analyst-sbuy" style={{ width: `${(latest.strongBuy / total) * 100}%` }} title={`Strong Buy: ${latest.strongBuy}`} />}
+                    {latest.buy > 0 && <div className="stk-analyst-seg stk-analyst-buy" style={{ width: `${(latest.buy / total) * 100}%` }} title={`Buy: ${latest.buy}`} />}
+                    {latest.hold > 0 && <div className="stk-analyst-seg stk-analyst-hold" style={{ width: `${(latest.hold / total) * 100}%` }} title={`Hold: ${latest.hold}`} />}
+                    {latest.sell > 0 && <div className="stk-analyst-seg stk-analyst-sell" style={{ width: `${(latest.sell / total) * 100}%` }} title={`Sell: ${latest.sell}`} />}
+                    {latest.strongSell > 0 && <div className="stk-analyst-seg stk-analyst-ssell" style={{ width: `${(latest.strongSell / total) * 100}%` }} title={`Strong Sell: ${latest.strongSell}`} />}
+                  </div>
+                  <div className="stk-analyst-labels">
+                    <span className="findec-subline-up">S.Buy {latest.strongBuy}</span>
+                    <span className="findec-subline-up">Buy {latest.buy}</span>
+                    <span>Hold {latest.hold}</span>
+                    <span className="findec-subline-down">Sell {latest.sell}</span>
+                    <span className="findec-subline-down">S.Sell {latest.strongSell}</span>
+                  </div>
+                  <p className="stk-analyst-total">{total} analysts · click for full history</p>
+                </article>
+              );
+            })()}
+
             {/* ── News ── */}
             {news.length > 0 && (
               <article className="findec-panel stk-news-panel">
@@ -321,6 +359,17 @@ export default function StockDetail({ ticker }: { ticker: string }) {
                 <div className="stk-news-list">
                   {news.map((article, i) => (
                     <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="stk-news-row">
+                      {article.imageUrl && (
+                        <div className="stk-news-img-wrap">
+                          <img
+                            src={article.imageUrl}
+                            alt=""
+                            className="stk-news-img"
+                            loading="lazy"
+                            onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
+                          />
+                        </div>
+                      )}
                       <div className="stk-news-body">
                         <SentimentTag s={article.sentiment} />
                         <p className="stk-news-title">{article.title}</p>

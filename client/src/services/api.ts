@@ -1,4 +1,4 @@
-import type { AgentReport, MarketHistory, MarketSnapshot, NewsResponse, QueryResponse, RiskProfile, StockQuote, StocksResponse } from "../types";
+import type { AgentReport, AnalystRecommendation, EarningsEvent, IpoEvent, MarketHistory, MarketSnapshot, NewsResponse, QueryResponse, RiskProfile, StockQuote, StocksResponse } from "../types";
 
 // Prefer same-origin requests so deployed clients can use a rewrite/proxy and avoid
 // browser-side CORS/network failures. Keep the explicit backend URL as a fallback.
@@ -310,9 +310,24 @@ export function getStockDetail(ticker: string): Promise<StockQuote> {
   return request<StockQuote>(`/api/market/stock/${encodeURIComponent(ticker)}`);
 }
 
-export function getNews(ticker?: string): Promise<NewsResponse> {
-  const qs = ticker ? `?ticker=${encodeURIComponent(ticker)}` : "";
+export function getNews(ticker?: string, category?: string): Promise<NewsResponse> {
+  const params = new URLSearchParams();
+  if (ticker) params.set("ticker", ticker);
+  if (category) params.set("category", category);
+  const qs = params.toString() ? `?${params.toString()}` : "";
   return request<NewsResponse>(`/api/market/news${qs}`);
+}
+
+export function getEarnings(): Promise<{ upcoming: EarningsEvent[]; recent: EarningsEvent[] }> {
+  return request<{ upcoming: EarningsEvent[]; recent: EarningsEvent[] }>("/api/market/earnings");
+}
+
+export function getIpoCalendar(): Promise<{ ipos: IpoEvent[] }> {
+  return request<{ ipos: IpoEvent[] }>("/api/market/ipo");
+}
+
+export function getAnalystRecommendations(ticker: string): Promise<{ recommendations: AnalystRecommendation[] }> {
+  return request<{ recommendations: AnalystRecommendation[] }>(`/api/market/recommendations/${encodeURIComponent(ticker)}`);
 }
 
 export interface StockSearchResult {

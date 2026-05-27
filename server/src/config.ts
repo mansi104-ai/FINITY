@@ -41,5 +41,6 @@ export const env = {
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
   mongodbUri: process.env.MONGODB_URI ?? "",
   mongodbDbName: process.env.MONGODB_DB_NAME ?? "findec",
-  newsApiKey: process.env.NEWSAPI_KEY ?? process.env.NEWS_API_KEY ?? ""
+  newsApiKey: process.env.NEWSAPI_KEY ?? process.env.NEWS_API_KEY ?? "",
+  finnhubKey: process.env.FINNHUB_API_KEY ?? ""
 };

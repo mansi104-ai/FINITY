@@ -5,7 +5,10 @@ import {
   getStocksController,
   getStockDetailController,
   getNewsController,
-  searchStocksController
+  searchStocksController,
+  getEarningsController,
+  getIpoCalendarController,
+  getRecommendationsController,
 } from "../controllers/market.controller";
 
 const marketRoutes = Router();
@@ -16,5 +19,8 @@ marketRoutes.get("/stocks", getStocksController);
 marketRoutes.get("/stock/:ticker", getStockDetailController);
 marketRoutes.get("/news", getNewsController);
 marketRoutes.get("/search", searchStocksController);
+marketRoutes.get("/earnings", getEarningsController);
+marketRoutes.get("/ipo", getIpoCalendarController);
+marketRoutes.get("/recommendations/:ticker", getRecommendationsController);
 
 export default marketRoutes;

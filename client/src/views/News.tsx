@@ -15,6 +15,14 @@ function timeAgo(iso: string): string {
 }
 
 const POPULAR = ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA", "AMZN", "META", "JPM"];
+const CATEGORIES = [
+  { value: "general", label: "Market" },
+  { value: "crypto", label: "Crypto" },
+  { value: "forex", label: "Forex" },
+  { value: "merger", label: "M&A" },
+] as const;
+
+type Category = typeof CATEGORIES[number]["value"];
 
 export default function News() {
   const params = useSearchParams();
@@ -26,12 +34,13 @@ export default function News() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<"all" | "bullish" | "bearish" | "neutral">("all");
+  const [category, setCategory] = useState<Category>("general");
   const [source, setSource] = useState("");
 
   useEffect(() => {
     setLoading(true);
     setError("");
-    void getNews(ticker || undefined)
+    void getNews(ticker || undefined, ticker ? undefined : category)
       .then((res) => {
         setArticles(res.articles);
         setSource(res.source);
@@ -41,7 +50,7 @@ export default function News() {
         setArticles([]);
       })
       .finally(() => setLoading(false));
-  }, [ticker]);
+  }, [ticker, category]);
 
   function applyTicker() {
     const t = inputVal.trim().toUpperCase();
@@ -112,6 +121,21 @@ export default function News() {
           </div>
         </div>
 
+        {/* Category tabs — only shown when no ticker selected */}
+        {!ticker && (
+          <div className="news-cat-tabs">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.value}
+                className={`news-cat-tab ${category === c.value ? "news-cat-tab-active" : ""}`}
+                onClick={() => setCategory(c.value)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Sentiment summary */}
         {!loading && sentimentPct && total > 0 && (
           <div className="findec-panel news-sentiment-panel">
@@ -129,7 +153,7 @@ export default function News() {
           </div>
         )}
 
-        {/* Filter tabs */}
+        {/* Sentiment filter tabs */}
         <div className="news-filter-tabs">
           {(["all", "bullish", "bearish", "neutral"] as const).map((f) => (
             <button
@@ -166,19 +190,33 @@ export default function News() {
                 rel="noopener noreferrer"
                 className="findec-panel news-card"
               >
-                <div className="news-card-top">
-                  <span className={`findec-tag ${sentimentCls(article.sentiment)} news-card-tag`}>
-                    {article.sentiment}
-                  </span>
-                  <span className="news-card-meta">
-                    {article.source.name} · {timeAgo(article.publishedAt)}
-                  </span>
-                </div>
-                <p className="news-card-title">{article.title}</p>
-                {article.description && (
-                  <p className="news-card-desc">{article.description}</p>
+                {article.imageUrl && (
+                  <img
+                    src={article.imageUrl}
+                    alt=""
+                    className="news-card-img"
+                    loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
                 )}
-                <span className="news-card-read">Read article →</span>
+                <div className="news-card-body">
+                  <div className="news-card-top">
+                    <span className={`findec-tag ${sentimentCls(article.sentiment)} news-card-tag`}>
+                      {article.sentiment}
+                    </span>
+                    {article.category && article.category !== "general" && (
+                      <span className="news-card-category">{article.category}</span>
+                    )}
+                    <span className="news-card-meta">
+                      {article.source.name} · {timeAgo(article.publishedAt)}
+                    </span>
+                  </div>
+                  <p className="news-card-title">{article.title}</p>
+                  {article.description && (
+                    <p className="news-card-desc">{article.description}</p>
+                  )}
+                  <span className="news-card-read">Read article →</span>
+                </div>
               </a>
             ))}
           </div>

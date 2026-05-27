@@ -269,6 +269,42 @@ export interface NewsArticle {
   source: { name: string };
   publishedAt: string;
   sentiment: "bullish" | "bearish" | "neutral";
+  imageUrl?: string;
+  category?: string;
+}
+
+export interface EarningsEvent {
+  date: string;
+  symbol: string;
+  company: string;
+  epsEstimate: number | null;
+  epsActual: number | null;
+  revenueEstimate: number | null;
+  revenueActual: number | null;
+  quarter: number;
+  year: number;
+  hour: string;
+}
+
+export interface IpoEvent {
+  date: string;
+  exchange: string;
+  name: string;
+  numberOfShares: number;
+  price: string;
+  status: string;
+  symbol: string;
+  totalSharesValue: number;
+}
+
+export interface AnalystRecommendation {
+  buy: number;
+  hold: number;
+  period: string;
+  sell: number;
+  strongBuy: number;
+  strongSell: number;
+  symbol: string;
 }
 
 export interface NewsResponse {

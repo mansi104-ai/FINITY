@@ -6,16 +6,27 @@ import {
   type GeoLocation
 } from "../utils/geolocation";
 import { getDb } from "../store/db";
+import { env } from "../config";
+import {
+  fhCompanyNews,
+  fhEarnings,
+  fhIpo,
+  fhMarketNews,
+  fhMetrics,
+  fhRecommendations,
+  type FinnhubNewsItem,
+} from "../services/finnhub";
 
 const NEW_YORK_TIMEZONE = "America/New_York";
-const STOCK_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const STOCK_CACHE_TTL_MS = 30 * 60 * 1000;
+const SNAPSHOT_CACHE_STALE_MAX_MS = 4 * 60 * 60 * 1000;
 const YAHOO_REQUEST_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   "Accept": "application/json, text/plain, */*",
   "Accept-Language": "en-US,en;q=0.9",
 };
 
-// ─── Expanded tracked symbols ─────────────────────────────────────────────────
+// ─── Tracked symbols (used for batch fetching, not as fallback price data) ───
 const COUNTRY_TRACKED_SYMBOLS: Record<string, string[]> = {
   IN: [
     "^NSEI", "^BSESN",
@@ -147,7 +158,7 @@ type MarketHistoryResponse = {
   symbol: string; name: string; currency: string;
   points: MarketHistoryPoint[]; latestClose: number;
   changePercent30d: number; high30d: number; low30d: number;
-  source: "yahoo" | "synthetic";
+  source: "yahoo";
 };
 
 type StocksListResponse = {
@@ -161,9 +172,11 @@ type NewsArticle = {
   title: string; description?: string; url: string;
   source: { name: string }; publishedAt: string;
   sentiment: "bullish" | "bearish" | "neutral";
+  imageUrl?: string;
+  category?: string;
 };
 
-// ─── MongoDB stock cache ───────────────────────────────────────────────────────
+// ─── MongoDB stock cache ──────────────────────────────────────────────────────
 async function getStocksCache(
   countryCode: string,
   options: { allowStale?: boolean } = {}
@@ -188,6 +201,33 @@ async function setStocksCache(countryCode: string, stocks: StockQuoteResponse[],
     await db.collection("stocks_cache").updateOne(
       { countryCode },
       { $set: { countryCode, stocks, indices, cachedAt: new Date().toISOString() } },
+      { upsert: true }
+    );
+  } catch { /* non-critical */ }
+}
+
+// ─── MongoDB snapshot cache ───────────────────────────────────────────────────
+async function getSnapshotCache(countryCode: string): Promise<MarketSnapshotResponse["tickers"] | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const doc = await db.collection("snapshot_cache").findOne({ countryCode });
+    if (!doc) return null;
+    const age = Date.now() - new Date(doc.cachedAt as string).getTime();
+    if (age > SNAPSHOT_CACHE_STALE_MAX_MS) return null;
+    return doc.tickers as MarketSnapshotResponse["tickers"];
+  } catch {
+    return null;
+  }
+}
+
+async function setSnapshotCache(countryCode: string, tickers: MarketSnapshotResponse["tickers"]): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db.collection("snapshot_cache").updateOne(
+      { countryCode },
+      { $set: { countryCode, tickers, cachedAt: new Date().toISOString() } },
       { upsert: true }
     );
   } catch { /* non-critical */ }
@@ -266,50 +306,7 @@ function getLastTradingDayLabel(now: Date, timezone = NEW_YORK_TIMEZONE): string
   return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(date);
 }
 
-// ─── Fallback data ────────────────────────────────────────────────────────────
-function fallbackTickerData(countryCode: string): MarketSnapshotResponse["tickers"] {
-  if (countryCode === "IN") return [
-    { symbol: "^NSEI", name: "Nifty 50", lastClose: 22463, changePercent: 0.58 },
-    { symbol: "^BSESN", name: "Sensex", lastClose: 73902, changePercent: 0.52 },
-    { symbol: "RELIANCE.NS", name: "Reliance Industries", lastClose: 2988, changePercent: 0.84 },
-    { symbol: "TCS.NS", name: "TCS", lastClose: 4012, changePercent: 0.44 },
-    { symbol: "HDFCBANK.NS", name: "HDFC Bank", lastClose: 1548, changePercent: -0.12 },
-    { symbol: "INFY.NS", name: "Infosys", lastClose: 1499, changePercent: 0.63 },
-  ];
-  return [
-    { symbol: "^GSPC", name: "S&P 500", lastClose: 5224, changePercent: 0.42 },
-    { symbol: "^DJI", name: "Dow Jones", lastClose: 39214, changePercent: 0.31 },
-    { symbol: "^IXIC", name: "Nasdaq", lastClose: 16384, changePercent: 0.68 },
-    { symbol: "AAPL", name: "Apple", lastClose: 213, changePercent: 0.57 },
-    { symbol: "MSFT", name: "Microsoft", lastClose: 428, changePercent: 0.44 },
-    { symbol: "NVDA", name: "NVIDIA", lastClose: 903, changePercent: 1.12 },
-    { symbol: "AMZN", name: "Amazon", lastClose: 181, changePercent: -0.18 },
-    { symbol: "GOOGL", name: "Alphabet", lastClose: 175, changePercent: 0.33 },
-    { symbol: "META", name: "Meta Platforms", lastClose: 510, changePercent: 0.71 },
-    { symbol: "TSLA", name: "Tesla", lastClose: 172, changePercent: -1.03 },
-    { symbol: "JPM", name: "JPMorgan Chase", lastClose: 198, changePercent: 0.22 },
-    { symbol: "BAC", name: "Bank of America", lastClose: 38, changePercent: 0.15 },
-    { symbol: "GS", name: "Goldman Sachs", lastClose: 445, changePercent: 0.41 },
-    { symbol: "F", name: "Ford Motor", lastClose: 12, changePercent: -0.52 },
-    { symbol: "GM", name: "General Motors", lastClose: 45, changePercent: -0.31 },
-    { symbol: "COIN", name: "Coinbase", lastClose: 225, changePercent: 1.44 },
-    { symbol: "PLTR", name: "Palantir", lastClose: 23, changePercent: 0.87 },
-  ];
-}
-
-function fallbackStockData(countryCode: string): StockQuoteResponse[] {
-  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
-  return fallbackTickerData(countryCode).map((t) => ({
-    symbol: t.symbol, name: t.name,
-    exchange: countryCode === "IN" ? "NSE/BSE" : "NYSE/NASDAQ",
-    currency: countryCode === "IN" ? "INR" : countryCode === "GB" ? "GBp" : "USD",
-    price: t.lastClose, lastClose: t.lastClose,
-    change: +(t.lastClose * t.changePercent / 100).toFixed(2),
-    changePercent: t.changePercent, isIndex: indexSymbols.has(t.symbol)
-  }));
-}
-
-// ─── Yahoo Finance fetch helpers ──────────────────────────────────────────────
+// ─── Yahoo Finance helpers ────────────────────────────────────────────────────
 async function fetchQuotes(symbolsToTrack: string[]): Promise<MarketSnapshotResponse["tickers"]> {
   const response = await axios.get<{ quoteResponse?: { result?: YahooQuote[] } }>(
     "https://query1.finance.yahoo.com/v7/finance/quote",
@@ -387,7 +384,6 @@ async function fetchDetailedQuotesBatch(symbols: string[], indexSymbols: Set<str
   return result.map((q) => mapDetailedQuote(q, indexSymbols));
 }
 
-// Batch into groups of 20 to avoid Yahoo Finance limits
 async function fetchDetailedQuotes(symbols: string[], countryCode: string): Promise<StockQuoteResponse[]> {
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
   const BATCH = 20;
@@ -403,31 +399,6 @@ async function fetchDetailedQuotes(symbols: string[], countryCode: string): Prom
 }
 
 // ─── History fetch ────────────────────────────────────────────────────────────
-function syntheticHistory(ticker: string, baseline = 1500): MarketHistoryResponse {
-  const seed = ticker.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0);
-  const points: MarketHistoryPoint[] = [];
-  let current = baseline + (seed % 300);
-  const today = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const drift = ((seed % 7) - 3) * 0.0009;
-    const wave = Math.sin((29 - i + seed) / 4.2) * 0.009;
-    current = Math.max(10, current * (1 + drift + wave));
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    points.push({ date: date.toISOString(), close: +current.toFixed(2) });
-  }
-  const closes = points.map((p) => p.close);
-  const latestClose = closes[closes.length - 1];
-  const firstClose = closes[0];
-  return {
-    symbol: ticker, name: ticker, currency: "USD", points, latestClose,
-    changePercent30d: +(((latestClose - firstClose) / firstClose) * 100).toFixed(2),
-    high30d: +Math.max(...closes).toFixed(2),
-    low30d: +Math.min(...closes).toFixed(2),
-    source: "synthetic"
-  };
-}
-
 async function fetchHistory(ticker: string): Promise<MarketHistoryResponse> {
   const chartParams = { range: "1mo", interval: "1d", includePrePost: false };
   let rawData: unknown;
@@ -463,7 +434,7 @@ async function fetchHistory(ticker: string): Promise<MarketHistoryResponse> {
     .filter((p): p is MarketHistoryPoint => p !== null)
     .slice(-30);
 
-  if (points.length < 10) throw new Error("Insufficient history");
+  if (points.length < 5) throw new Error("Insufficient history");
   const series = points.map((p) => p.close);
   const latestClose = series[series.length - 1];
   const firstClose = series[0];
@@ -497,7 +468,21 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
 }
 
-// Google News RSS — no API key, reliable from any server
+function mapFinnhubNews(items: FinnhubNewsItem[]): NewsArticle[] {
+  return items
+    .filter(item => item.headline && item.url)
+    .map(item => ({
+      title: item.headline,
+      description: item.summary || undefined,
+      url: item.url,
+      source: { name: item.source },
+      publishedAt: new Date(item.datetime * 1000).toISOString(),
+      sentiment: scoreSentiment(item.headline + " " + (item.summary || "")),
+      imageUrl: item.image?.startsWith("http") ? item.image : undefined,
+      category: item.category || undefined,
+    }));
+}
+
 async function fetchGoogleNewsRSS(query: string): Promise<NewsArticle[]> {
   const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}+stock+market&hl=en-US&gl=US&ceid=US:en`;
   const { data: xml } = await axios.get<string>(url, {
@@ -516,7 +501,6 @@ async function fetchGoogleNewsRSS(query: string): Promise<NewsArticle[]> {
     const sourceText = decodeHtmlEntities(
       item.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1]?.replace(/<!\[CDATA\[|\]\]>/g, "").trim() ?? ""
     );
-    // Google News titles: "Headline text - Source Name"
     const parts = title.split(" - ");
     const headline = parts.length > 1 ? parts.slice(0, -1).join(" - ") : title;
     const sourceName = sourceText || (parts.length > 1 ? parts[parts.length - 1] : "Google News");
@@ -531,7 +515,6 @@ async function fetchGoogleNewsRSS(query: string): Promise<NewsArticle[]> {
   }).filter((a) => a.title.length > 0 && a.url.length > 0);
 }
 
-// Yahoo Finance search news — fallback
 async function fetchYahooNewsSearch(query: string): Promise<NewsArticle[]> {
   type YahooNewsItem = { title?: string; link?: string; publisher?: string; providerPublishTime?: number };
   type YahooSearchResp = { news?: YahooNewsItem[] };
@@ -560,6 +543,11 @@ async function fetchYahooNewsSearch(query: string): Promise<NewsArticle[]> {
     }));
 }
 
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+function isoDate(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
 // ─── Default geo ──────────────────────────────────────────────────────────────
 const defaultGeo: GeoLocation = {
   country: "United States", countryCode: "US", timezone: NEW_YORK_TIMEZONE,
@@ -574,26 +562,31 @@ const defaultGeo: GeoLocation = {
 export async function getMarketSnapshotController(req: Request, res: Response) {
   const now = new Date();
   let geo = defaultGeo;
+  try { geo = await getGeolocation(req); } catch { /* use default */ }
+
+  const market = getMarketStatusForMarket(now, geo.market);
+  const base = {
+    asOf: now.toISOString(),
+    geoLocation: { country: geo.country, countryCode: geo.countryCode, timezone: geo.timezone },
+    market,
+    lastTradingDayLabel: getLastTradingDayLabel(now, geo.timezone),
+    featuredTickers: getFeaturedTickersForCountry(geo.countryCode),
+  };
+
+  // 1. Live Yahoo Finance
   try {
-    geo = await getGeolocation(req);
-    const market = getMarketStatusForMarket(now, geo.market);
     const tickers = await fetchQuotes(getTrackedSymbolsForCountry(geo.countryCode));
-    return res.status(200).json({
-      asOf: now.toISOString(),
-      geoLocation: { country: geo.country, countryCode: geo.countryCode, timezone: geo.timezone },
-      market, lastTradingDayLabel: getLastTradingDayLabel(now, geo.timezone),
-      featuredTickers: getFeaturedTickersForCountry(geo.countryCode), tickers
-    } satisfies MarketSnapshotResponse);
-  } catch {
-    const market = getMarketStatusForMarket(now, geo.market);
-    return res.status(200).json({
-      asOf: now.toISOString(),
-      geoLocation: { country: geo.country, countryCode: geo.countryCode, timezone: geo.timezone },
-      market, lastTradingDayLabel: getLastTradingDayLabel(now, geo.timezone),
-      featuredTickers: getFeaturedTickersForCountry(geo.countryCode),
-      tickers: fallbackTickerData(geo.countryCode)
-    } satisfies MarketSnapshotResponse);
+    void setSnapshotCache(geo.countryCode, tickers);
+    return res.status(200).json({ ...base, tickers } satisfies MarketSnapshotResponse);
+  } catch { /* try cache */ }
+
+  // 2. Stale MongoDB snapshot cache (up to 4 hours old)
+  const cached = await getSnapshotCache(geo.countryCode);
+  if (cached) {
+    return res.status(200).json({ ...base, tickers: cached } satisfies MarketSnapshotResponse);
   }
+
+  return res.status(502).json({ error: "Market data is unavailable right now. Please try again." });
 }
 
 export async function getMarketHistoryController(req: Request, res: Response) {
@@ -614,15 +607,25 @@ export async function getStocksController(req: Request, res: Response) {
   const { countryCode } = geo;
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
   const symbols = getTrackedSymbolsForCountry(countryCode);
+
+  // 1. Live Yahoo Finance batch
   try {
     const all = await fetchDetailedQuotes(symbols, countryCode);
     const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
     const indices = all.filter((s) => indexSymbols.has(s.symbol));
-    void setStocksCache(countryCode, stocks, indices); // cache async
+    void setStocksCache(countryCode, stocks, indices);
     return res.status(200).json({ stocks, indices, countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
-  } catch {
-    return res.status(502).json({ error: "Live stock data is unavailable right now. No fallback dataset is being used." });
+  } catch { /* try stale cache */ }
+
+  // 2. Stale MongoDB stocks cache
+  const stale = await getStocksCache(countryCode, { allowStale: true });
+  if (stale) {
+    return res.status(200).json({
+      stocks: stale.stocks, indices: stale.indices, countryCode, asOf: now.toISOString()
+    } satisfies StocksListResponse);
   }
+
+  return res.status(502).json({ error: "Live stock data is unavailable right now." });
 }
 
 export async function getStockDetailController(req: Request, res: Response) {
@@ -636,17 +639,35 @@ export async function getStockDetailController(req: Request, res: Response) {
   else if (ticker.endsWith(".SS") || ticker.endsWith(".SZ")) countryCode = "CN";
 
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+
+  // Primary: Yahoo Finance detailed quote
+  let quote: StockQuoteResponse | undefined;
   try {
     const [result] = await fetchDetailedQuotesBatch([ticker], indexSymbols);
-    if (result) return res.status(200).json(result);
-  } catch {
-    return res.status(502).json({ error: `Live quote is unavailable for "${ticker}" right now.` });
+    quote = result;
+  } catch { /* fallthrough to Finnhub or error */ }
+
+  // Enrich US stocks with Finnhub metrics (fills any gaps Yahoo left)
+  if (quote && env.finnhubKey && countryCode === "US" && !ticker.startsWith("^")) {
+    try {
+      const { metric: m } = await fhMetrics(ticker);
+      if (quote.high52w == null && m["52WeekHigh"] != null) quote.high52w = +Number(m["52WeekHigh"]).toFixed(2);
+      if (quote.low52w == null && m["52WeekLow"] != null) quote.low52w = +Number(m["52WeekLow"]).toFixed(2);
+      if (quote.beta == null && m.beta != null) quote.beta = +Number(m.beta).toFixed(2);
+      if (quote.peRatio == null && m.peTTM != null) quote.peRatio = +Number(m.peTTM).toFixed(2);
+      if (quote.priceToBook == null && m.pbAnnual != null) quote.priceToBook = +Number(m.pbAnnual).toFixed(2);
+      if (quote.eps == null && m.epsTTM != null) quote.eps = +Number(m.epsTTM).toFixed(2);
+      if (quote.dividendYield == null && m.dividendYieldIndicatedAnnual != null) {
+        quote.dividendYield = +Number(m.dividendYieldIndicatedAnnual).toFixed(2);
+      }
+    } catch { /* enrichment failed, return Yahoo data as-is */ }
   }
 
-  return res.status(404).json({ error: `Could not find live data for "${ticker}". Check the ticker symbol and try again.` });
+  if (quote) return res.status(200).json(quote);
+
+  return res.status(502).json({ error: `Live quote unavailable for "${ticker}". Please try again.` });
 }
 
-// Ticker search — supports any company name or symbol via Yahoo Finance autocomplete
 export async function searchStocksController(req: Request, res: Response) {
   const q = String(req.query.q ?? "").trim();
   if (!q || q.length < 1) return res.status(200).json({ results: [] });
@@ -682,25 +703,109 @@ export async function searchStocksController(req: Request, res: Response) {
 
 export async function getNewsController(req: Request, res: Response) {
   const ticker = String(req.query.ticker ?? "").trim().toUpperCase();
-  const query = ticker || "stock market investing";
+  const rawCategory = String(req.query.category ?? "general").toLowerCase();
+  const category = (["general", "forex", "crypto", "merger"].includes(rawCategory)
+    ? rawCategory
+    : "general") as "general" | "forex" | "crypto" | "merger";
 
-  // 1. Try Google News RSS — works from any server, no API key needed
+  // 1. Finnhub (primary — rich data with images and summaries)
+  if (env.finnhubKey) {
+    try {
+      const now = new Date();
+      const from = isoDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
+      const to = isoDate(now);
+
+      const items = ticker
+        ? await fhCompanyNews(ticker, from, to)
+        : await fhMarketNews(category);
+
+      if (items.length > 0) {
+        const articles = mapFinnhubNews(items.slice(0, 30));
+        if (articles.length > 0) {
+          return res.status(200).json({ articles, source: "finnhub", ticker: ticker || null });
+        }
+      }
+    } catch (e) {
+      console.warn("Finnhub news failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // 2. Google News RSS (fallback)
+  const query = ticker || `stock market ${category !== "general" ? category : "investing"}`;
   try {
     const articles = await fetchGoogleNewsRSS(query);
     if (articles.length > 0) {
       return res.status(200).json({ articles, source: "google-news", ticker: ticker || null });
     }
   } catch (e) {
-    console.warn("Google News RSS failed", e);
+    console.warn("Google News RSS failed:", e instanceof Error ? e.message : e);
   }
 
-  // 2. Fall back to Yahoo Finance search news
+  // 3. Yahoo Finance news (last resort)
   try {
     const articles = await fetchYahooNewsSearch(query);
     return res.status(200).json({ articles, source: "yahoo", ticker: ticker || null });
   } catch (e) {
-    console.warn("Yahoo Finance news failed", e);
+    console.warn("Yahoo Finance news failed:", e instanceof Error ? e.message : e);
   }
 
   return res.status(200).json({ articles: [], source: "unavailable", ticker: ticker || null });
+}
+
+export async function getEarningsController(_req: Request, res: Response) {
+  const now = new Date();
+  const todayStr = isoDate(now);
+  const futureStr = isoDate(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
+  const pastStr = isoDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
+
+  try {
+    const [upcomingRes, recentRes] = await Promise.all([
+      fhEarnings(todayStr, futureStr),
+      fhEarnings(pastStr, todayStr),
+    ]);
+
+    return res.status(200).json({
+      upcoming: upcomingRes.earningsCalendar
+        .filter(e => e.symbol && e.company)
+        .slice(0, 100),
+      recent: recentRes.earningsCalendar
+        .filter(e => e.symbol && e.company && (e.epsActual != null || e.epsEstimate != null))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 50),
+    });
+  } catch (e) {
+    console.error("Earnings calendar failed:", e instanceof Error ? e.message : e);
+    return res.status(502).json({ error: "Earnings calendar is unavailable right now." });
+  }
+}
+
+export async function getIpoCalendarController(_req: Request, res: Response) {
+  const now = new Date();
+  const from = isoDate(now);
+  const to = isoDate(new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000));
+
+  try {
+    const result = await fhIpo(from, to);
+    return res.status(200).json({
+      ipos: result.ipoCalendar
+        .filter(ipo => ipo.name)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    });
+  } catch (e) {
+    console.error("IPO calendar failed:", e instanceof Error ? e.message : e);
+    return res.status(502).json({ error: "IPO calendar is unavailable right now." });
+  }
+}
+
+export async function getRecommendationsController(req: Request, res: Response) {
+  const ticker = String(req.params.ticker ?? "").trim().toUpperCase();
+  if (!ticker) return res.status(400).json({ error: "Ticker is required" });
+
+  try {
+    const recs = await fhRecommendations(ticker);
+    return res.status(200).json({ recommendations: recs.slice(0, 4) });
+  } catch (e) {
+    console.error("Recommendations failed:", e instanceof Error ? e.message : e);
+    return res.status(502).json({ error: "Analyst recommendations unavailable." });
+  }
 }
