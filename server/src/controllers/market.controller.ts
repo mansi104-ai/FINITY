@@ -13,6 +13,8 @@ import {
   fhIpo,
   fhMarketNews,
   fhMetrics,
+  fhProfile,
+  fhQuote,
   fhRecommendations,
   type FinnhubNewsItem,
 } from "../services/finnhub";
@@ -548,6 +550,44 @@ function isoDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
+// ─── Finnhub live-quote helpers (used when Yahoo is blocked) ─────────────────
+const US_STOCK_NAMES: Record<string, string> = {
+  AAPL: "Apple", MSFT: "Microsoft", NVDA: "NVIDIA", AMZN: "Amazon",
+  GOOGL: "Alphabet", META: "Meta Platforms", TSLA: "Tesla", "BRK-B": "Berkshire Hathaway",
+  JPM: "JPMorgan Chase", LLY: "Eli Lilly", UNH: "UnitedHealth", V: "Visa",
+  XOM: "Exxon Mobil", MA: "Mastercard", JNJ: "Johnson & Johnson", PG: "Procter & Gamble",
+  HD: "Home Depot", COST: "Costco", ABBV: "AbbVie", MRK: "Merck",
+  CVX: "Chevron", KO: "Coca-Cola", WMT: "Walmart", BAC: "Bank of America",
+  PEP: "PepsiCo", CRM: "Salesforce", NFLX: "Netflix", ORCL: "Oracle",
+  AMD: "AMD", GS: "Goldman Sachs", COIN: "Coinbase", PLTR: "Palantir",
+  UBER: "Uber", SNOW: "Snowflake", PANW: "Palo Alto Networks", NOW: "ServiceNow",
+  F: "Ford Motor", GM: "General Motors", PYPL: "PayPal", C: "Citigroup",
+};
+
+async function fetchFinnhubQuotesForSymbols(
+  symbols: string[],
+  countryCode: string
+): Promise<StockQuoteResponse[]> {
+  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+  const equity = symbols.filter(s => !s.startsWith("^"));
+  const results = await Promise.allSettled(equity.map(s => fhQuote(s)));
+  const out: StockQuoteResponse[] = [];
+  results.forEach((r, i) => {
+    if (r.status !== "fulfilled" || !r.value.c) return;
+    const q = r.value;
+    const sym = equity[i];
+    const currency = countryCode === "IN" ? "INR" : countryCode === "GB" ? "GBp" : countryCode === "JP" ? "JPY" : countryCode === "CN" ? "CNY" : "USD";
+    out.push({
+      symbol: sym, name: US_STOCK_NAMES[sym] ?? sym,
+      exchange: countryCode === "US" ? "NASDAQ/NYSE" : countryCode,
+      currency, price: q.c, lastClose: q.pc,
+      change: +q.d.toFixed(2), changePercent: +q.dp.toFixed(4),
+      isIndex: indexSymbols.has(sym)
+    });
+  });
+  return out;
+}
+
 // ─── Default geo ──────────────────────────────────────────────────────────────
 const defaultGeo: GeoLocation = {
   country: "United States", countryCode: "US", timezone: NEW_YORK_TIMEZONE,
@@ -578,9 +618,24 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
     const tickers = await fetchQuotes(getTrackedSymbolsForCountry(geo.countryCode));
     void setSnapshotCache(geo.countryCode, tickers);
     return res.status(200).json({ ...base, tickers } satisfies MarketSnapshotResponse);
-  } catch { /* try cache */ }
+  } catch { /* try Finnhub */ }
 
-  // 2. Stale MongoDB snapshot cache (up to 4 hours old)
+  // 2. Finnhub fallback — featured equity symbols only (no index symbols; works from cloud IPs)
+  if (env.finnhubKey && geo.countryCode === "US") {
+    try {
+      const featuredSymbols = getFeaturedTickersForCountry(geo.countryCode).map(f => f.symbol);
+      const topUS = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "JPM", "V", "WMT"];
+      const toFetch = [...new Set([...featuredSymbols, ...topUS])].filter(s => !s.startsWith("^")).slice(0, 15);
+      const quotes = await fetchFinnhubQuotesForSymbols(toFetch, geo.countryCode);
+      const tickers = quotes.map(q => ({ symbol: q.symbol, name: q.name, lastClose: q.lastClose, changePercent: q.changePercent }));
+      if (tickers.length > 0) {
+        void setSnapshotCache(geo.countryCode, tickers);
+        return res.status(200).json({ ...base, tickers } satisfies MarketSnapshotResponse);
+      }
+    } catch { /* try stale cache */ }
+  }
+
+  // 3. Stale MongoDB snapshot cache (up to 4 hours old)
   const cached = await getSnapshotCache(geo.countryCode);
   if (cached) {
     return res.status(200).json({ ...base, tickers: cached } satisfies MarketSnapshotResponse);
@@ -615,9 +670,21 @@ export async function getStocksController(req: Request, res: Response) {
     const indices = all.filter((s) => indexSymbols.has(s.symbol));
     void setStocksCache(countryCode, stocks, indices);
     return res.status(200).json({ stocks, indices, countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
-  } catch { /* try stale cache */ }
+  } catch { /* try Finnhub */ }
 
-  // 2. Stale MongoDB stocks cache
+  // 2. Finnhub fallback — US equity symbols, top 40 to stay within rate limit
+  if (env.finnhubKey && countryCode === "US") {
+    try {
+      const equitySymbols = symbols.filter(s => !s.startsWith("^")).slice(0, 40);
+      const all = await fetchFinnhubQuotesForSymbols(equitySymbols, countryCode);
+      if (all.length > 0) {
+        void setStocksCache(countryCode, all, []);
+        return res.status(200).json({ stocks: all, indices: [], countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
+      }
+    } catch { /* try stale cache */ }
+  }
+
+  // 3. Stale MongoDB stocks cache
   const stale = await getStocksCache(countryCode, { allowStale: true });
   if (stale) {
     return res.status(200).json({
@@ -640,14 +707,34 @@ export async function getStockDetailController(req: Request, res: Response) {
 
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
 
-  // Primary: Yahoo Finance detailed quote
+  // 1. Yahoo Finance detailed quote
   let quote: StockQuoteResponse | undefined;
   try {
     const [result] = await fetchDetailedQuotesBatch([ticker], indexSymbols);
     quote = result;
-  } catch { /* fallthrough to Finnhub or error */ }
+  } catch { /* try Finnhub */ }
 
-  // Enrich US stocks with Finnhub metrics (fills any gaps Yahoo left)
+  // 2. Finnhub fallback when Yahoo is blocked (US stocks only)
+  if (!quote && env.finnhubKey && countryCode === "US" && !ticker.startsWith("^")) {
+    try {
+      const [fhQ, fhP] = await Promise.allSettled([fhQuote(ticker), fhProfile(ticker)]);
+      if (fhQ.status === "fulfilled" && fhQ.value.c) {
+        const q = fhQ.value;
+        const p = fhP.status === "fulfilled" ? fhP.value : null;
+        quote = {
+          symbol: ticker,
+          name: p?.name ?? US_STOCK_NAMES[ticker] ?? ticker,
+          exchange: p?.exchange ?? "NASDAQ/NYSE",
+          currency: p?.currency ?? "USD",
+          price: q.c, lastClose: q.pc,
+          change: +q.d.toFixed(2), changePercent: +q.dp.toFixed(4),
+          isIndex: false
+        };
+      }
+    } catch { /* Finnhub failed too */ }
+  }
+
+  // 3. Enrich with Finnhub metrics (fills gaps from Yahoo or Finnhub quote)
   if (quote && env.finnhubKey && countryCode === "US" && !ticker.startsWith("^")) {
     try {
       const { metric: m } = await fhMetrics(ticker);
@@ -660,7 +747,7 @@ export async function getStockDetailController(req: Request, res: Response) {
       if (quote.dividendYield == null && m.dividendYieldIndicatedAnnual != null) {
         quote.dividendYield = +Number(m.dividendYieldIndicatedAnnual).toFixed(2);
       }
-    } catch { /* enrichment failed, return Yahoo data as-is */ }
+    } catch { /* enrichment optional */ }
   }
 
   if (quote) return res.status(200).json(quote);
