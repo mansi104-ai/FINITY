@@ -70,13 +70,34 @@ export default function Markets() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const [snap, stocks] = await Promise.all([getMarketSnapshot(), getStocks()]);
-        setSnapshot(snap);
-        setStocksData(stocks);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load market data.");
+      const [snapResult, stocksResult] = await Promise.allSettled([getMarketSnapshot(), getStocks()]);
+
+      if (snapResult.status === "fulfilled") {
+        setSnapshot(snapResult.value);
+      } else {
+        setSnapshot(null);
       }
+
+      if (stocksResult.status === "fulfilled") {
+        setStocksData(stocksResult.value);
+      } else {
+        setStocksData(null);
+      }
+
+      const messages = [
+        snapResult.status === "rejected"
+          ? snapResult.reason instanceof Error
+            ? snapResult.reason.message
+            : "Live market snapshot is unavailable right now."
+          : null,
+        stocksResult.status === "rejected"
+          ? stocksResult.reason instanceof Error
+            ? stocksResult.reason.message
+            : "Live stocks data is unavailable right now."
+          : null
+      ].filter(Boolean);
+
+      setError(messages.join(" "));
     };
     void load();
   }, []);

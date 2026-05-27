@@ -620,13 +620,14 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
     return res.status(200).json({ ...base, tickers } satisfies MarketSnapshotResponse);
   } catch { /* try Finnhub */ }
 
-  // 2. Finnhub fallback — featured equity symbols only (no index symbols; works from cloud IPs)
-  if (env.finnhubKey && geo.countryCode === "US") {
+  // 2. Finnhub fallback — use live US equities when Yahoo is blocked, even for non-US geolocation
+  if (env.finnhubKey) {
     try {
-      const featuredSymbols = getFeaturedTickersForCountry(geo.countryCode).map(f => f.symbol);
+      const finnhubCountryCode = "US";
+      const featuredSymbols = getFeaturedTickersForCountry(finnhubCountryCode).map(f => f.symbol);
       const topUS = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "JPM", "V", "WMT"];
       const toFetch = [...new Set([...featuredSymbols, ...topUS])].filter(s => !s.startsWith("^")).slice(0, 15);
-      const quotes = await fetchFinnhubQuotesForSymbols(toFetch, geo.countryCode);
+      const quotes = await fetchFinnhubQuotesForSymbols(toFetch, finnhubCountryCode);
       const tickers = quotes.map(q => ({ symbol: q.symbol, name: q.name, lastClose: q.lastClose, changePercent: q.changePercent }));
       if (tickers.length > 0) {
         void setSnapshotCache(geo.countryCode, tickers);

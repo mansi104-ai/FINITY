@@ -94,13 +94,31 @@ export default function StockDetail({ ticker }: { ticker: string }) {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const [s, h] = await Promise.all([getStockDetail(ticker), getMarketHistory(ticker)]);
-        setStock(s);
-        setHistory(h);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load stock data.");
+      const [stockResult, historyResult] = await Promise.allSettled([getStockDetail(ticker), getMarketHistory(ticker)]);
+
+      if (stockResult.status === "fulfilled") {
+        setStock(stockResult.value);
+      } else {
+        setStock(null);
       }
+
+      if (historyResult.status === "fulfilled") {
+        setHistory(historyResult.value);
+      } else {
+        setHistory(null);
+      }
+
+      if (stockResult.status === "rejected") {
+        setError(stockResult.reason instanceof Error ? stockResult.reason.message : "Failed to load stock data.");
+        return;
+      }
+
+      if (historyResult.status === "rejected") {
+        setError(historyResult.reason instanceof Error ? historyResult.reason.message : "Live price history is unavailable right now.");
+        return;
+      }
+
+      setError("");
     };
     void load();
   }, [ticker]);
