@@ -44,15 +44,11 @@ const authSchema = z.object({
 const REFRESH_COOKIE_NAME = "refreshToken";
 
 async function ensureAuthPersistence(res: Response): Promise<boolean> {
-  if (!env.isProduction) {
-    return true;
-  }
-
+  if (!env.isProduction) return true;
+  // If no MongoDB URI is configured, fall through to in-memory store (data lost on restart but auth works).
+  if (!env.mongodbUri) return true;
   const db = await getDb();
-  if (db) {
-    return true;
-  }
-
+  if (db) return true;
   res.status(503).json({ error: "Authentication is temporarily unavailable because the database is not connected." });
   return false;
 }

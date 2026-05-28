@@ -23,10 +23,48 @@ const NEW_YORK_TIMEZONE = "America/New_York";
 const STOCK_CACHE_TTL_MS = 30 * 60 * 1000;
 const SNAPSHOT_CACHE_STALE_MAX_MS = 4 * 60 * 60 * 1000;
 const YAHOO_REQUEST_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   "Accept": "application/json, text/plain, */*",
   "Accept-Language": "en-US,en;q=0.9",
+  "Referer": "https://finance.yahoo.com/",
 };
+
+// Yahoo Finance crumb cache (module-level, survives across warm Vercel invocations)
+let yahooCrumbCache: { crumb: string; cookie: string; expiresAt: number } | null = null;
+
+async function getYahooAuth(): Promise<{ crumb: string; cookie: string } | null> {
+  if (yahooCrumbCache && Date.now() < yahooCrumbCache.expiresAt) {
+    return yahooCrumbCache;
+  }
+  try {
+    const consentRes = await axios.get("https://fc.yahoo.com", {
+      headers: { "User-Agent": YAHOO_REQUEST_HEADERS["User-Agent"], "Accept": "text/html,*/*" },
+      timeout: 6000,
+      maxRedirects: 5,
+      validateStatus: () => true,
+    });
+    const rawCookies = consentRes.headers["set-cookie"] as string[] | string | undefined;
+    const cookieArr = Array.isArray(rawCookies) ? rawCookies : rawCookies ? [rawCookies] : [];
+    const cookieStr = cookieArr.map((c) => c.split(";")[0]).join("; ");
+    if (!cookieStr) return null;
+
+    const crumbRes = await axios.get<string>("https://query1.finance.yahoo.com/v1/test/getcrumb", {
+      headers: { ...YAHOO_REQUEST_HEADERS, Cookie: cookieStr },
+      timeout: 5000,
+    });
+    const crumb = typeof crumbRes.data === "string" ? crumbRes.data.trim() : "";
+    if (crumb.length < 2) return null;
+
+    yahooCrumbCache = { crumb, cookie: cookieStr, expiresAt: Date.now() + 50 * 60 * 1000 };
+    return yahooCrumbCache;
+  } catch {
+    return null;
+  }
+}
+
+function invalidateYahooAuth(): void {
+  yahooCrumbCache = null;
+}
 
 // ─── Tracked symbols (used for batch fetching, not as fallback price data) ───
 const COUNTRY_TRACKED_SYMBOLS: Record<string, string[]> = {
@@ -310,9 +348,12 @@ function getLastTradingDayLabel(now: Date, timezone = NEW_YORK_TIMEZONE): string
 
 // ─── Yahoo Finance helpers ────────────────────────────────────────────────────
 async function fetchQuotes(symbolsToTrack: string[]): Promise<MarketSnapshotResponse["tickers"]> {
+  const auth = await getYahooAuth();
+  const headers = auth ? { ...YAHOO_REQUEST_HEADERS, Cookie: auth.cookie } : YAHOO_REQUEST_HEADERS;
+  const crumbParam = auth ? { crumb: auth.crumb } : {};
   const response = await axios.get<{ quoteResponse?: { result?: YahooQuote[] } }>(
     "https://query1.finance.yahoo.com/v7/finance/quote",
-    { params: { symbols: symbolsToTrack.join(",") }, timeout: 6000, headers: YAHOO_REQUEST_HEADERS }
+    { params: { symbols: symbolsToTrack.join(","), ...crumbParam }, timeout: 6000, headers }
   );
   const result = response.data.quoteResponse?.result ?? [];
   if (!result.length) throw new Error("No quote data");
@@ -368,20 +409,29 @@ function mapDetailedQuote(q: YahooDetailedQuote, indexSymbols: Set<string>): Sto
 }
 
 async function fetchDetailedQuotesBatch(symbols: string[], indexSymbols: Set<string>): Promise<StockQuoteResponse[]> {
-  const params = { symbols: symbols.join(","), fields: YAHOO_FIELDS };
+  const auth = await getYahooAuth();
+  const headers = auth ? { ...YAHOO_REQUEST_HEADERS, Cookie: auth.cookie } : YAHOO_REQUEST_HEADERS;
+  const crumbParam = auth ? { crumb: auth.crumb } : {};
+  const params = { symbols: symbols.join(","), fields: YAHOO_FIELDS, ...crumbParam };
   let result: YahooDetailedQuote[] = [];
   try {
     const response = await axios.get<{ quoteResponse?: { result?: YahooDetailedQuote[] } }>(
       "https://query1.finance.yahoo.com/v7/finance/quote",
-      { params, timeout: 10000, headers: YAHOO_REQUEST_HEADERS }
+      { params, timeout: 10000, headers }
     );
     result = response.data.quoteResponse?.result ?? [];
+    if (!result.length) throw new Error("Empty result");
   } catch {
-    const response = await axios.get<{ quoteResponse?: { result?: YahooDetailedQuote[] } }>(
-      "https://query2.finance.yahoo.com/v7/finance/quote",
-      { params, timeout: 10000, headers: YAHOO_REQUEST_HEADERS }
-    );
-    result = response.data.quoteResponse?.result ?? [];
+    try {
+      const response = await axios.get<{ quoteResponse?: { result?: YahooDetailedQuote[] } }>(
+        "https://query2.finance.yahoo.com/v7/finance/quote",
+        { params, timeout: 10000, headers }
+      );
+      result = response.data.quoteResponse?.result ?? [];
+    } catch {
+      invalidateYahooAuth();
+      throw new Error("Yahoo Finance unavailable");
+    }
   }
   return result.map((q) => mapDetailedQuote(q, indexSymbols));
 }
@@ -402,18 +452,21 @@ async function fetchDetailedQuotes(symbols: string[], countryCode: string): Prom
 
 // ─── History fetch ────────────────────────────────────────────────────────────
 async function fetchHistory(ticker: string): Promise<MarketHistoryResponse> {
-  const chartParams = { range: "1mo", interval: "1d", includePrePost: false };
+  const auth = await getYahooAuth();
+  const headers = auth ? { ...YAHOO_REQUEST_HEADERS, Cookie: auth.cookie } : YAHOO_REQUEST_HEADERS;
+  const crumbParam = auth ? { crumb: auth.crumb } : {};
+  const chartParams = { range: "1mo", interval: "1d", includePrePost: false, ...crumbParam };
   let rawData: unknown;
   try {
     const response = await axios.get(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
-      { params: chartParams, timeout: 8000, headers: YAHOO_REQUEST_HEADERS }
+      { params: chartParams, timeout: 8000, headers }
     );
     rawData = response.data;
   } catch {
     const response = await axios.get(
       `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
-      { params: chartParams, timeout: 8000, headers: YAHOO_REQUEST_HEADERS }
+      { params: chartParams, timeout: 8000, headers }
     );
     rawData = response.data;
   }
@@ -673,11 +726,11 @@ export async function getStocksController(req: Request, res: Response) {
     return res.status(200).json({ stocks, indices, countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
   } catch { /* try Finnhub */ }
 
-  // 2. Finnhub fallback — US equity symbols, top 40 to stay within rate limit
-  if (env.finnhubKey && countryCode === "US") {
+  // 2. Finnhub fallback — US equity symbols (Finnhub covers US best; better than nothing for any country)
+  if (env.finnhubKey) {
     try {
-      const equitySymbols = symbols.filter(s => !s.startsWith("^")).slice(0, 40);
-      const all = await fetchFinnhubQuotesForSymbols(equitySymbols, countryCode);
+      const fallbackSymbols = COUNTRY_TRACKED_SYMBOLS.US.filter(s => !s.startsWith("^")).slice(0, 40);
+      const all = await fetchFinnhubQuotesForSymbols(fallbackSymbols, "US");
       if (all.length > 0) {
         void setStocksCache(countryCode, all, []);
         return res.status(200).json({ stocks: all, indices: [], countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
