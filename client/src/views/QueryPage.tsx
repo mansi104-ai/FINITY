@@ -2,17 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMarketHistory, getMarketSnapshot, getStockDetail, sendQuery } from "../services/api";
+import { getMarketHistory, getMarketSnapshot, getSessionUser, getStockDetail, getWatchlist, sendQuery, subscribeToAuthChanges, type WatchlistItemApi } from "../services/api";
 import type { MarketHistory, MarketSnapshot, QueryResponse, RiskProfile, StockQuote } from "../types";
 
 const LOCAL_SETTINGS_KEY = "findec-local-settings";
-const WATCHLIST_KEY = "findec-watchlist";
 const MAX_WATCHLIST = 6;
-
-type WatchlistEntry = {
-  ticker: string;
-  label: string;
-};
 
 const SAMPLE_RESULT: QueryResponse = {
   reportId: "",
@@ -47,11 +41,6 @@ const SAMPLE_RESULT: QueryResponse = {
   }
 };
 
-const SAMPLE_WATCHLIST: Array<{ label: string; price: string; move: string; meta: string; tone: "up" | "down" }> = [
-  { label: "INFY", price: "₹1,482", move: "+1.2%", meta: "IT · large cap", tone: "up" },
-  { label: "HDFC Bank", price: "₹1,641", move: "-0.4%", meta: "Banking · large cap", tone: "down" },
-  { label: "Mirae Asset ELSS", price: "₹32.4 NAV", move: "+0.2%", meta: "MF · tax saving", tone: "up" }
-];
 
 function extractTicker(query: string): string {
   const dollarMatch = query.toUpperCase().match(/\$([A-Z][A-Z0-9.-]{0,14})\b/);
@@ -68,43 +57,23 @@ function formatSignedPercent(value: number): string {
 }
 
 function compactNumber(value: number): string {
-  return new Intl.NumberFormat("en-IN", {
+  return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: value >= 100 ? 0 : 1
   }).format(value);
 }
 
-function formatRupees(value: number): string {
-  return new Intl.NumberFormat("en-IN", {
+function formatPrice(value: number, currency?: string): string {
+  const cur = currency ?? "USD";
+  const fracs = value >= 100 ? 0 : 2;
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "INR",
-    maximumFractionDigits: value >= 100 ? 0 : 1
+    currency: cur,
+    minimumFractionDigits: fracs,
+    maximumFractionDigits: fracs
   }).format(value);
 }
 
-function todayLabel(asOf?: string): string {
-  if (!asOf) {
-    return "28 Apr 2026";
-  }
 
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(asOf));
-}
-
-function safeParseWatchlist(raw: string | null): WatchlistEntry[] {
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as WatchlistEntry[];
-    return Array.isArray(parsed) ? parsed.slice(0, MAX_WATCHLIST) : [];
-  } catch {
-    return [];
-  }
-}
 
 function defaultMarketCards(snapshot: MarketSnapshot | null): Array<{ label: string; value: string; subtext: string; tone: "up" | "down" | "neutral" }> {
   const first = snapshot?.tickers[0];
@@ -200,7 +169,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   const [ticker, setTicker] = useState("");
   const [budget, setBudget] = useState(10000);
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("medium");
-  const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItemApi[]>([]);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
   const [marketHistory, setMarketHistory] = useState<MarketHistory | null>(null);
   const [running, setRunning] = useState(false);
@@ -231,7 +200,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
   const displaySymbol = marketHistory?.name?.toUpperCase?.() || activeSymbol || "INFOSYS";
   const marketCards = useMemo(() => defaultMarketCards(marketSnapshot), [marketSnapshot]);
   const watchlistCards = useMemo(() => {
-    return watchlist.map((entry) => ({
+    return watchlist.slice(0, MAX_WATCHLIST).map((entry) => ({
       ...entry,
       quote: marketSnapshot?.tickers.find((item) => item.symbol.toUpperCase() === entry.ticker.toUpperCase()) ?? null
     }));
@@ -257,7 +226,17 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
       }
     }
 
-    setWatchlist(safeParseWatchlist(window.localStorage.getItem(WATCHLIST_KEY)));
+    const syncWatchlist = () => {
+      if (getSessionUser()) {
+        getWatchlist()
+          .then((res) => setWatchlist(res.items))
+          .catch(() => setWatchlist([]));
+      } else {
+        setWatchlist([]);
+      }
+    };
+    syncWatchlist();
+    return subscribeToAuthChanges(syncWatchlist);
   }, []);
 
   useEffect(() => {
@@ -400,20 +379,22 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
             <div>
               <p className="findec-kicker">30 day price graph · {displaySymbol}</p>
               <strong className="findec-chart-price">
-                {marketHistory ? formatRupees(marketHistory.latestClose) : "₹1,482"}
+                {marketHistory ? formatPrice(marketHistory.latestClose, stockFundamentals?.currency) : "—"}
               </strong>
             </div>
             <div className="findec-chart-stats">
               <div>
                 <span>30d return</span>
                 <strong className={marketHistory && marketHistory.changePercent30d < 0 ? "findec-subline-down" : "findec-subline-up"}>
-                  {marketHistory ? formatSignedPercent(marketHistory.changePercent30d) : "+4.8%"}
+                  {marketHistory ? formatSignedPercent(marketHistory.changePercent30d) : "—"}
                 </strong>
               </div>
               <div>
                 <span>High / Low</span>
                 <strong>
-                  {marketHistory ? `${formatRupees(marketHistory.high30d)} / ${formatRupees(marketHistory.low30d)}` : "₹1,522 / ₹1,406"}
+                  {marketHistory
+                    ? `${formatPrice(marketHistory.high30d, stockFundamentals?.currency)} / ${formatPrice(marketHistory.low30d, stockFundamentals?.currency)}`
+                    : "—"}
                 </strong>
               </div>
             </div>
@@ -613,7 +594,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
               <Link className="findec-inline-link-button" href={`/report/${latestReportId}`}>
                 Open saved report
               </Link>
-              <Link className="findec-inline-link-button findec-inline-link-button-muted" href="/report">
+              <Link className="findec-inline-link-button findec-inline-link-button-muted" href="/history">
                 View report archive
               </Link>
             </div>
@@ -627,29 +608,26 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
               ? watchlistCards.map((item) => (
                   <div key={item.ticker} className="findec-watchlist-row findec-watchlist-row-static">
                     <div className="findec-watchlist-meta">
-                      <strong>{item.label}</strong>
-                      <span>{item.ticker}</span>
+                      <strong>{item.ticker}</strong>
+                      <span>{item.name}</span>
                     </div>
                     <div className="findec-watchlist-price">
-                      <strong>{item.quote ? formatRupees(item.quote.lastClose) : item.ticker}</strong>
+                      <strong>
+                        {item.quote
+                          ? formatPrice(item.quote.lastClose, item.quote.currency)
+                          : "—"}
+                      </strong>
                       <span className={item.quote && item.quote.changePercent < 0 ? "findec-subline-down" : "findec-subline-up"}>
-                        {item.quote ? formatSignedPercent(item.quote.changePercent) : "saved"}
+                        {item.quote ? formatSignedPercent(item.quote.changePercent) : ""}
                       </span>
                     </div>
                   </div>
                 ))
-              : SAMPLE_WATCHLIST.map((item) => (
-                  <div key={item.label} className="findec-watchlist-row findec-watchlist-row-static">
-                    <div className="findec-watchlist-meta">
-                      <strong>{item.label}</strong>
-                      <span>{item.meta}</span>
-                    </div>
-                    <div className="findec-watchlist-price">
-                      <strong>{item.price}</strong>
-                      <span className={item.tone === "down" ? "findec-subline-down" : "findec-subline-up"}>{item.move}</span>
-                    </div>
-                  </div>
-                ))}
+              : (
+                <p className="findec-kicker" style={{ margin: "0.5rem 0", color: "#696d72" }}>
+                  <Link href="/watchlist" style={{ color: "#79b53a" }}>Add stocks to your watchlist →</Link>
+                </p>
+              )}
           </div>
         </section>
       </div>

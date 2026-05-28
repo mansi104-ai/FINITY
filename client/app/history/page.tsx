@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import History from "../../src/views/History";
 
-export default function HistoryRoutePage() {
-  redirect("/brief");
+export default function HistoryPage() {
+  return <History />;
 }

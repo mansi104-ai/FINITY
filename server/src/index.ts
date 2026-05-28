@@ -13,6 +13,7 @@ import watchlistRoutes from "./routes/watchlist.routes";
 import notificationRoutes from "./routes/notification.routes";
 import { startMorningDigestJobs } from "./jobs/morningDigest";
 import { env } from "./config";
+import { getDb } from "./store/db";
 
 const app = express();
 
@@ -28,8 +29,16 @@ app.use(
 app.use(express.json({ limit: "100kb" }));
 app.use(morgan(env.isProduction ? "combined" : "dev"));
 
-app.get("/api/health", (_req, res) => {
-  res.status(200).json({ ok: true, service: "server", timestamp: new Date().toISOString() });
+app.get("/api/health", async (_req, res) => {
+  const db = await getDb();
+  res.status(200).json({
+    ok: true,
+    service: "server",
+    timestamp: new Date().toISOString(),
+    dbConnected: Boolean(db),
+    finnhubConfigured: Boolean(env.finnhubKey),
+    mongodbConfigured: Boolean(env.mongodbUri)
+  });
 });
 
 app.use("/api/auth", authRoutes);

@@ -362,7 +362,7 @@ export default function StockDetail({ ticker }: { ticker: string }) {
                     <span className="findec-subline-down">Sell {latest.sell}</span>
                     <span className="findec-subline-down">S.Sell {latest.strongSell}</span>
                   </div>
-                  <p className="stk-analyst-total">{total} analysts · click for full history</p>
+                  <p className="stk-analyst-total">{total} analysts · {latest.period}</p>
                 </article>
               );
             })()}
