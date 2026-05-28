@@ -4376,6 +4376,15 @@ html[data-theme="dark"] .single-note-card-accent {
   flex-shrink: 0;
 }
 
+.cmp-legend-name {
+  color: #555;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
 .cmp-chart-svg-wrap { width: 100%; }
 
 .cmp-table-wrap { overflow-x: auto; padding: 0; margin-bottom: 0.75rem; }

@@ -8,6 +8,7 @@ const DIRECT_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://server-
 
 const REPORTS_CACHE_KEY = "findec-reports-cache";
 const ACCESS_TOKEN_KEY = "findec-access-token";
+const REFRESH_TOKEN_KEY = "findec-refresh-token";
 const SESSION_USER_KEY = "findec-session-user";
 const AUTH_CHANGED_EVENT = "findec-auth-changed";
 
@@ -23,27 +24,33 @@ type AuthResponse = {
 };
 
 function getAccessToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
+  if (typeof window === "undefined") return null;
   return window.localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
 function setAccessToken(token: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
+  if (typeof window === "undefined") return;
   window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
 }
 
 function clearAccessToken(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
+  if (typeof window === "undefined") return;
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+function getStoredRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+function storeRefreshToken(token: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+function clearStoredRefreshToken(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 function dispatchAuthChanged(): void {
@@ -132,14 +139,18 @@ async function registerDemoUser(email: string, password: string): Promise<AuthRe
 
 async function refreshSession(): Promise<string | null> {
   try {
+    const storedToken = getStoredRefreshToken();
     const response = await unauthenticatedRequest<AuthResponse>("/api/auth/refresh", {
-      method: "POST"
+      method: "POST",
+      ...(storedToken ? { body: JSON.stringify({ refreshToken: storedToken }) } : {})
     });
     setAccessToken(response.accessToken);
+    storeRefreshToken(response.refreshToken);
     saveSessionUser(response.user);
     return response.accessToken;
   } catch {
     clearAccessToken();
+    clearStoredRefreshToken();
     clearSessionUser();
     return null;
   }
@@ -332,6 +343,7 @@ export function searchStocks(q: string): Promise<{ results: StockSearchResult[] 
 export async function loginUser(email: string, password: string): Promise<AuthResponse> {
   const response = await loginDemoUser(email, password);
   setAccessToken(response.accessToken);
+  storeRefreshToken(response.refreshToken);
   saveSessionUser(response.user);
   return response;
 }
@@ -339,6 +351,7 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
 export async function registerUser(email: string, password: string): Promise<AuthResponse> {
   const response = await registerDemoUser(email, password);
   setAccessToken(response.accessToken);
+  storeRefreshToken(response.refreshToken);
   saveSessionUser(response.user);
   return response;
 }
@@ -346,6 +359,7 @@ export async function registerUser(email: string, password: string): Promise<Aut
 export async function logoutUser(): Promise<void> {
   try { await request("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
   clearAccessToken();
+  clearStoredRefreshToken();
   clearSessionUser();
 }
 

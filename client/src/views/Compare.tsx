@@ -34,15 +34,14 @@ function normalise(points: number[]): number[] {
   return points.map((p) => ((p - base) / base) * 100);
 }
 
-function buildPolyline(normPts: number[], w: number, h: number): string {
+function buildPolyline(normPts: number[], w: number, h: number, lo: number, hi: number): string {
   if (!normPts.length) return "";
-  const min = Math.min(...normPts);
-  const max = Math.max(...normPts);
-  const range = Math.max(max - min, 0.1);
+  const range = Math.max(hi - lo, 0.1);
+  const pad = 8;
   return normPts
     .map((v, i) => {
       const x = (i / Math.max(normPts.length - 1, 1)) * w;
-      const y = h - ((v - min) / range) * (h - 8) - 4;
+      const y = h - ((v - lo) / range) * (h - pad * 2) - pad;
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(" ");
@@ -155,6 +154,7 @@ export default function Compare() {
       .filter((d) => d.history && d.history.points.length > 0)
       .map((d) => ({
         ticker: d.ticker,
+        name: d.quote?.name ?? d.ticker,
         color: PALETTE[tickers.indexOf(d.ticker) % PALETTE.length],
         pts: normalise(d.history!.points.map((p) => p.close)),
         ret: d.history!.changePercent30d,
@@ -162,6 +162,12 @@ export default function Compare() {
   }, [data, tickers]);
 
   const hasChart = chartData.length > 0;
+
+  const { globalMin, globalMax } = useMemo(() => {
+    const all = chartData.flatMap((d) => d.pts);
+    if (!all.length) return { globalMin: -1, globalMax: 1 };
+    return { globalMin: Math.min(...all), globalMax: Math.max(...all) };
+  }, [chartData]);
 
   const METRICS: Array<{ label: string; key: keyof StockQuote; fmt: (v: number) => string; higherIsBetter?: boolean }> = [
     { label: "Price", key: "price", fmt: fmtNum },
@@ -257,6 +263,7 @@ export default function Compare() {
                   <div key={d.ticker} className="cmp-legend-item">
                     <span className="cmp-legend-dot" style={{ background: d.color }} />
                     <span style={{ color: d.color }}>{d.ticker}</span>
+                    {d.name !== d.ticker && <span className="cmp-legend-name">{d.name}</span>}
                     <span className={d.ret >= 0 ? "findec-subline-up" : "findec-subline-down"}>
                       {d.ret >= 0 ? "+" : ""}{d.ret.toFixed(2)}%
                     </span>
@@ -265,21 +272,44 @@ export default function Compare() {
               </div>
             </div>
             <div className="cmp-chart-svg-wrap">
-              <svg viewBox="0 0 760 120" width="100%" aria-label="Comparison chart">
-                {[30, 60, 90].map((y) => (
-                  <line key={y} x1="0" y1={y} x2="760" y2={y} className="findec-chart-grid" />
-                ))}
-                {chartData.map((d) => (
-                  <polyline
-                    key={d.ticker}
-                    fill="none"
-                    stroke={d.color}
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                    points={buildPolyline(d.pts, 760, 120)}
-                  />
-                ))}
-              </svg>
+              {(() => {
+                const CW = 760, CH = 120, CPAD = 8;
+                const cRange = Math.max(globalMax - globalMin, 0.1);
+                const showZero = globalMin < 0 && globalMax > 0;
+                const zeroY = CH - ((-globalMin) / cRange) * (CH - CPAD * 2) - CPAD;
+                const yToVal = (y: number) =>
+                  globalMin + ((CH - CPAD - y) / (CH - CPAD * 2)) * cRange;
+                return (
+                  <svg viewBox={`0 0 ${CW} ${CH}`} width="100%" aria-label="Comparison chart">
+                    {[30, 60, 90].map((y) => {
+                      const v = yToVal(y);
+                      return (
+                        <g key={y}>
+                          <line x1="0" y1={y} x2={CW} y2={y} className="findec-chart-grid" />
+                          <text x={CW - 3} y={y} textAnchor="end" dominantBaseline="middle"
+                            fill="#555" fontSize="8.5">
+                            {v >= 0 ? "+" : ""}{v.toFixed(1)}%
+                          </text>
+                        </g>
+                      );
+                    })}
+                    {showZero && (
+                      <line x1="0" y1={zeroY.toFixed(1)} x2={CW} y2={zeroY.toFixed(1)}
+                        stroke="#2a2a2a" strokeWidth="1.5" strokeDasharray="3 3" />
+                    )}
+                    {chartData.map((d) => (
+                      <polyline
+                        key={d.ticker}
+                        fill="none"
+                        stroke={d.color}
+                        strokeWidth="2"
+                        strokeLinejoin="round"
+                        points={buildPolyline(d.pts, CW, CH, globalMin, globalMax)}
+                      />
+                    ))}
+                  </svg>
+                );
+              })()}
             </div>
           </div>
         )}

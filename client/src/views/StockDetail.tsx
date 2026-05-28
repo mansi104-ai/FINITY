@@ -222,6 +222,16 @@ export default function StockDetail({ ticker }: { ticker: string }) {
                   {[25, 50, 75].map((y) => (
                     <line key={y} x1="0" y1={y} x2="760" y2={y} className="findec-chart-grid" />
                   ))}
+                  {history && [
+                    { y: 3, v: history.high30d, db: "hanging" },
+                    { y: 50, v: (history.high30d + history.low30d) / 2, db: "middle" },
+                    { y: 97, v: history.low30d, db: "auto" },
+                  ].map(({ y, v, db }) => (
+                    <text key={y} x="756" y={y} textAnchor="end" dominantBaseline={db}
+                      fill="#555" fontSize="8.5">
+                      {fmtNum(v)}
+                    </text>
+                  ))}
                   {chartPoints && (
                     <polyline fill="none" stroke={isPositive ? "#72b92b" : "#cc5147"} strokeWidth="2" points={chartPoints} />
                   )}
