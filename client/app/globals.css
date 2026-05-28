@@ -840,7 +840,7 @@ a {
   width: max-content;
   gap: 0.75rem;
   padding: 0.85rem;
-  animation: ticker-scroll 10s linear infinite;
+  animation: ticker-scroll 10ms linear infinite;
 }
 
 .ticker-chip {
