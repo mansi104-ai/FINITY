@@ -17,10 +17,17 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await loginUser(email.trim(), password);
+      await loginUser(email.trim().toLowerCase(), password);
       router.push("/watchlist");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed. Check your credentials.");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("database") || msg.toLowerCase().includes("unavailable")) {
+        setError("Service is temporarily unavailable. Please try again in a moment.");
+      } else if (msg.toLowerCase().includes("credentials") || msg.toLowerCase().includes("invalid")) {
+        setError("Incorrect email or password. Please try again.");
+      } else {
+        setError("Sign in failed. Please check your email and password.");
+      }
     } finally {
       setLoading(false);
     }

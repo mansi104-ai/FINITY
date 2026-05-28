@@ -93,7 +93,7 @@ export default function WorkspaceHome() {
                 value="25.4"
               />
               <MetricInfoPopover
-                explanation="The confidence band shows how strongly FINDEC's agents agree after combining news, price structure, and portfolio risk limits."
+                explanation="The confidence band shows how strongly FINITY's agents agree after combining news, price structure, and portfolio risk limits."
                 label="AI confidence"
                 value="78 / 100"
               />

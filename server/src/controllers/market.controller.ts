@@ -70,6 +70,7 @@ function invalidateYahooAuth(): void {
 const COUNTRY_TRACKED_SYMBOLS: Record<string, string[]> = {
   IN: [
     "^NSEI", "^BSESN",
+    // Large-cap blue chips
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS",
     "SBIN.NS", "WIPRO.NS", "BAJFINANCE.NS", "LT.NS", "ASIANPAINT.NS",
     "AXISBANK.NS", "MARUTI.NS", "HCLTECH.NS", "ULTRACEMCO.NS", "ONGC.NS",
@@ -78,23 +79,57 @@ const COUNTRY_TRACKED_SYMBOLS: Record<string, string[]> = {
     "DIVISLAB.NS", "DRREDDY.NS", "COALINDIA.NS", "TECHM.NS", "CIPLA.NS",
     "BAJAJFINSV.NS", "EICHERMOT.NS", "HEROMOTOCO.NS", "TATAMOTORS.NS",
     "TATASTEEL.NS", "JSWSTEEL.NS", "BPCL.NS", "IOC.NS", "HINDALCO.NS",
-    "GRASIM.NS", "UPL.NS", "BRITANNIA.NS", "TATACONSUM.NS", "INDUSINDBK.NS"
+    "GRASIM.NS", "UPL.NS", "BRITANNIA.NS", "TATACONSUM.NS", "INDUSINDBK.NS",
+    // Mid-cap & new-age
+    "ADANIPORTS.NS", "ADANIGREEN.NS", "SIEMENS.NS", "ABB.NS", "HAVELLS.NS",
+    "POLYCAB.NS", "PIDILITIND.NS", "DMART.NS", "TRENT.NS", "JUBLFOOD.NS",
+    "ZOMATO.NS", "NYKAA.NS", "PAYTM.NS", "IRCTC.NS", "LTIM.NS",
+    "PERSISTENT.NS", "COFORGE.NS", "MPHASIS.NS", "AUROPHARMA.NS", "TORNTPHARM.NS",
+    "APOLLOHOSP.NS", "MAXHEALTH.NS", "LICI.NS", "ICICIPRULI.NS", "SBILIFE.NS",
+    "HDFCLIFE.NS", "MUTHOOTFIN.NS", "CHOLAFIN.NS", "BAJAJHLDNG.NS", "PNBHOUSING.NS"
   ],
   US: [
-    "^GSPC", "^DJI", "^IXIC",
-    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-B",
-    "JPM", "LLY", "UNH", "V", "XOM", "MA", "JNJ", "PG", "HD", "COST",
-    "ABBV", "MRK", "CVX", "KO", "WMT", "BAC", "PEP", "CRM", "NFLX",
-    "ORCL", "ACN", "MCD", "ADBE", "TMO", "AMD", "PM", "CSCO", "IBM",
-    "CAT", "GS", "ISRG", "AXP", "AMGN", "TXN", "QCOM", "GILD",
-    "LOW", "SYK", "HON", "ETN", "UBER", "INTU", "C", "UNP", "PYPL",
-    "AMAT", "LRCX", "MU", "NOW", "PANW", "SNOW", "PLTR", "COIN", "F", "GM"
+    "^GSPC", "^DJI", "^IXIC", "^RUT",
+    // Mega-cap tech
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "GOOG", "META", "TSLA", "BRK-B", "ORCL",
+    // Semiconductors & hardware
+    "AMD", "INTC", "TXN", "QCOM", "AMAT", "LRCX", "MU", "MRVL", "ON", "KLAC", "ASML",
+    // Enterprise software & cloud
+    "CRM", "ADBE", "NOW", "INTU", "WDAY", "VEEV", "PANW", "CRWD", "DDOG",
+    "NET", "ZS", "OKTA", "SNOW", "PLTR", "MDB", "TEAM", "SHOP",
+    // Financials & banks
+    "JPM", "BAC", "WFC", "GS", "MS", "C", "AXP", "V", "MA", "BLK",
+    "SCHW", "CME", "PGR", "CB", "MET", "AFL", "ICE", "SPGI", "MCO",
+    // Healthcare & pharma
+    "LLY", "UNH", "JNJ", "MRK", "ABBV", "PFE", "ABT", "TMO", "DHR",
+    "ISRG", "GILD", "AMGN", "BSX", "REGN", "VRTX", "ZTS", "BMY", "CVS", "CI", "HUM",
+    // Consumer discretionary
+    "HD", "MCD", "NKE", "SBUX", "CMG", "BKNG", "LOW", "F", "GM",
+    "TGT", "RIVN", "LYFT", "ABNB", "MAR", "HLT", "YUM", "DRI", "EXPE",
+    // Consumer staples
+    "PG", "KO", "PEP", "WMT", "COST", "PM", "MO", "EL", "CL", "KHC", "GIS",
+    // Energy
+    "XOM", "CVX", "EOG", "SLB", "OXY", "PSX", "VLO", "MPC", "HAL", "DVN",
+    // Industrials & defense
+    "BA", "LMT", "RTX", "CAT", "HON", "GE", "DE", "UNP", "WM", "ETN",
+    "EMR", "PH", "MMM", "FDX", "UPS", "NSC",
+    // Materials
+    "LIN", "APD", "FCX", "NEM", "DOW", "PPG", "ECL",
+    // Utilities
+    "NEE", "DUK", "SO", "D", "SRE", "AEP", "EXC",
+    // Real estate / REITs
+    "AMT", "PLD", "EQIX", "CCI", "O", "SPG", "PSA", "WELL",
+    // Telecom & media
+    "DIS", "CMCSA", "T", "VZ", "TMUS", "NFLX", "WBD", "CHTR",
+    // Miscellaneous growth & fintech
+    "PYPL", "SQ", "SOFI", "HOOD", "ACN", "IBM", "CSCO", "PM", "MO"
   ],
   GB: [
     "^FTSE",
     "SHEL.L", "AZN.L", "HSBA.L", "BP.L", "ULVR.L", "RIO.L", "GSK.L",
     "LLOY.L", "DGE.L", "REL.L", "BARC.L", "NG.L", "BATS.L", "PRU.L",
-    "LGEN.L", "SSE.L", "FLTR.L", "CPG.L", "VOD.L", "BT-A.L"
+    "LGEN.L", "SSE.L", "FLTR.L", "CPG.L", "VOD.L", "BT-A.L",
+    "EXPN.L", "AUTO.L", "ANTO.L", "MNDI.L", "WPP.L", "SGRO.L", "LAND.L"
   ],
   JP: [
     "^N225",
@@ -112,7 +147,7 @@ const COUNTRY_TRACKED_SYMBOLS: Record<string, string[]> = {
 
 const INDEX_SYMBOLS: Record<string, string[]> = {
   IN: ["^NSEI", "^BSESN"],
-  US: ["^GSPC", "^DJI", "^IXIC"],
+  US: ["^GSPC", "^DJI", "^IXIC", "^RUT"],
   GB: ["^FTSE"],
   JP: ["^N225"],
   CN: ["000001.SS", "399001.SZ"]
@@ -605,16 +640,62 @@ function isoDate(date: Date): string {
 
 // ─── Finnhub live-quote helpers (used when Yahoo is blocked) ─────────────────
 const US_STOCK_NAMES: Record<string, string> = {
+  // Mega-cap tech
   AAPL: "Apple", MSFT: "Microsoft", NVDA: "NVIDIA", AMZN: "Amazon",
-  GOOGL: "Alphabet", META: "Meta Platforms", TSLA: "Tesla", "BRK-B": "Berkshire Hathaway",
-  JPM: "JPMorgan Chase", LLY: "Eli Lilly", UNH: "UnitedHealth", V: "Visa",
-  XOM: "Exxon Mobil", MA: "Mastercard", JNJ: "Johnson & Johnson", PG: "Procter & Gamble",
-  HD: "Home Depot", COST: "Costco", ABBV: "AbbVie", MRK: "Merck",
-  CVX: "Chevron", KO: "Coca-Cola", WMT: "Walmart", BAC: "Bank of America",
-  PEP: "PepsiCo", CRM: "Salesforce", NFLX: "Netflix", ORCL: "Oracle",
-  AMD: "AMD", GS: "Goldman Sachs", COIN: "Coinbase", PLTR: "Palantir",
-  UBER: "Uber", SNOW: "Snowflake", PANW: "Palo Alto Networks", NOW: "ServiceNow",
-  F: "Ford Motor", GM: "General Motors", PYPL: "PayPal", C: "Citigroup",
+  GOOGL: "Alphabet", GOOG: "Alphabet (Class C)", META: "Meta Platforms",
+  TSLA: "Tesla", "BRK-B": "Berkshire Hathaway", ORCL: "Oracle",
+  // Semiconductors
+  AMD: "Advanced Micro Devices", INTC: "Intel", TXN: "Texas Instruments",
+  QCOM: "Qualcomm", AMAT: "Applied Materials", LRCX: "Lam Research",
+  MU: "Micron Technology", MRVL: "Marvell Technology", ON: "ON Semiconductor",
+  KLAC: "KLA Corp", ASML: "ASML Holding",
+  // Software & cloud
+  CRM: "Salesforce", ADBE: "Adobe", NOW: "ServiceNow", INTU: "Intuit",
+  WDAY: "Workday", VEEV: "Veeva Systems", PANW: "Palo Alto Networks",
+  CRWD: "CrowdStrike", DDOG: "Datadog", NET: "Cloudflare",
+  ZS: "Zscaler", OKTA: "Okta", SNOW: "Snowflake", PLTR: "Palantir",
+  MDB: "MongoDB", TEAM: "Atlassian", SHOP: "Shopify", IBM: "IBM", CSCO: "Cisco",
+  // Financials
+  JPM: "JPMorgan Chase", BAC: "Bank of America", WFC: "Wells Fargo",
+  GS: "Goldman Sachs", MS: "Morgan Stanley", C: "Citigroup",
+  AXP: "American Express", V: "Visa", MA: "Mastercard", BLK: "BlackRock",
+  SCHW: "Charles Schwab", CME: "CME Group", PGR: "Progressive",
+  CB: "Chubb", MET: "MetLife", AFL: "Aflac", ICE: "Intercontinental Exchange",
+  SPGI: "S&P Global", MCO: "Moody's", SQ: "Block", SOFI: "SoFi Technologies", HOOD: "Robinhood",
+  // Healthcare
+  LLY: "Eli Lilly", UNH: "UnitedHealth", JNJ: "Johnson & Johnson",
+  MRK: "Merck", ABBV: "AbbVie", PFE: "Pfizer", ABT: "Abbott Laboratories",
+  TMO: "Thermo Fisher Scientific", DHR: "Danaher", ISRG: "Intuitive Surgical",
+  GILD: "Gilead Sciences", AMGN: "Amgen", BSX: "Boston Scientific",
+  REGN: "Regeneron", VRTX: "Vertex Pharmaceuticals", ZTS: "Zoetis",
+  BMY: "Bristol-Myers Squibb", CVS: "CVS Health", CI: "Cigna", HUM: "Humana",
+  // Consumer
+  HD: "Home Depot", MCD: "McDonald's", NKE: "Nike", SBUX: "Starbucks",
+  CMG: "Chipotle", BKNG: "Booking Holdings", LOW: "Lowe's", F: "Ford",
+  GM: "General Motors", TGT: "Target", RIVN: "Rivian", LYFT: "Lyft",
+  ABNB: "Airbnb", MAR: "Marriott", HLT: "Hilton", YUM: "Yum! Brands",
+  DRI: "Darden Restaurants", EXPE: "Expedia", COST: "Costco", WMT: "Walmart",
+  // Staples & energy
+  PG: "Procter & Gamble", KO: "Coca-Cola", PEP: "PepsiCo", PM: "Philip Morris",
+  MO: "Altria", EL: "Estée Lauder", CL: "Colgate-Palmolive", KHC: "Kraft Heinz",
+  GIS: "General Mills", XOM: "Exxon Mobil", CVX: "Chevron", EOG: "EOG Resources",
+  SLB: "SLB (Schlumberger)", OXY: "Occidental Petroleum", PSX: "Phillips 66",
+  VLO: "Valero Energy", MPC: "Marathon Petroleum", HAL: "Halliburton", DVN: "Devon Energy",
+  // Industrials & defense
+  BA: "Boeing", LMT: "Lockheed Martin", RTX: "RTX Corp", CAT: "Caterpillar",
+  HON: "Honeywell", GE: "GE Aerospace", DE: "Deere & Company", UNP: "Union Pacific",
+  WM: "Waste Management", ETN: "Eaton", EMR: "Emerson Electric",
+  PH: "Parker Hannifin", MMM: "3M", FDX: "FedEx", UPS: "UPS", NSC: "Norfolk Southern",
+  // Materials, utilities, REITs, telecom
+  LIN: "Linde", APD: "Air Products", FCX: "Freeport-McMoRan", NEM: "Newmont",
+  DOW: "Dow Inc", PPG: "PPG Industries", ECL: "Ecolab",
+  NEE: "NextEra Energy", DUK: "Duke Energy", SO: "Southern Company",
+  D: "Dominion Energy", SRE: "Sempra", AEP: "American Electric Power", EXC: "Exelon",
+  AMT: "American Tower", PLD: "Prologis", EQIX: "Equinix", CCI: "Crown Castle",
+  O: "Realty Income", SPG: "Simon Property", PSA: "Public Storage", WELL: "Welltower",
+  DIS: "Walt Disney", CMCSA: "Comcast", T: "AT&T", VZ: "Verizon",
+  TMUS: "T-Mobile", NFLX: "Netflix", WBD: "Warner Bros Discovery", CHTR: "Charter Communications",
+  PYPL: "PayPal", COIN: "Coinbase", UBER: "Uber", ACN: "Accenture",
 };
 
 async function fetchFinnhubQuotesForSymbols(

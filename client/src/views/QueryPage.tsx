@@ -10,7 +10,7 @@ const MAX_WATCHLIST = 6;
 
 const SAMPLE_RESULT: QueryResponse = {
   reportId: "",
-  disclaimer: "FINDEC is a decision support tool only and does not constitute financial advice.",
+  disclaimer: "FINITY is a decision support tool only and does not constitute financial advice.",
   estimated: true,
   researcher: {
     sentiment: "Bullish",
@@ -614,7 +614,7 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
                     <div className="findec-watchlist-price">
                       <strong>
                         {item.quote
-                          ? formatPrice(item.quote.lastClose, item.quote.currency)
+                          ? formatPrice(item.quote.lastClose)
                           : "—"}
                       </strong>
                       <span className={item.quote && item.quote.changePercent < 0 ? "findec-subline-down" : "findec-subline-up"}>

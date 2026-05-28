@@ -32,7 +32,7 @@ export default function Radar() {
           <p className="eyebrow">Radar</p>
           <h1 className="hero-title">Country-aware stock radar for your market context.</h1>
           <p className="hero-copy">
-            FINDEC detects the user&apos;s IP-derived country, maps it to the local market, and suggests companies that are actually relevant to that geography.
+            FINITY detects the user&apos;s IP-derived country, maps it to the local market, and suggests companies that are actually relevant to that geography.
           </p>
         </div>
         <div className="hero-strip">

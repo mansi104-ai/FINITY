@@ -16,14 +16,30 @@ export default function Register() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
     if (password !== confirm) { setError("Passwords do not match."); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (!/[A-Z]/.test(password) && !/[0-9]/.test(password)) {
+      setError("Password should include at least one number or uppercase letter.");
+      return;
+    }
     setLoading(true);
     try {
-      await registerUser(email.trim(), password);
+      await registerUser(trimmedEmail, password);
       router.push("/watchlist");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed. Try a different email.");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("already")) {
+        setError("An account with this email already exists. Sign in instead.");
+      } else if (msg.toLowerCase().includes("database") || msg.toLowerCase().includes("unavailable")) {
+        setError("Service is temporarily unavailable. Please try again in a moment.");
+      } else {
+        setError("Registration failed. Please check your details and try again.");
+      }
     } finally {
       setLoading(false);
     }

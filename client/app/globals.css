@@ -2303,11 +2303,22 @@ html[data-theme="dark"] .single-note-card-accent {
   font-family: "IBM Plex Mono", "IBM Plex Sans", monospace;
 }
 
+.findec-brand-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
 .findec-brand {
   letter-spacing: 0.22em;
   font-size: 1.55rem;
   line-height: 1;
   color: #f7f0e3;
+  transition: color 0.15s ease;
+}
+
+.findec-brand-link:hover .findec-brand {
+  color: #79b53a;
 }
 
 .findec-app-body {
@@ -2426,7 +2437,7 @@ html[data-theme="dark"] .single-note-card-accent {
   width: max-content;
   gap: 0.65rem;
   padding: 0.65rem;
-  animation: ticker-scroll 56s linear infinite;
+  animation: ticker-scroll 100s linear infinite;
 }
 
 .findec-ticker-chip {
