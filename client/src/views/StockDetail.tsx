@@ -165,7 +165,7 @@ export default function StockDetail({ ticker }: { ticker: string }) {
         </div>
 
         {error && (
-          <div className="findec-panel finity-error-panel stk-error">{error}</div>
+          <div className="findec-panel findec-error-panel stk-error">{error}</div>
         )}
         {!stock && !error && (
           <p className="findec-kicker stk-loading">Loading {ticker}…</p>

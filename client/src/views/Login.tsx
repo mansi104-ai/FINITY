@@ -37,7 +37,7 @@ export default function Login() {
     <section className="findec-minimal-page auth-page">
       <div className="auth-card">
         <p className="findec-kicker">Welcome back</p>
-        <h1 className="auth-title">Sign in to FINITY</h1>
+        <h1 className="auth-title">Sign in to findec</h1>
 
         <form className="auth-form" onSubmit={(e) => void handleSubmit(e)}>
           <div className="auth-field">

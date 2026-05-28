@@ -2437,21 +2437,39 @@ html[data-theme="dark"] .single-note-card-accent {
   width: max-content;
   gap: 0.65rem;
   padding: 0.65rem;
-  animation: ticker-scroll 100s linear infinite;
+  animation: ticker-scroll 145s linear infinite;
+  will-change: transform;
+}
+
+.findec-ticker-marquee:hover .findec-ticker-track,
+.findec-ticker-marquee:focus-within .findec-ticker-track {
+  animation-play-state: paused;
 }
 
 .findec-ticker-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  min-height: 2.4rem;
-  padding: 0 0.9rem;
+  min-height: 2.7rem;
+  padding: 0 1rem;
   border: 1px solid #222;
   border-radius: 10px;
   background: #151515;
   color: #d8d0c2;
   white-space: nowrap;
   font-size: 0.82rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  touch-action: manipulation;
+}
+
+.findec-ticker-chip:hover,
+.findec-ticker-chip:focus-visible {
+  border-color: #3e4d2d;
+  background: #191d15;
+  transform: translateY(-1px);
+  outline: none;
 }
 
 .findec-ticker-chip strong {
@@ -2887,7 +2905,7 @@ html[data-theme="dark"] .single-note-card-accent {
   padding-top: 0.4rem;
 }
 
-.finity-error-panel {
+.findec-error-panel {
   margin-top: 0.72rem;
   padding: 0.9rem 1rem;
   background: #201111;

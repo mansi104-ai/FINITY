@@ -161,7 +161,7 @@ export default function Markets() {
         </div>
 
         {error && (
-          <div className="findec-panel finity-error-panel" style={{ marginTop: "1rem", padding: "0.9rem 1rem" }}>
+          <div className="findec-panel findec-error-panel" style={{ marginTop: "1rem", padding: "0.9rem 1rem" }}>
             {error}
           </div>
         )}

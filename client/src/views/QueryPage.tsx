@@ -10,7 +10,7 @@ const MAX_WATCHLIST = 6;
 
 const SAMPLE_RESULT: QueryResponse = {
   reportId: "",
-  disclaimer: "FINITY is a decision support tool only and does not constitute financial advice.",
+  disclaimer: "findec is a decision support tool only and does not constitute financial advice.",
   estimated: true,
   researcher: {
     sentiment: "Bullish",

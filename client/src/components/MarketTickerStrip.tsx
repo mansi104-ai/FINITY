@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { getMarketSnapshot } from "../services/api";
 import type { MarketSnapshot } from "../types";
 
@@ -17,7 +17,6 @@ function pct(value: number): string {
 }
 
 export default function MarketTickerStrip() {
-  const router = useRouter();
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
 
   useEffect(() => {
@@ -55,24 +54,16 @@ export default function MarketTickerStrip() {
       <div className="findec-ticker-marquee">
         <div className="findec-ticker-track">
           {doubledTickers.map((ticker, index) => (
-            <article 
+            <Link
               className="findec-ticker-chip" 
               key={`${ticker.symbol}-${index}`}
-              onClick={() => router.push(`/brief?ticker=${ticker.symbol}`)}
-              style={{ cursor: "pointer" }}
+              href={`/brief?ticker=${encodeURIComponent(ticker.symbol)}`}
               title={`View ${ticker.name} brief`}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  router.push(`/brief?ticker=${ticker.symbol}`);
-                }
-              }}
             >
               <strong>{ticker.symbol.replace("^", "")}</strong>
               <span>{price(ticker.lastClose)}</span>
               <span className={ticker.changePercent >= 0 ? "findec-subline-up" : "findec-subline-down"}>{pct(ticker.changePercent)}</span>
-            </article>
+            </Link>
           ))}
         </div>
       </div>

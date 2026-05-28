@@ -1,4 +1,4 @@
-# FINITY
+# findec
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
@@ -136,4 +136,4 @@ See [CHANGELOG.md](./CHANGELOG.md) for full release notes.
 
 ## Disclaimer
 
-FINITY is a decision support tool only and does not constitute financial advice.
+findec is a decision support tool only and does not constitute financial advice.

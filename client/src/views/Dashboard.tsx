@@ -91,7 +91,7 @@ export default function Dashboard() {
           <p className="eyebrow">Workspace snapshot</p>
           <h2 style={{ marginTop: 0 }}>Control panel</h2>
           <p>
-            FINITY keeps your research history tied to your signed-in session, so briefs, reports, and rate limits stay user-scoped.
+            findec keeps your research history tied to your signed-in session, so briefs, reports, and rate limits stay user-scoped.
           </p>
           <p className="text-muted">Budget: {currency(budget)}</p>
           <p className="text-muted">Risk profile: {riskProfile}</p>
