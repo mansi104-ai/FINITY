@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getAnalystRecommendations, getMarketHistory, getNews, getStockDetail } from "../services/api";
 import type { AnalystRecommendation, MarketHistory, NewsArticle, StockQuote } from "../types";
 import AdvancedChart from "../components/AdvancedChart";
+import InfoTip from "../components/InfoTip";
 
 function toChartPoints(points: MarketHistory["points"], w: number, h: number): string {
   if (!points.length) return "";
@@ -236,15 +237,15 @@ export default function StockDetail({ ticker }: { ticker: string }) {
               <article className="findec-panel stk-panel">
                 <p className="findec-kicker">Valuation</p>
                 <div className="stk-stat-grid">
-                  {stock.marketCap != null && <div className="stk-stat"><span>Market Cap</span><strong>{fmtCap(stock.marketCap)}</strong></div>}
-                  {stock.peRatio != null && <div className="stk-stat"><span>P/E (TTM)</span><strong>{stock.peRatio}</strong></div>}
-                  {stock.forwardPE != null && <div className="stk-stat"><span>Forward P/E</span><strong>{stock.forwardPE}</strong></div>}
-                  {stock.eps != null && <div className="stk-stat"><span>EPS (TTM)</span><strong>{stock.eps}</strong></div>}
+                  {stock.marketCap != null && <div className="stk-stat"><span>Market Cap <InfoTip term="marketCap" /></span><strong>{fmtCap(stock.marketCap)}</strong></div>}
+                  {stock.peRatio != null && <div className="stk-stat"><span>P/E (TTM) <InfoTip term="peRatio" /></span><strong>{stock.peRatio}</strong></div>}
+                  {stock.forwardPE != null && <div className="stk-stat"><span>Forward P/E <InfoTip term="forwardPE" /></span><strong>{stock.forwardPE}</strong></div>}
+                  {stock.eps != null && <div className="stk-stat"><span>EPS (TTM) <InfoTip term="eps" /></span><strong>{stock.eps}</strong></div>}
                   {stock.epsForward != null && <div className="stk-stat"><span>Forward EPS</span><strong>{stock.epsForward}</strong></div>}
-                  {stock.priceToBook != null && <div className="stk-stat"><span>P/B Ratio</span><strong>{stock.priceToBook}</strong></div>}
-                  {stock.beta != null && <div className="stk-stat"><span>Beta</span><strong>{stock.beta}</strong></div>}
+                  {stock.priceToBook != null && <div className="stk-stat"><span>P/B Ratio <InfoTip term="priceToBook" /></span><strong>{stock.priceToBook}</strong></div>}
+                  {stock.beta != null && <div className="stk-stat"><span>Beta <InfoTip term="beta" /></span><strong>{stock.beta}</strong></div>}
                   {stock.dividendYield != null && (
-                    <div className="stk-stat"><span>Div Yield</span><strong>{stock.dividendYield.toFixed(2)}%</strong></div>
+                    <div className="stk-stat"><span>Div Yield <InfoTip term="dividendYield" /></span><strong>{stock.dividendYield.toFixed(2)}%</strong></div>
                   )}
                 </div>
                 {stock.peRatio != null && (

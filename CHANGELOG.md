@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.8.0] — 2026-06-09
+
+### Added
+- **Keyword info tooltips (#6)** — a small "i" badge now sits next to important keywords (Market Cap, P/E, Forward P/E, EPS, P/B, Beta, Dividend Yield on the stock page; Bollinger/SMA/RSI/MACD on the advanced chart). Hover or tap it for a plain-language definition, backed by a shared glossary (`InfoTip` + `GLOSSARY`).
+- **Smart ledger (#7)** — the calendar's add-entry control replaced the two type buttons with a single **Income ⇄ Expense toggle**, and now **auto-detects the type from keywords** (e.g. typing "Salary", "Dividend", "Refund" → Income; "Rent", "Bill", "EMI", "Fuel" → Expense). The toggle still lets you override.
+
+---
+
 ## [v1.7.0] — 2026-06-09
 
 ### Fixed

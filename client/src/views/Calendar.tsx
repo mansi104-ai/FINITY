@@ -18,6 +18,17 @@ function money(v: number): string {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const INCOME_WORDS = ["salary", "income", "bonus", "dividend", "interest", "refund", "payout", "profit", "freelance", "stipend", "commission", "rent received", "sale", "cashback", "reimburse"];
+const EXPENSE_WORDS = ["rent", "food", "grocer", "bill", "emi", "loan", "tax", "fee", "fuel", "petrol", "shopping", "subscription", "insurance", "travel", "medical", "expense", "utilit", "electric", "recharge"];
+
+// Identify income vs expense from a category/note keyword (#7).
+function detectLedgerType(text: string): "income" | "expense" | null {
+  const t = text.toLowerCase();
+  if (INCOME_WORDS.some((w) => t.includes(w))) return "income";
+  if (EXPENSE_WORDS.some((w) => t.includes(w))) return "expense";
+  return null;
+}
+
 export default function Calendar() {
   const [signedIn, setSignedIn] = useState(false);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
@@ -204,11 +215,28 @@ export default function Calendar() {
 
           <form className="findec-panel cal-add" onSubmit={submit}>
             <p className="findec-kicker">Add entry · {selected}</p>
-            <div className="alert-dir-toggle">
-              <button type="button" className={`adv-chip ${type === "income" ? "adv-chip-on" : ""}`} onClick={() => setType("income")}>Income</button>
-              <button type="button" className={`adv-chip ${type === "expense" ? "adv-chip-on" : ""}`} onClick={() => setType("expense")}>Expense</button>
-            </div>
-            <input className="alert-input cal-input" placeholder="Category (e.g. Salary, Rent)" value={category} onChange={(e) => setCategory(e.target.value)} />
+            {/* Single toggle to switch Income ⇄ Expense (#7) */}
+            <button
+              type="button"
+              className={`cal-type-toggle ${type === "income" ? "is-income" : "is-expense"}`}
+              onClick={() => setType((t) => (t === "income" ? "expense" : "income"))}
+              aria-label={`Type: ${type}. Tap to switch.`}
+            >
+              <span className={type === "income" ? "on" : ""}>Income</span>
+              <span className="cal-type-knob" />
+              <span className={type === "expense" ? "on" : ""}>Expense</span>
+            </button>
+            <input
+              className="alert-input cal-input"
+              placeholder="Category (e.g. Salary, Rent) — auto-detects type"
+              value={category}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCategory(val);
+                const detected = detectLedgerType(val);
+                if (detected) setType(detected); // keyword-driven; user can still flip the toggle
+              }}
+            />
             <input className="alert-input cal-input" type="number" step="0.01" min="0" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
             <input className="alert-input cal-input" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
             <button className="earn-nav-btn" type="submit" disabled={busy}>{busy ? "Adding…" : "Add to ledger"}</button>

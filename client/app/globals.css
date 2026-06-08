@@ -3636,6 +3636,69 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── InfoTip ("i" keyword info) + smart-ledger toggle (v1.8) ── */
+.infotip { position: relative; display: inline-flex; vertical-align: middle; margin-left: 0.25rem; }
+.infotip-btn {
+  width: 14px; height: 14px; line-height: 13px;
+  border-radius: 50%;
+  border: 1px solid #3a3a3a;
+  background: #1a1a1a;
+  color: #9aa6c2;
+  font-size: 9px;
+  font-style: italic;
+  font-weight: 700;
+  cursor: help;
+  padding: 0;
+  text-align: center;
+}
+.infotip-btn:hover { border-color: #246bff; color: #cdd6e6; }
+.infotip-panel {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 230px;
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #cdd6e6;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.55);
+}
+
+.cal-type-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 999px;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: #777;
+  align-self: flex-start;
+}
+.cal-type-toggle span.on { color: #f4efe6; font-weight: 600; }
+.cal-type-toggle .cal-type-knob {
+  width: 30px; height: 16px; border-radius: 999px; position: relative;
+  transition: background 0.18s ease;
+}
+.cal-type-toggle.is-income .cal-type-knob { background: rgba(51,179,107,0.4); }
+.cal-type-toggle.is-expense .cal-type-knob { background: rgba(204,81,71,0.4); }
+.cal-type-toggle .cal-type-knob::after {
+  content: ""; position: absolute; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #f4efe6;
+  transition: left 0.18s ease;
+}
+.cal-type-toggle.is-income .cal-type-knob::after { left: 2px; }
+.cal-type-toggle.is-expense .cal-type-knob::after { left: 16px; }
+
 /* ── Compare custom groups (v1.6) ── */
 .cmp-pair-custom { display: inline-flex; align-items: center; }
 .cmp-pair-btn-custom { border-color: #2d4d22 !important; }

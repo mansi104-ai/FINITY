@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getCandles } from "../services/api";
+import InfoTip from "./InfoTip";
 import type { Candle } from "../types";
 
 function fmtDay(iso: string): string {
@@ -194,12 +195,12 @@ export default function AdvancedChart({ ticker }: { ticker: string }) {
 
       <div className="adv-chart-toggles">
         <div className="adv-toggle-group">
-          <span className="adv-toggle-label">Overlay</span>
+          <span className="adv-toggle-label">Overlay <InfoTip term={overlay === "sma" ? "sma" : "bollinger"} /></span>
           <button className={`adv-chip ${overlay === "bbands" ? "adv-chip-on" : ""}`} onClick={() => setOverlay("bbands")}>Bollinger</button>
           <button className={`adv-chip ${overlay === "sma" ? "adv-chip-on" : ""}`} onClick={() => setOverlay("sma")}>SMA 20/50</button>
         </div>
         <div className="adv-toggle-group">
-          <span className="adv-toggle-label">Indicator</span>
+          <span className="adv-toggle-label">Indicator <InfoTip term={pane === "macd" ? "macd" : "rsi"} /></span>
           <button className={`adv-chip ${pane === "rsi" ? "adv-chip-on" : ""}`} onClick={() => setPane("rsi")}>RSI</button>
           <button className={`adv-chip ${pane === "macd" ? "adv-chip-on" : ""}`} onClick={() => setPane("macd")}>MACD</button>
           <button className={`adv-chip ${pane === "none" ? "adv-chip-on" : ""}`} onClick={() => setPane("none")}>None</button>
