@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getMarketSnapshot, getStocks } from "../services/api";
+import RegionGlobe from "../components/RegionGlobe";
 import type { MarketSnapshot, StockQuote, StocksResponse } from "../types";
 
 function fmtPct(v: number): string {
@@ -159,6 +160,8 @@ export default function Markets() {
             </div>
           )}
         </div>
+
+        <RegionGlobe />
 
         {error && (
           <div className="findec-panel finity-error-panel" style={{ marginTop: "1rem", padding: "0.9rem 1rem" }}>

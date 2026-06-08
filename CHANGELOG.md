@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.9.0] — 2026-06-09
+
+### Added
+- **Manual market region with globe picker (#4)** — a new region control on the Markets page (animated CSS globe + region chips) lets users override their detected geolocation and explore the US, India, UK, Japan, or China market (or "Auto"). The choice is stored locally and appended as `?cc=` to the snapshot, stocks, and research requests; the server's `getGeolocation` now honours a `cc` override (validated against markets we have tracked symbols for). Affects the ticker strip, Markets, Screener, and Research.
+
+---
+
 ## [v1.8.0] — 2026-06-09
 
 ### Added

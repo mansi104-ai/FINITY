@@ -3636,6 +3636,44 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── Region globe (v1.9, #4) ── */
+.region-panel { display: flex; gap: 1.4rem; align-items: center; padding: 1rem 1.2rem; margin-top: 1rem; flex-wrap: wrap; }
+.region-globe-wrap { flex-shrink: 0; }
+.region-globe { position: relative; width: 84px; height: 84px; }
+.region-globe-sphere {
+  position: absolute; inset: 0; border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, #4f8ef7 0%, #246bff 38%, #15356e 72%, #0a1d3f 100%);
+  box-shadow: inset -8px -8px 18px rgba(0,0,0,0.5), 0 0 22px rgba(36,107,255,0.35);
+  background-size: 200% 100%;
+  animation: region-spin 9s linear infinite;
+}
+.region-globe-sphere::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 14px, rgba(255,255,255,0.07) 14px 15px),
+    repeating-linear-gradient(0deg, transparent 0 14px, rgba(255,255,255,0.06) 14px 15px);
+}
+.region-globe-ring {
+  position: absolute; inset: -7px; border-radius: 50%;
+  border: 1px dashed rgba(154,166,194,0.4);
+  animation: region-spin 14s linear infinite reverse;
+}
+@keyframes region-spin { from { background-position: 0 0; } to { background-position: 200% 0; } }
+.region-controls { flex: 1; min-width: 240px; }
+.region-active { font-size: 1.1rem; margin: 0.1rem 0 0.2rem; color: #f4efe6; }
+.region-hint { font-size: 0.76rem; color: #777; margin: 0 0 0.6rem; }
+.region-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.region-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  background: #161616; border: 1px solid #2a2a2a; color: #cdd6e6;
+  border-radius: 999px; padding: 0.3rem 0.7rem; font-size: 0.78rem; cursor: pointer;
+}
+.region-chip:hover { border-color: #3a3a3a; }
+.region-chip-on { background: #246bff; border-color: #246bff; color: #fff; }
+.region-flag { font-size: 0.95rem; }
+@media (prefers-reduced-motion: reduce) { .region-globe-sphere, .region-globe-ring { animation: none; } }
+
 /* ── InfoTip ("i" keyword info) + smart-ledger toggle (v1.8) ── */
 .infotip { position: relative; display: inline-flex; vertical-align: middle; margin-left: 0.25rem; }
 .infotip-btn {

@@ -24,10 +24,24 @@ export interface StockMarket {
 
 type RequestLike = {
   headers: Record<string, string | string[] | undefined>;
+  query?: Record<string, unknown>;
   socket?: {
     remoteAddress?: string;
   };
 };
+
+// Markets we have tracked symbols for — the only valid manual overrides.
+const COUNTRY_NAMES: Record<string, string> = {
+  US: "United States", IN: "India", GB: "United Kingdom", JP: "Japan", CN: "China",
+};
+
+export function getGeolocationForCountry(cc: string): GeoLocation | null {
+  const code = (cc || "").trim().toUpperCase();
+  const timezone = COUNTRY_TO_TIMEZONE[code];
+  const market = timezone ? MARKET_DEFINITIONS[timezone] : undefined;
+  if (!timezone || !market || !COUNTRY_NAMES[code]) return null;
+  return { country: COUNTRY_NAMES[code], countryCode: code, timezone, market };
+}
 
 // Market definitions by timezone
 const MARKET_DEFINITIONS: Record<string, StockMarket> = {
@@ -197,6 +211,13 @@ export async function getGeolocationFromIP(ip: string): Promise<GeoLocation> {
 }
 
 export async function getGeolocation(req: RequestLike): Promise<GeoLocation> {
+  // Manual override (?cc=US) takes precedence so users can pick a market (#4).
+  const ccParam = req.query?.cc;
+  if (typeof ccParam === "string") {
+    const override = getGeolocationForCountry(ccParam);
+    if (override) return override;
+  }
+
   const headerGeo = getGeolocationFromHeaders(req);
   if (headerGeo) {
     return headerGeo;

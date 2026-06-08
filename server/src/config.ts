@@ -60,5 +60,5 @@ export const env = {
   finnhubKey: readString(process.env.FINNHUB_API_KEY),
   emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL),
   errorWebhookUrl: readString(process.env.ERROR_WEBHOOK_URL ?? process.env.SENTRY_DSN),
-  appVersion: readString(process.env.APP_VERSION, "1.8.0")
+  appVersion: readString(process.env.APP_VERSION, "1.9.0")
 };

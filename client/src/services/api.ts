@@ -284,11 +284,31 @@ export function getReports(): Promise<{ reports: AgentReport[] }> {
 }
 
 export function getMarketSnapshot(): Promise<MarketSnapshot> {
-  return request<MarketSnapshot>("/api/market/snapshot");
+  return request<MarketSnapshot>(`/api/market/snapshot${ccSuffix()}`);
 }
 
 export function getMarketHistory(ticker: string): Promise<MarketHistory> {
   return request<MarketHistory>(`/api/market/history/${encodeURIComponent(ticker)}`);
+}
+
+// ─── Region / geolocation override (v1.9, #4) ──────────────────────────────
+const COUNTRY_KEY = "findec-country";
+
+export function getSelectedCountry(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(COUNTRY_KEY);
+}
+
+export function setSelectedCountry(cc: string | null): void {
+  if (typeof window === "undefined") return;
+  if (cc) window.localStorage.setItem(COUNTRY_KEY, cc);
+  else window.localStorage.removeItem(COUNTRY_KEY);
+}
+
+function ccSuffix(extra = false): string {
+  const cc = getSelectedCountry();
+  if (!cc) return "";
+  return `${extra ? "&" : "?"}cc=${encodeURIComponent(cc)}`;
 }
 
 export function getCandles(ticker: string, range = "6mo"): Promise<CandlesResponse> {
@@ -296,11 +316,11 @@ export function getCandles(ticker: string, range = "6mo"): Promise<CandlesRespon
 }
 
 export function getStocks(): Promise<StocksResponse> {
-  return request<StocksResponse>("/api/market/stocks");
+  return request<StocksResponse>(`/api/market/stocks${ccSuffix()}`);
 }
 
 export function getResearch(): Promise<ResearchResponse> {
-  return request<ResearchResponse>("/api/market/research");
+  return request<ResearchResponse>(`/api/market/research${ccSuffix()}`);
 }
 
 export function getStockDetail(ticker: string): Promise<StockQuote> {
