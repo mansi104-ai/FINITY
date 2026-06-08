@@ -2,7 +2,11 @@ import type { AgentReport, AnalystRecommendation, CandlesResponse, EarningsEvent
 
 // Prefer same-origin requests so deployed clients can use a rewrite/proxy and avoid
 // browser-side CORS/network failures. Keep the explicit backend URL as a fallback.
-const DIRECT_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://server-gray-iota.vercel.app")
+const DEFAULT_API_BASE_URL = process.env.NODE_ENV === "production"
+  ? "https://server-gray-iota.vercel.app"
+  : "http://localhost:4000";
+
+const DIRECT_API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_BASE_URL)
   .trim()
   .replace(/\/$/, "");
 

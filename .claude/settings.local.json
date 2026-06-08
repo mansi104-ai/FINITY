@@ -19,7 +19,20 @@
       "Bash(git tag *)",
       "Bash(git push *)",
       "Bash(node -e ' *)",
-      "Bash(node -e *)"
+      "Bash(node -e *)",
+      "Bash(bun --version)",
+      "Bash(pnpm --version)",
+      "Bash(yarn --version)",
+      "Bash(git commit *)",
+      "Bash(rm -f .git/COMMIT_MSG_TMP.txt)",
+      "Bash(curl -s -m 30 \"https://server-gray-iota.vercel.app/api/market/stocks\")",
+      "Bash(curl -s -m 30 \"https://server-gray-iota.vercel.app/api/market/research\")",
+      "Bash(curl -s -m 25 https://server-gray-iota.vercel.app/api/market/history/AAPL)",
+      "Bash(curl -s -m 30 https://server-gray-iota.vercel.app/api/market/stocks)",
+      "Bash(curl -s -m 30 -X POST https://server-gray-iota.vercel.app/api/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"alert-__CMDSUB_OUTPUT__@example.com\",\"password\":\"alertpass12\"}')"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\mansi\\FINITY\\.git"
     ]
   }
 }

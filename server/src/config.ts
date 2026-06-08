@@ -1,9 +1,17 @@
 import { config } from "dotenv";
 import path from "path";
 
-// Load .env.local first (for local overrides), then .env
-config({ path: path.resolve(__dirname, "../../.env.local") });
-config();
+const envSearchRoots = [
+  path.resolve(__dirname, "../../../"),
+  path.resolve(__dirname, "../../")
+];
+
+// Load repo-root env files first so local development works when the server is
+// started from `server/` but shared env files live at the workspace root.
+for (const root of envSearchRoots) {
+  config({ path: path.join(root, ".env.local"), override: false });
+  config({ path: path.join(root, ".env"), override: false });
+}
 
 function readNumber(value: string | undefined, fallback: number, key: string): number {
   const parsed = Number(value ?? fallback);
