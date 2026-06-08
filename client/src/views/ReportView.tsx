@@ -4,12 +4,27 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ResearchAuditCard from "../components/ResearchAuditCard";
 import PriceChart from "../components/PriceChart";
-import { getReport } from "../services/api";
+import { getReport, shareReport } from "../services/api";
 import type { AgentReport } from "../types";
 
 export default function ReportView({ reportId }: { reportId: string }) {
   const [report, setReport] = useState<AgentReport | null>(null);
   const [error, setError] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareMsg, setShareMsg] = useState("");
+
+  const onShare = async () => {
+    setShareMsg("Generating link…");
+    try {
+      const { slug } = await shareReport(reportId);
+      const url = `${window.location.origin}/r/${slug}`;
+      setShareUrl(url);
+      try { await navigator.clipboard.writeText(url); setShareMsg("Public link copied to clipboard"); }
+      catch { setShareMsg("Public link ready"); }
+    } catch (e) {
+      setShareMsg(e instanceof Error ? e.message : "Could not create share link.");
+    }
+  };
 
   useEffect(() => {
     const run = async () => {
@@ -41,7 +56,15 @@ export default function ReportView({ reportId }: { reportId: string }) {
   }
 
   return (
-    <section className="grid page-shell">
+    <section className="grid page-shell report-printable">
+      <div className="report-actions no-print">
+        <button className="button button-secondary" onClick={() => window.print()}>⤓ Export PDF</button>
+        <button className="button button-secondary" onClick={() => void onShare()}>🔗 Share</button>
+        {shareMsg && <span className="report-share-msg">{shareMsg}</span>}
+        {shareUrl && (
+          <a className="report-share-link" href={shareUrl} target="_blank" rel="noopener noreferrer">{shareUrl}</a>
+        )}
+      </div>
       <article className="hero-panel">
         <div>
           <p className="eyebrow">Saved Report</p>

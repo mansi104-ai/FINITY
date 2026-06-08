@@ -8,6 +8,7 @@ import type { UserRecord } from "../models/User.model";
 import type { WatchlistRecord } from "../models/Watchlist.model";
 import type { NotificationRecord } from "../models/Notification.model";
 import type { PriceAlertRecord } from "../models/PriceAlert.model";
+import type { PaperAccountRecord } from "../models/PaperAccount.model";
 
 const memoryUsers = new Map<string, UserRecord>();
 const memoryReports = new Map<string, AgentReport>();
@@ -17,6 +18,7 @@ const memoryRevokedRefreshTokens = new Map<string, RevokedRefreshTokenRecord>();
 const memoryWatchlists = new Map<string, WatchlistRecord>();
 const memoryNotifications = new Map<string, NotificationRecord>();
 const memoryPriceAlerts = new Map<string, PriceAlertRecord>();
+const memoryPaperAccounts = new Map<string, PaperAccountRecord>();
 
 let mongoDbPromise: Promise<Db | null> | null = null;
 let indexesReady = false;
@@ -54,6 +56,7 @@ async function getMongoDb(): Promise<Db | null> {
       db.collection<NotificationRecord>("notifications").createIndex({ userId: 1, createdAt: -1 }),
       db.collection<PriceAlertRecord>("priceAlerts").createIndex({ id: 1 }, { unique: true }),
       db.collection<PriceAlertRecord>("priceAlerts").createIndex({ userId: 1, active: 1 }),
+      db.collection<PaperAccountRecord>("paperAccounts").createIndex({ userId: 1 }, { unique: true }),
     ]);
     indexesReady = true;
   }
@@ -317,6 +320,30 @@ export async function deletePriceAlert(id: string, userId: string): Promise<void
     return;
   }
   await db.collection<PriceAlertRecord>("priceAlerts").deleteOne({ id, userId });
+}
+
+// ─── Paper trading accounts ─────────────────────────────────────────────────
+
+export async function getPaperAccount(userId: string): Promise<PaperAccountRecord | null> {
+  const db = await getMongoDb();
+  if (!db) return memoryPaperAccounts.get(userId) ?? null;
+  return (await db.collection<PaperAccountRecord>("paperAccounts").findOne({ userId }, { projection: { _id: 0 } })) ?? null;
+}
+
+export async function savePaperAccount(account: PaperAccountRecord): Promise<void> {
+  const db = await getMongoDb();
+  if (!db) { memoryPaperAccounts.set(account.userId, account); return; }
+  await db.collection<PaperAccountRecord>("paperAccounts").replaceOne({ userId: account.userId }, account, { upsert: true });
+}
+
+// ─── Public report sharing ────────────────────────────────────────────────────
+
+export async function getReportByPublicSlug(slug: string): Promise<AgentReport | undefined> {
+  const db = await getMongoDb();
+  if (!db) {
+    return Array.from(memoryReports.values()).find((r) => (r as AgentReport & { publicSlug?: string }).publicSlug === slug);
+  }
+  return (await db.collection<AgentReport>("reports").findOne({ publicSlug: slug } as Record<string, unknown>, { projection: { _id: 0 } })) ?? undefined;
 }
 
 export async function isRefreshTokenRevoked(tokenHash: string): Promise<boolean> {

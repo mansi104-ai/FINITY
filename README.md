@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v0.7.0**
+**Current version: v0.8.0**
 
 ---
 
@@ -111,6 +111,9 @@ npm run dev                  # Next.js dev on port 3000
 | DELETE | `/api/alerts/:id` | Yes | Delete a price alert |
 | GET | `/api/insights/regime` | No | Market regime (risk-on/off/neutral) from breadth |
 | GET | `/api/insights/portfolio` | Yes | Portfolio P&L, allocation, AI narrative from watchlist |
+| POST | `/api/reports/:id/share` | Yes | Publish a public read-only share slug for a report |
+| GET | `/api/public/report/:slug` | No | Fetch a shared report by slug (read-only) |
+| GET/POST | `/api/paper` · `/api/paper/trade` · `/api/paper/reset` | Yes | Paper-trading account, trades, reset |
 | GET | `/api/report/:id` | Yes | Get full AI report |
 
 ---
@@ -135,7 +138,7 @@ npm run dev                  # Next.js dev on port 3000
 | v0.5 | Research tools (dividend tracker, sector heatmap) | **Done** |
 | v0.6 | Alerts & notifications (price alerts, daily digest email) | **Done** |
 | v0.7 | AI v2 (portfolio analysis, market regime) | **Done** |
-| v0.8 | Sharing (public report URLs, PDF export, paper trading) | Planned |
+| v0.8 | Sharing (public report URLs, PDF export, paper trading) | **Done** |
 | v0.9 | Security hardening (Google OAuth, 2FA TOTP, Redis cache) | Planned |
 | v1.0 | Production launch (mobile polish, Sentry, OpenAPI docs) | Planned |
 

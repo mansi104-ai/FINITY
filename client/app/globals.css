@@ -3585,6 +3585,35 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── Sharing + PDF export (v0.8) ── */
+.report-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.report-share-msg { font-size: 0.8rem; color: #999; }
+.report-share-link { font-size: 0.78rem; color: #246bff; word-break: break-all; }
+.report-public-footer { font-size: 0.8rem; color: #777; text-align: center; margin-top: 1rem; }
+.report-public-footer a { color: #246bff; }
+
+@media print {
+  .no-print,
+  .findec-app-header,
+  .findec-app-strip { display: none !important; }
+  body, .findec-app-body { background: #fff !important; color: #111 !important; }
+  .card, .hero-panel, .findec-panel {
+    background: #fff !important;
+    color: #111 !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .metric-label, .eyebrow, .text-muted { color: #555 !important; }
+  a { color: #111 !important; text-decoration: none; }
+}
+
 /* ── AI Insights (v0.7) ── */
 .ins-panel { margin-bottom: 0.75rem; padding: 1.1rem 1.25rem; }
 .ins-regime-badge {

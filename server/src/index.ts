@@ -13,6 +13,8 @@ import watchlistRoutes from "./routes/watchlist.routes";
 import notificationRoutes from "./routes/notification.routes";
 import alertRoutes from "./routes/alert.routes";
 import insightsRoutes from "./routes/insights.routes";
+import paperRoutes from "./routes/paper.routes";
+import publicRoutes from "./routes/public.routes";
 import { startMorningDigestJobs } from "./jobs/morningDigest";
 import { env } from "./config";
 
@@ -43,6 +45,8 @@ app.use("/api/watchlist", watchlistRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/insights", insightsRoutes);
+app.use("/api/paper", paperRoutes);
+app.use("/api/public", publicRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });

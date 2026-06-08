@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.8.0] — 2026-06-08
+
+### Added
+- **Paper trading** — new `/paper` page (and "Paper" nav link). Each user gets a virtual $100,000 account; buy/sell whole shares at the latest live price. Shows equity, cash/buying power, positions with live P&L, total return %, and a recent-trades log. Reset button restarts the account.
+  - `paperAccounts` collection + in-memory fallback. Endpoints (auth): `GET /api/paper`, `POST /api/paper/trade`, `POST /api/paper/reset`. Average-cost accounting; sells validated against held shares; buys validated against cash.
+- **Public report sharing** — `POST /api/reports/:id/share` (auth) mints a stable public slug; `GET /api/public/report/:slug` serves it unauthenticated; new public page `/r/[slug]` renders a read-only report. Share button on the saved-report view copies the link to the clipboard.
+- **PDF export** — "Export PDF" button on the report and public-report views triggers `window.print()` with a dedicated `@media print` stylesheet (hides nav/strip/buttons, switches to light high-contrast). Dependency-free.
+
+### Changed
+- `AgentReport` gains an optional `publicSlug`. `ReportView.tsx` (separate from the protected AI Brief `QueryPage.tsx`, which was not touched) gained the share/print action row.
+
+---
+
 ## [v0.7.0] — 2026-06-08
 
 ### Added

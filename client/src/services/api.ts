@@ -172,7 +172,8 @@ function requiresAuth(path: string): boolean {
   return path.startsWith("/api/query") || path.startsWith("/api/reports") ||
     path.startsWith("/api/profile") || path.startsWith("/api/watchlist") ||
     path.startsWith("/api/notifications") || path.startsWith("/api/alerts") ||
-    path.startsWith("/api/insights/portfolio") || path.startsWith("/api/auth/logout");
+    path.startsWith("/api/insights/portfolio") || path.startsWith("/api/paper") ||
+    path.startsWith("/api/auth/logout");
 }
 
 function getCachedReport(reportId: string): AgentReport | null {
@@ -413,6 +414,61 @@ export function updateWatchlistBuyPrice(ticker: string, buyPrice: number | null)
     method: "PATCH",
     body: JSON.stringify({ buyPrice })
   });
+}
+
+// ─── Sharing + Paper Trading API (v0.8) ────────────────────────────────────────
+
+export function shareReport(reportId: string): Promise<{ slug: string }> {
+  return request<{ slug: string }>(`/api/reports/${encodeURIComponent(reportId)}/share`, { method: "POST" });
+}
+
+export function getPublicReport(slug: string): Promise<{ report: AgentReport }> {
+  return unauthenticatedRequest<{ report: AgentReport }>(`/api/public/report/${encodeURIComponent(slug)}`);
+}
+
+export interface PaperPositionView {
+  ticker: string;
+  name: string;
+  shares: number;
+  avgCost: number;
+  price: number;
+  marketValue: number;
+  pnl: number;
+  pnlPercent: number;
+}
+
+export interface PaperTradeView {
+  id: string;
+  ticker: string;
+  side: "buy" | "sell";
+  shares: number;
+  price: number;
+  at: string;
+}
+
+export interface PaperAccount {
+  cash: number;
+  startingCash: number;
+  positionsValue: number;
+  equity: number;
+  totalReturnPercent: number;
+  positions: PaperPositionView[];
+  trades: PaperTradeView[];
+}
+
+export function getPaperAccount(): Promise<PaperAccount> {
+  return request<PaperAccount>("/api/paper");
+}
+
+export function tradePaper(ticker: string, side: "buy" | "sell", shares: number, name?: string): Promise<PaperAccount> {
+  return request<PaperAccount>("/api/paper/trade", {
+    method: "POST",
+    body: JSON.stringify({ ticker, side, shares, ...(name ? { name } : {}) })
+  });
+}
+
+export function resetPaper(): Promise<PaperAccount> {
+  return request<PaperAccount>("/api/paper/reset", { method: "POST" });
 }
 
 // ─── AI Insights API (v0.7) ───────────────────────────────────────────────────

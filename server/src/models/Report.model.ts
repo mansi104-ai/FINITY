@@ -145,4 +145,6 @@ export interface AgentReport {
   agentLogs: AgentStatus[];
   disclaimer: string;
   createdAt: string;
+  /** Set when the owner publishes a public, read-only share link. */
+  publicSlug?: string;
 }
