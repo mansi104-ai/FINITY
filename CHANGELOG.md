@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.7.0] — 2026-06-08
+
+### Added
+- **AI Insights page** (`/insights`) with an "Insights" nav link — new AI/analytics features built entirely separate from the protected AI Brief page.
+- **Market regime classifier** — `GET /api/insights/regime` (public) reads breadth across a 20-name large-cap basket and classifies the tape as risk-on / risk-off / neutral via a composite of breadth and average move, with leaders/laggards.
+- **Portfolio analysis** — `GET /api/insights/portfolio` (auth) treats watchlist items that have a buy price as positions and computes total P&L, per-holding P&L, sector diversification/allocation, concentration risk, and a deterministic plain-English narrative.
+- API client types + helpers `getMarketRegime()` / `getPortfolioInsights()`; reusable server helpers `fetchQuoteForSymbol()` and exported `sectorForSymbol()`.
+
+### Notes
+- Insight generation is **deterministic and dependency-free** (no Anthropic SDK in the server; the AI Brief uses a separate Python agents service). This keeps the Vercel build lean and works without API keys. The protected `QueryPage.tsx` was not touched.
+
+---
+
 ## [v0.6.0] — 2026-06-08
 
 ### Added

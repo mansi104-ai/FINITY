@@ -22,6 +22,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link className="findec-topnav-link" href="/screener">Screener</Link>
               <Link className="findec-topnav-link" href="/earnings">Earnings</Link>
               <Link className="findec-topnav-link" href="/research">Research</Link>
+              <Link className="findec-topnav-link" href="/insights">Insights</Link>
               <Link className="findec-topnav-link" href="/watchlist">Watchlist</Link>
               <Link className="findec-topnav-link" href="/alerts">Alerts</Link>
               <Link className="findec-topnav-link findec-topnav-cta" href="/brief">AI Brief</Link>

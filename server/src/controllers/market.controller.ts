@@ -692,8 +692,36 @@ const SYMBOL_SECTORS: Record<string, string> = {
   CAT: "Industrials", HON: "Industrials", ETN: "Industrials", UNP: "Industrials",
 };
 
-function sectorForSymbol(sym: string): string {
+export function sectorForSymbol(sym: string): string {
   return SYMBOL_SECTORS[sym] ?? "Other";
+}
+
+// Reusable single-quote helper for portfolio analysis (Yahoo → Finnhub fallback).
+export async function fetchQuoteForSymbol(ticker: string): Promise<StockQuoteResponse | null> {
+  let countryCode = "US";
+  if (ticker.endsWith(".NS") || ticker.endsWith(".BO")) countryCode = "IN";
+  else if (ticker.endsWith(".L")) countryCode = "GB";
+  else if (ticker.endsWith(".T")) countryCode = "JP";
+  else if (ticker.endsWith(".SS") || ticker.endsWith(".SZ")) countryCode = "CN";
+  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+  try {
+    const [q] = await fetchDetailedQuotesBatch([ticker], indexSymbols);
+    if (q && q.price > 0) return q;
+  } catch { /* try Finnhub */ }
+  if (env.finnhubKey && countryCode === "US" && !ticker.startsWith("^")) {
+    try {
+      const fq = await fhQuote(ticker);
+      if (fq.c) {
+        return {
+          symbol: ticker, name: US_STOCK_NAMES[ticker] ?? ticker,
+          exchange: "NASDAQ/NYSE", currency: "USD",
+          price: fq.c, lastClose: fq.pc, change: +fq.d.toFixed(2),
+          changePercent: +fq.dp.toFixed(4), isIndex: false,
+        };
+      }
+    } catch { /* give up */ }
+  }
+  return null;
 }
 
 type SectorSummary = {

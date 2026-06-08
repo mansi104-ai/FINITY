@@ -3585,6 +3585,52 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── AI Insights (v0.7) ── */
+.ins-panel { margin-bottom: 0.75rem; padding: 1.1rem 1.25rem; }
+.ins-regime-badge {
+  display: inline-block;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.9rem;
+  border-radius: 8px;
+  margin: 0.4rem 0;
+}
+.ins-regime-on { background: rgba(51,179,107,0.18); color: #58d08c; border: 1px solid rgba(51,179,107,0.4); }
+.ins-regime-off { background: rgba(204,81,71,0.18); color: #e07a72; border: 1px solid rgba(204,81,71,0.4); }
+.ins-regime-neutral { background: rgba(224,163,46,0.15); color: #e0a32e; border: 1px solid rgba(224,163,46,0.35); }
+.ins-regime-label { color: #cdd6e6; margin: 0.2rem 0 0.8rem; }
+.ins-regime-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.ins-regime-stats div { display: grid; gap: 0.15rem; }
+.ins-regime-stats span { font-size: 0.72rem; color: #777; }
+.ins-regime-stats strong { font-weight: 500; color: #f4efe6; }
+.ins-regime-movers { display: flex; gap: 2.5rem; flex-wrap: wrap; }
+.ins-regime-movers > div { display: flex; flex-direction: column; gap: 0.25rem; }
+.ins-mover { color: #e6e0d4; text-decoration: none; font-size: 0.82rem; display: inline-flex; gap: 0.4rem; }
+.ins-mover:hover { text-decoration: underline; }
+.ins-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin: 0.5rem 0 0.9rem; }
+.ins-total-card {
+  border: 1px solid #2a2a2a; border-radius: 9px; padding: 0.7rem 0.9rem;
+  display: grid; gap: 0.2rem;
+}
+.ins-total-card span { font-size: 0.72rem; color: #777; }
+.ins-total-card strong { font-size: 1.25rem; font-weight: 600; }
+.ins-total-card em { font-size: 0.72rem; color: #999; font-style: normal; }
+.ins-narrative { margin-bottom: 0.9rem; }
+.ins-narrative p { color: #cdd6e6; font-size: 0.9rem; margin: 0 0 0.4rem; line-height: 1.5; }
+.ins-alloc { margin-bottom: 0.9rem; }
+.ins-alloc-bar { display: flex; height: 16px; border-radius: 6px; overflow: hidden; margin: 0.4rem 0; background: #161616; }
+.ins-alloc-seg { height: 100%; }
+.ins-alloc-legend { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.72rem; color: #999; }
+.ins-alloc-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.ins-alloc-0 { background: #246bff; }
+.ins-alloc-1 { background: #33b36b; }
+.ins-alloc-2 { background: #e0a32e; }
+.ins-alloc-3 { background: #7b61ff; }
+.ins-alloc-4 { background: #cc5147; }
+.ins-alloc-5 { background: #2bb0c4; }
+.ins-holdings { margin-top: 0.5rem; }
+
 /* ── Price alerts (v0.6) ── */
 .alert-create {
   display: flex;

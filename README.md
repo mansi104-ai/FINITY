@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v0.6.0**
+**Current version: v0.7.0**
 
 ---
 
@@ -109,6 +109,8 @@ npm run dev                  # Next.js dev on port 3000
 | GET/POST | `/api/alerts` | Yes | List / create price alerts |
 | POST | `/api/alerts/check` | Yes | Evaluate this user's alerts against live prices now |
 | DELETE | `/api/alerts/:id` | Yes | Delete a price alert |
+| GET | `/api/insights/regime` | No | Market regime (risk-on/off/neutral) from breadth |
+| GET | `/api/insights/portfolio` | Yes | Portfolio P&L, allocation, AI narrative from watchlist |
 | GET | `/api/report/:id` | Yes | Get full AI report |
 
 ---
@@ -132,7 +134,7 @@ npm run dev                  # Next.js dev on port 3000
 | v0.4 | Advanced charting (candlesticks, RSI, MACD, Bollinger Bands) | Planned |
 | v0.5 | Research tools (dividend tracker, sector heatmap) | **Done** |
 | v0.6 | Alerts & notifications (price alerts, daily digest email) | **Done** |
-| v0.7 | AI v2 (portfolio analysis, social sentiment, market regime) | Planned |
+| v0.7 | AI v2 (portfolio analysis, market regime) | **Done** |
 | v0.8 | Sharing (public report URLs, PDF export, paper trading) | Planned |
 | v0.9 | Security hardening (Google OAuth, 2FA TOTP, Redis cache) | Planned |
 | v1.0 | Production launch (mobile polish, Sentry, OpenAPI docs) | Planned |

@@ -172,7 +172,7 @@ function requiresAuth(path: string): boolean {
   return path.startsWith("/api/query") || path.startsWith("/api/reports") ||
     path.startsWith("/api/profile") || path.startsWith("/api/watchlist") ||
     path.startsWith("/api/notifications") || path.startsWith("/api/alerts") ||
-    path.startsWith("/api/auth/logout");
+    path.startsWith("/api/insights/portfolio") || path.startsWith("/api/auth/logout");
 }
 
 function getCachedReport(reportId: string): AgentReport | null {
@@ -413,6 +413,58 @@ export function updateWatchlistBuyPrice(ticker: string, buyPrice: number | null)
     method: "PATCH",
     body: JSON.stringify({ buyPrice })
   });
+}
+
+// ─── AI Insights API (v0.7) ───────────────────────────────────────────────────
+
+export interface PortfolioHolding {
+  ticker: string;
+  name: string;
+  buyPrice: number;
+  price: number;
+  changePercent: number;
+  pnl: number;
+  pnlPercent: number;
+  sector: string;
+}
+
+export interface PortfolioInsights {
+  hasPositions: boolean;
+  message?: string;
+  error?: string;
+  totals?: {
+    positions: number;
+    totalCost: number;
+    totalValue: number;
+    totalPnl: number;
+    totalPnlPercent: number;
+    winners: number;
+  };
+  holdings?: PortfolioHolding[];
+  allocation?: Array<{ sector: string; weightPercent: number }>;
+  concentration?: "low" | "moderate" | "high";
+  narrative?: string[];
+}
+
+export interface MarketRegime {
+  regime: "risk-on" | "risk-off" | "neutral";
+  label: string;
+  breadthPercent: number;
+  advancing: number;
+  total: number;
+  avgMovePercent: number;
+  score: number;
+  leaders: Array<{ symbol: string; changePercent: number }>;
+  laggards: Array<{ symbol: string; changePercent: number }>;
+  asOf: string;
+}
+
+export function getPortfolioInsights(): Promise<PortfolioInsights> {
+  return request<PortfolioInsights>("/api/insights/portfolio");
+}
+
+export function getMarketRegime(): Promise<MarketRegime> {
+  return request<MarketRegime>("/api/insights/regime");
 }
 
 // ─── Price Alerts API ─────────────────────────────────────────────────────────
