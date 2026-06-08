@@ -15,6 +15,7 @@ const LINKS: Array<{ href: string; label: string; cta?: boolean; authOnly?: bool
   { href: "/watchlist", label: "Watchlist", authOnly: true },
   { href: "/alerts", label: "Alerts", authOnly: true },
   { href: "/paper", label: "Paper", authOnly: true },
+  { href: "/calendar", label: "Calendar", authOnly: true },
   { href: "/brief", label: "AI Brief", cta: true },
   { href: "/history", label: "History", authOnly: true },
 ];

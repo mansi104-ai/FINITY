@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.4.0] — 2026-06-08
+
+### Added
+- **Earnings/savings/expenses ledger (#5)** — per-user ledger to track income and expenses with category, amount, note, and date. Endpoints (auth): `GET/POST /api/ledger`, `DELETE /api/ledger/:id`; stored in a new `ledgers` table (jsonb, capped at 500 entries/user) with in-memory fallback. Summary totals: income, expenses, net/savings.
+- **Profile calendar (#4)** — new `/calendar` page (auth-gated, "Calendar" nav link) with a month grid that overlays the user's ledger net per day **and** their watchlist's upcoming/recent earnings dates. Click a day to see its entries + earnings and add a new income/expense entry inline. Includes income/expense/net summary cards.
+
+---
+
 ## [v1.3.0] — 2026-06-08
 
 ### Added

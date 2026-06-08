@@ -14,6 +14,7 @@ import notificationRoutes from "./routes/notification.routes";
 import alertRoutes from "./routes/alert.routes";
 import insightsRoutes from "./routes/insights.routes";
 import paperRoutes from "./routes/paper.routes";
+import ledgerRoutes from "./routes/ledger.routes";
 import publicRoutes from "./routes/public.routes";
 import { startMorningDigestJobs } from "./jobs/morningDigest";
 import { apiWriteRateLimiter } from "./middleware/rateLimiter";
@@ -70,6 +71,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/alerts", apiWriteRateLimiter, alertRoutes);
 app.use("/api/insights", insightsRoutes);
 app.use("/api/paper", apiWriteRateLimiter, paperRoutes);
+app.use("/api/ledger", apiWriteRateLimiter, ledgerRoutes);
 app.use("/api/public", publicRoutes);
 
 app.use((_req, res) => {

@@ -9,6 +9,7 @@ import type { WatchlistRecord } from "../models/Watchlist.model";
 import type { NotificationRecord } from "../models/Notification.model";
 import type { PriceAlertRecord } from "../models/PriceAlert.model";
 import type { PaperAccountRecord } from "../models/PaperAccount.model";
+import type { LedgerRecord } from "../models/Ledger.model";
 import type { StockQuoteResponse } from "../controllers/market.controller";
 
 // ─── In-memory fallback (local dev when DATABASE_URL is unset) ─────────────────
@@ -21,6 +22,7 @@ const memoryWatchlists = new Map<string, WatchlistRecord>();
 const memoryNotifications = new Map<string, NotificationRecord>();
 const memoryPriceAlerts = new Map<string, PriceAlertRecord>();
 const memoryPaperAccounts = new Map<string, PaperAccountRecord>();
+const memoryLedgers = new Map<string, LedgerRecord>();
 const memoryStocksCache = new Map<string, { stocks: StockQuoteResponse[]; indices: StockQuoteResponse[]; cachedAt: string }>();
 const memorySnapshotCache = new Map<string, { tickers: unknown[]; cachedAt: string }>();
 
@@ -39,6 +41,7 @@ async function ensureSchema(client: Sql): Promise<void> {
   await client`CREATE TABLE IF NOT EXISTS notifications (id text PRIMARY KEY, user_id text, read boolean, created_at timestamptz, data jsonb NOT NULL)`;
   await client`CREATE TABLE IF NOT EXISTS price_alerts (id text PRIMARY KEY, user_id text, active boolean, created_at timestamptz, data jsonb NOT NULL)`;
   await client`CREATE TABLE IF NOT EXISTS paper_accounts (user_id text PRIMARY KEY, data jsonb NOT NULL)`;
+  await client`CREATE TABLE IF NOT EXISTS ledgers (user_id text PRIMARY KEY, data jsonb NOT NULL)`;
   await client`CREATE TABLE IF NOT EXISTS stocks_cache (country_code text PRIMARY KEY, stocks jsonb NOT NULL, indices jsonb NOT NULL, cached_at timestamptz NOT NULL)`;
   await client`CREATE TABLE IF NOT EXISTS snapshot_cache (country_code text PRIMARY KEY, tickers jsonb NOT NULL, cached_at timestamptz NOT NULL)`;
   await client`CREATE INDEX IF NOT EXISTS idx_reports_user ON reports (user_id, created_at DESC)`;
@@ -326,6 +329,21 @@ export async function savePaperAccount(account: PaperAccountRecord): Promise<voi
   const q = await db();
   if (!q) { memoryPaperAccounts.set(account.userId, account); return; }
   await q`INSERT INTO paper_accounts (user_id, data) VALUES (${account.userId}, ${J(account)}::jsonb)
+          ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data`;
+}
+
+// ─── Ledger (income / savings / expenses) ──────────────────────────────────────
+export async function getLedger(userId: string): Promise<LedgerRecord | null> {
+  const q = await db();
+  if (!q) return memoryLedgers.get(userId) ?? null;
+  const rows = await q`SELECT data FROM ledgers WHERE user_id = ${userId}`;
+  return (rows[0]?.data as LedgerRecord | undefined) ?? null;
+}
+
+export async function saveLedger(record: LedgerRecord): Promise<void> {
+  const q = await db();
+  if (!q) { memoryLedgers.set(record.userId, record); return; }
+  await q`INSERT INTO ledgers (user_id, data) VALUES (${record.userId}, ${J(record)}::jsonb)
           ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data`;
 }
 

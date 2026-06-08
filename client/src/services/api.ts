@@ -173,6 +173,7 @@ function requiresAuth(path: string): boolean {
     path.startsWith("/api/profile") || path.startsWith("/api/watchlist") ||
     path.startsWith("/api/notifications") || path.startsWith("/api/alerts") ||
     path.startsWith("/api/insights/portfolio") || path.startsWith("/api/paper") ||
+    path.startsWith("/api/ledger") ||
     path.startsWith("/api/auth/2fa") || path.startsWith("/api/auth/logout");
 }
 
@@ -432,6 +433,32 @@ export function updateWatchlistBuyPrice(ticker: string, buyPrice: number | null)
     method: "PATCH",
     body: JSON.stringify({ buyPrice })
   });
+}
+
+// ─── Ledger API (v1.4) ──────────────────────────────────────────────────────
+
+export interface LedgerEntry {
+  id: string;
+  type: "income" | "expense";
+  category: string;
+  amount: number;
+  note?: string;
+  date: string;
+  createdAt: string;
+}
+
+export interface LedgerSummary { income: number; expense: number; net: number; count: number; }
+
+export function getLedger(): Promise<{ entries: LedgerEntry[]; summary: LedgerSummary }> {
+  return request<{ entries: LedgerEntry[]; summary: LedgerSummary }>("/api/ledger");
+}
+
+export function addLedgerEntry(input: { type: "income" | "expense"; category: string; amount: number; note?: string; date?: string }): Promise<{ entry: LedgerEntry }> {
+  return request<{ entry: LedgerEntry }>("/api/ledger", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function deleteLedgerEntry(id: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/ledger/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // ─── Sharing + Paper Trading API (v0.8) ────────────────────────────────────────
