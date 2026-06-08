@@ -4,7 +4,22 @@
       "Bash(git add *)",
       "Bash(git commit -m 'fix: RangeError in fmtPrice when maximumFractionDigits < minimumFractionDigits *)",
       "Bash(npm run *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"===SERVER TSC EXIT: $?===\")",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(cd /c/Users/mansi/FINITY/client && grep -E \"noUnused|strict\" tsconfig.json)",
+      "Read(//c/c/Users/mansi/FINITY/client/**)",
+      "Bash(git commit -m '@ *)",
+      "Bash(curl -s -m 20 https://server-gray-iota.vercel.app/api/health)",
+      "Bash(curl -s -m 25 \"https://server-gray-iota.vercel.app/api/market/candles/AAPL?range=3mo\")",
+      "Bash(curl -s -m 25 \"https://server-gray-iota.vercel.app/api/market/stocks\")",
+      "Bash(curl -s -m 25 \"https://server-gray-iota.vercel.app/api/market/research\")",
+      "Bash(git commit -q -m '@ *)",
+      "Bash(git tag *)",
+      "Bash(git push *)",
+      "Bash(node -e ' *)",
+      "Bash(node -e *)"
     ]
   }
 }
