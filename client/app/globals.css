@@ -3636,6 +3636,42 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── Brief search autocomplete + profile controls (v1.5) ── */
+.findec-search-wrap { position: relative; flex: 1; }
+.findec-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  z-index: 30;
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+}
+.findec-suggest-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #1c1c1c;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  color: #e6e0d4;
+}
+.findec-suggest-row:hover { background: rgba(255,255,255,0.05); }
+.findec-suggest-row strong { font-size: 0.82rem; min-width: 70px; }
+.findec-suggest-row span { font-size: 0.8rem; color: #b8b2a6; flex: 1; }
+.findec-suggest-row em { font-size: 0.68rem; color: #777; font-style: normal; }
+.brief-profile { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-end; padding: 0.85rem 1.1rem; margin-bottom: 0.75rem; }
+.brief-profile-group { display: grid; gap: 0.35rem; }
+.brief-risk-toggle { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.brief-profile-group .alert-input { width: 140px; }
+.findec-empty-brief { text-align: center; padding: 1.6rem; }
+
 /* ── Calendar & ledger (v1.4) ── */
 .cal-panel { padding: 1rem 1.1rem; margin-bottom: 0.75rem; }
 .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }

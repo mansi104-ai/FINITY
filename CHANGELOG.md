@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.5.0] — 2026-06-08
+
+### Fixed
+- **Brief showed the wrong company (e.g. Infosys for "Visa") (#1)** — the AI Brief page no longer hardcodes `INFY.NS`/`INFOSYS`/an Infosys-flavored sample result. Typing a company name now resolves to the real ticker via live search (so "visa" → `V`), and the agent/risk panels only render after a real brief runs (neutral empty state otherwise). Prices are formatted in the stock's own currency instead of forced ₹. Server `inferTicker` also gained common-name fallbacks (visa→V, mastercard→MA, etc.).
+- **Stock detail "not working" (#2)** — `StockDetail` no longer blanks the page when 30-day history fails (common when Yahoo blocks a ticker); the quote, fundamentals, and interactive candle chart still render, and the mini-chart degrades gracefully.
+
+### Added
+- **Auto-run brief on ticker selection (#7)** — picking a company from the brief search autocomplete (or opening `/brief?ticker=`) immediately generates the brief; no separate click needed.
+- **Editable investment profile (#4)** — the brief page now has risk-profile (Low/Medium/High) and budget controls that persist to local settings and drive the analysis, instead of a fixed preset.
+
+---
+
 ## [v1.4.0] — 2026-06-08
 
 ### Added

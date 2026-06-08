@@ -109,13 +109,11 @@ export default function StockDetail({ ticker }: { ticker: string }) {
         setHistory(null);
       }
 
+      // Only the quote is required to render the detail page. A history failure
+      // (e.g. Yahoo blocking a ticker) must NOT blank the page — the advanced
+      // candle chart and fundamentals still load, so we degrade gracefully.
       if (stockResult.status === "rejected") {
         setError(stockResult.reason instanceof Error ? stockResult.reason.message : "Failed to load stock data.");
-        return;
-      }
-
-      if (historyResult.status === "rejected") {
-        setError(historyResult.reason instanceof Error ? historyResult.reason.message : "Live price history is unavailable right now.");
         return;
       }
 

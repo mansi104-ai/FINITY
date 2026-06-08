@@ -29,7 +29,13 @@ const COMPANY_SYMBOL_MAP: Record<string, string> = {
   tesla: "TSLA",
   nvidia: "NVDA",
   meta: "META",
-  netflix: "NFLX"
+  netflix: "NFLX",
+  visa: "V",
+  mastercard: "MA",
+  jpmorgan: "JPM",
+  walmart: "WMT",
+  infosys: "INFY.NS",
+  reliance: "RELIANCE.NS"
 };
 
 const STOP_WORDS = new Set([
