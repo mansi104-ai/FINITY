@@ -738,16 +738,33 @@ async function loadDetailedStocks(countryCode: string): Promise<StockQuoteRespon
     return all;
   } catch { /* try Finnhub / cache */ }
 
-  if (env.finnhubKey && countryCode === "US") {
+  // Finnhub fallback for the detected market's own symbols (works for US;
+  // may return partial data for some international tickers).
+  if (env.finnhubKey) {
     try {
       const equitySymbols = symbols.filter((s) => !s.startsWith("^")).slice(0, 40);
       const all = await fetchFinnhubQuotesForSymbols(equitySymbols, countryCode);
       if (all.length > 0) { void setStocksCache(countryCode, all, []); return all; }
-    } catch { /* try cache */ }
+    } catch { /* try cache / US fallback */ }
   }
 
+  // Prefer the geo's own stale cache before degrading to a different market.
   const stale = await getStocksCache(countryCode, { allowStale: true });
-  if (stale) return [...stale.stocks, ...stale.indices];
+  if (stale && (stale.stocks.length > 0 || stale.indices.length > 0)) {
+    return [...stale.stocks, ...stale.indices];
+  }
+
+  // Last resort: when the detected market's data is blocked AND uncached, serve
+  // live US large-caps via Finnhub so Markets/Screener are never empty. The
+  // geolocation-based scroll strip (snapshot) keeps its own US fallback already.
+  if (env.finnhubKey && countryCode !== "US") {
+    try {
+      const usSymbols = getTrackedSymbolsForCountry("US").filter((s) => !s.startsWith("^")).slice(0, 40);
+      const all = await fetchFinnhubQuotesForSymbols(usSymbols, "US");
+      if (all.length > 0) return all;
+    } catch { /* nothing left */ }
+  }
+
   return [];
 }
 

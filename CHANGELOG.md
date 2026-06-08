@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.2.0] — 2026-06-08
+
+### Added
+- **Signed-in gating (#10)** — the nav now hides per-user tabs (Watchlist, Alerts, Paper, History) from signed-out visitors; only generic tabs (Markets, Screener, Earnings, Research, Insights, AI Brief) show for guests. The History page shows a sign-in prompt to guests instead of attempting to load private reports.
+- **History redesign (#11)** — each brief-history card now shows the company name, a 30-day marked line graph (high/low dots) with 30d high/low/return/last, and "Competitors in your market" chips drawn from the live geolocation stock list. The "Re-run" action is now "Generate Brief".
+
+### Fixed
+- **Geo-independent live-data fallback (#1)** — `/api/market/stocks` and `/api/market/research` no longer return empty/"unavailable" for non-US visitors when Yahoo blocks Vercel: after trying the detected market (Yahoo → Finnhub) and the geo's stale cache, the server now serves live US large-caps via Finnhub as a last resort so Markets/Screener are never blank. The geolocation scroll strip (snapshot) keeps its own behavior.
+
+### Notes
+- `/api/health` now reports the real app version (`APP_VERSION`, default tracks the release) so deploys are externally verifiable.
+- #8 was already satisfied: the screener/watchlist use live geo data and per-user API data — no hardcoded seed lists were present.
+
+---
+
 ## [v1.1.0] — 2026-06-08
 
 ### Changed

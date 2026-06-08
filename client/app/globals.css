@@ -3623,6 +3623,42 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── History card enrichment (v1.2) ── */
+.hist-company-name { font-size: 0.8rem; color: #b8b2a6; margin-left: 0.1rem; }
+.hist-graph-block {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) 1fr;
+  gap: 1rem;
+  align-items: center;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 8px;
+}
+.hist-mini-graph { display: block; }
+.hist-graph-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem 0.75rem; }
+.hist-graph-stats div { display: grid; gap: 0.1rem; }
+.hist-graph-stats span { font-size: 0.66rem; color: #777; text-transform: uppercase; letter-spacing: 0.04em; }
+.hist-graph-stats strong { font-size: 0.85rem; font-weight: 500; color: #f4efe6; }
+.hist-competitors { margin-bottom: 0.75rem; }
+.hist-comp-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.hist-comp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  color: #e6e0d4;
+  text-decoration: none;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+}
+.hist-comp-chip:hover { border-color: #3a3a3a; }
+.hist-comp-chip em { font-style: normal; font-size: 0.7rem; }
+@media (max-width: 560px) { .hist-graph-block { grid-template-columns: 1fr; } }
+
 /* ── 2FA security card (v0.9) ── */
 .twofa-secret {
   display: inline-block;
