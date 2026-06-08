@@ -8,14 +8,26 @@ import type { MarketHistory, StockQuote } from "../types";
 
 const PALETTE = ["#4f8ef7", "#f2b327", "#72b92b", "#cc5147"];
 const MAX_TICKERS = 4;
+const CUSTOM_GROUPS_KEY = "findec-compare-groups";
 
-const POPULAR_PAIRS: Array<{ label: string; tickers: string[] }> = [
+type Group = { label: string; tickers: string[] };
+
+const POPULAR_PAIRS: Group[] = [
   { label: "Tech Giants", tickers: ["AAPL", "MSFT", "GOOGL"] },
   { label: "AI Race", tickers: ["NVDA", "MSFT", "GOOGL"] },
   { label: "EV vs ICE", tickers: ["TSLA", "F", "GM"] },
   { label: "Big Banks", tickers: ["JPM", "BAC", "GS"] },
   { label: "FAANG", tickers: ["META", "AMZN", "AAPL", "NVDA"] },
 ];
+
+function loadCustomGroups(): Group[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_GROUPS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Group[]) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
 
 function fmtNum(v: number, d = 2): string {
   return new Intl.NumberFormat("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
@@ -76,7 +88,25 @@ export default function Compare() {
   const [input, setInput] = useState("");
   const [inputError, setInputError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [customGroups, setCustomGroups] = useState<Group[]>([]);
   const loadedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => { setCustomGroups(loadCustomGroups()); }, []);
+
+  function saveCurrentGroup() {
+    if (tickers.length < 2) return;
+    const name = (typeof window !== "undefined" ? window.prompt("Name this comparison group:", tickers.join(", ")) : "")?.trim();
+    if (!name) return;
+    const next = [...customGroups.filter((g) => g.label !== name), { label: name, tickers: [...tickers] }];
+    setCustomGroups(next);
+    if (typeof window !== "undefined") window.localStorage.setItem(CUSTOM_GROUPS_KEY, JSON.stringify(next));
+  }
+
+  function deleteGroup(label: string) {
+    const next = customGroups.filter((g) => g.label !== label);
+    setCustomGroups(next);
+    if (typeof window !== "undefined") window.localStorage.setItem(CUSTOM_GROUPS_KEY, JSON.stringify(next));
+  }
 
   useEffect(() => {
     const toLoad = tickers.filter((t) => !loadedRef.current.has(t));
@@ -144,10 +174,10 @@ export default function Compare() {
     setData((prev) => prev.filter((d) => d.ticker !== t));
   }
 
-  function loadPair(pair: typeof POPULAR_PAIRS[0]) {
+  function loadPair(pair: Group) {
     loadedRef.current.clear();
     setData([]);
-    setTickers(pair.tickers);
+    setTickers(pair.tickers.slice(0, MAX_TICKERS));
   }
 
   const chartData = useMemo(() => {
@@ -230,6 +260,15 @@ export default function Compare() {
                 {pair.label}
               </button>
             ))}
+            {customGroups.map((g) => (
+              <span key={g.label} className="cmp-pair-custom">
+                <button className="cmp-pair-btn cmp-pair-btn-custom" onClick={() => loadPair(g)}>{g.label}</button>
+                <button className="cmp-pair-del" title="Delete group" onClick={() => deleteGroup(g.label)}>×</button>
+              </span>
+            ))}
+            {tickers.length >= 2 && (
+              <button className="cmp-pair-btn cmp-pair-save" onClick={saveCurrentGroup}>+ Save group</button>
+            )}
           </div>
         </div>
 

@@ -958,10 +958,12 @@ export async function getStockDetailController(req: Request, res: Response) {
     } catch { /* Finnhub failed too */ }
   }
 
-  // 3. Enrich with Finnhub metrics (fills gaps from Yahoo or Finnhub quote)
+  // 3. Enrich with Finnhub metrics + profile (fills gaps from Yahoo or Finnhub quote,
+  //    incl. market cap which the bare Finnhub quote lacks — powers the Compare table)
   if (quote && env.finnhubKey && countryCode === "US" && !ticker.startsWith("^")) {
-    try {
-      const { metric: m } = await fhMetrics(ticker);
+    const [metricRes, profileRes] = await Promise.allSettled([fhMetrics(ticker), fhProfile(ticker)]);
+    if (metricRes.status === "fulfilled") {
+      const m = metricRes.value.metric;
       if (quote.high52w == null && m["52WeekHigh"] != null) quote.high52w = +Number(m["52WeekHigh"]).toFixed(2);
       if (quote.low52w == null && m["52WeekLow"] != null) quote.low52w = +Number(m["52WeekLow"]).toFixed(2);
       if (quote.beta == null && m.beta != null) quote.beta = +Number(m.beta).toFixed(2);
@@ -971,7 +973,14 @@ export async function getStockDetailController(req: Request, res: Response) {
       if (quote.dividendYield == null && m.dividendYieldIndicatedAnnual != null) {
         quote.dividendYield = +Number(m.dividendYieldIndicatedAnnual).toFixed(2);
       }
-    } catch { /* enrichment optional */ }
+    }
+    if (profileRes.status === "fulfilled") {
+      const p = profileRes.value;
+      // Finnhub reports marketCapitalization in millions of the listing currency.
+      if (quote.marketCap == null && p.marketCapitalization) quote.marketCap = Math.round(Number(p.marketCapitalization) * 1e6);
+      if ((!quote.name || quote.name === ticker) && p.name) quote.name = p.name;
+      if (!quote.exchange && p.exchange) quote.exchange = p.exchange;
+    }
   }
 
   if (quote) return res.status(200).json(quote);

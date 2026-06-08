@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.6.0] — 2026-06-08
+
+### Fixed
+- **Compare missing Market Cap & other metrics (#3)** — when Yahoo is blocked and a quote comes from Finnhub, `getStockDetail` now also pulls the Finnhub **profile** to fill market cap (plus name/exchange), so the Compare table's Market Cap row (and others) populate instead of showing "-".
+
+### Added
+- **User-defined comparison groups (#3)** — alongside the built-in presets (Tech Giants, AI Race, EV vs ICE, Big Banks, FAANG), users can now "+ Save group" to store the current ticker set as a named group (persisted in the browser) and reload or delete it later.
+
+---
+
 ## [v1.5.0] — 2026-06-08
 
 ### Fixed

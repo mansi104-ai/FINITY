@@ -3636,6 +3636,16 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── Compare custom groups (v1.6) ── */
+.cmp-pair-custom { display: inline-flex; align-items: center; }
+.cmp-pair-btn-custom { border-color: #2d4d22 !important; }
+.cmp-pair-del {
+  background: none; border: none; color: #cc5147; cursor: pointer;
+  font-size: 0.9rem; padding: 0 0.3rem; margin-left: -0.2rem;
+}
+.cmp-pair-del:hover { color: #e07a72; }
+.cmp-pair-save { border-style: dashed !important; color: #72b92b !important; }
+
 /* ── Brief search autocomplete + profile controls (v1.5) ── */
 .findec-search-wrap { position: relative; flex: 1; }
 .findec-suggest {
