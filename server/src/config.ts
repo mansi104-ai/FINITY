@@ -14,20 +14,25 @@ function readNumber(value: string | undefined, fallback: number, key: string): n
 }
 
 const nodeEnv = process.env.NODE_ENV ?? "development";
-const jwtSecret = process.env.JWT_SECRET ?? "findec-dev-secret";
-const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET ?? "findec-dev-refresh-secret";
 
 function readString(value: string | undefined, fallback = ""): string {
   return (value ?? fallback).trim();
 }
 
-if (nodeEnv === "production" && jwtSecret === "findec-dev-secret") {
-  console.warn("WARNING: JWT_SECRET should be configured in production! Using fallback for now.");
+function readSecret(value: string | undefined, key: string): string {
+  const secret = readString(value);
+  if (!secret && nodeEnv === "production") {
+    throw new Error(`FATAL: Required secret ${key} not configured. Set it in your environment variables.`);
+  }
+  if (!secret) {
+    console.warn(`WARNING: ${key} not configured, using development fallback.`);
+    return key === "JWT_SECRET" ? "findec-dev-secret" : "findec-dev-refresh-secret";
+  }
+  return secret;
 }
 
-if (nodeEnv === "production" && jwtRefreshSecret === "findec-dev-refresh-secret") {
-  console.warn("WARNING: JWT_REFRESH_SECRET should be configured in production! Using fallback for now.");
-}
+const jwtSecret = readSecret(process.env.JWT_SECRET, "JWT_SECRET");
+const jwtRefreshSecret = readSecret(process.env.JWT_REFRESH_SECRET, "JWT_REFRESH_SECRET");
 
 export const env = {
   nodeEnv,

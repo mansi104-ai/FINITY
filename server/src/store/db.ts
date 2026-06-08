@@ -26,7 +26,13 @@ async function getMongoDb(): Promise<Db | null> {
   }
 
   if (!mongoDbPromise) {
-    mongoDbPromise = MongoClient.connect(env.mongodbUri, { serverSelectionTimeoutMS: 5000 })
+    mongoDbPromise = MongoClient.connect(env.mongodbUri, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 2
+    })
       .then((client) => client.db(env.mongodbDbName || "findec"))
       .catch((err: unknown) => {
         console.warn("MongoDB connection failed, falling back to in-memory store:", err instanceof Error ? err.message : err);

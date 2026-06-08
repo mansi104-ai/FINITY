@@ -137,3 +137,122 @@ See [CHANGELOG.md](./CHANGELOG.md) for full release notes.
 ## Disclaimer
 
 findec is a decision support tool only and does not constitute financial advice.
+
+---
+
+## Production Deployment
+
+### Pre-Deployment Checklist
+
+**Environment Variables** (required in production)
+- [ ] `NODE_ENV=production`
+- [ ] `JWT_SECRET` - 32+ random character secret (generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+- [ ] `JWT_REFRESH_SECRET` - 32+ random character secret, DIFFERENT from JWT_SECRET
+- [ ] `MONGODB_URI` - Production MongoDB cluster (with backups enabled)
+- [ ] `CORS_ORIGIN` - Whitelist your frontend domain(s), comma-separated
+- [ ] `TRUST_PROXY=true` (if behind reverse proxy like Vercel, AWS ALB, nginx)
+
+**Infrastructure**
+- [ ] HTTPS enabled with valid SSL certificate (auto-renewed if using Vercel)
+- [ ] Database backups configured and tested
+- [ ] Error tracking setup (Sentry, DataDog, etc.)
+- [ ] Log aggregation setup (CloudWatch, ELK, etc.)
+- [ ] Monitoring & alerts for high error rates, database issues, rate limit spikes
+- [ ] WAF (Web Application Firewall) for DDoS protection (optional but recommended)
+
+**Security**
+- [ ] All JWT secrets set (server will fail to start if missing)
+- [ ] MongoDB encryption at rest enabled (if using Atlas)
+- [ ] HTTPS redirect enforced (automatic on Vercel)
+- [ ] Secure cookies enforced (`httpOnly`, `Secure`, `SameSite=Lax`)
+- [ ] Rate limits tuned for production load
+
+**Testing**
+- [ ] Health endpoint responds: `curl https://your-domain/api/health`
+- [ ] Auth flow tested (register, login, refresh, logout)
+- [ ] Error logging contains request IDs and full context
+- [ ] Rate limiting triggers at expected thresholds
+- [ ] Database connectivity stable under load
+
+### Deployment Platforms
+
+#### Vercel (Recommended)
+```bash
+# 1. Push code to GitHub
+git push origin main
+
+# 2. Connect repo to Vercel (https://vercel.com/new)
+# 3. Set environment variables in Vercel dashboard
+# 4. Deploy (auto-deploys on push to main)
+
+# 5. Monitor health
+curl https://your-domain.vercel.app/api/health
+```
+
+**Vercel Benefits:**
+- ✅ HTTPS auto-configured + auto-renewed
+- ✅ Zero-config deployments
+- ✅ Auto-scaling
+- ✅ CDN + edge caching
+- ✅ DDoS protection
+
+#### AWS Lambda (with API Gateway)
+```bash
+# Requires serverless framework or CDK
+# See deployment docs: https://docs.aws.amazon.com/lambda/
+```
+
+#### Docker (Self-Hosted)
+```bash
+# Build image
+docker build -f server/Dockerfile -t findec-server:latest .
+
+# Run with env vars
+docker run -e JWT_SECRET=xxx -e MONGODB_URI=xxx -p 4000:4000 findec-server
+
+# Production: Use Docker Compose with nginx reverse proxy + SSL
+docker-compose -f docker-compose.yml up -d
+```
+
+### Post-Deployment Monitoring
+
+**First 24 Hours**
+- Monitor error logs for anomalies
+- Check database connection health
+- Verify rate limiting is working
+- Monitor API response times
+- Check client error boundaries trigger correctly
+
+**Ongoing**
+- Daily: Review error logs and alerts
+- Weekly: Check database backups
+- Monthly: Review rate limit hits, adjust thresholds if needed
+- Quarterly: Dependency updates, security patches
+
+### Scaling
+
+**Database Scaling** (MongoDB Atlas)
+- Start: M2/M10 shared tier (dev/staging)
+- Production: M20+ dedicated tier with sharding enabled
+- Enable auto-backups (daily minimum)
+- Enable point-in-time recovery
+
+**API Scaling** (Vercel/Lambda/Docker)
+- Auto-scaling enabled by default on Vercel
+- Monitor rate limit bucket exhaustion
+- Consider Redis for distributed rate limiting at scale
+- Use CloudFront or Cloudflare CDN for static assets
+
+**Query Optimization**
+- Ensure MongoDB indexes exist (auto-created on startup)
+- Monitor slow query logs
+- Increase `QUERY_LIMIT_PER_HOUR` if needed
+- Add caching layer (Redis) for frequently accessed data
+
+See [SECURITY.md](./SECURITY.md) for comprehensive security guidelines.
+
+---
+
+## Disclaimer
+
+findec is a decision support tool only and does not constitute financial advice.
