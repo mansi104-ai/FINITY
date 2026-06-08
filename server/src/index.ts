@@ -11,6 +11,7 @@ import queryRoutes from "./routes/query.routes";
 import reportRoutes from "./routes/report.routes";
 import watchlistRoutes from "./routes/watchlist.routes";
 import notificationRoutes from "./routes/notification.routes";
+import alertRoutes from "./routes/alert.routes";
 import { startMorningDigestJobs } from "./jobs/morningDigest";
 import { env } from "./config";
 
@@ -39,6 +40,7 @@ app.use("/api/query", queryRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/watchlist", watchlistRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/alerts", alertRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });

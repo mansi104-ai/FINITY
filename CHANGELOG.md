@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.6.0] — 2026-06-08
+
+### Added
+- **Price alerts** — new `/alerts` page (and "Alerts" nav link) to set "notify me when TICKER crosses above/below $X". Alerts list splits into Active and Triggered; each links to the stock detail page.
+- **Alerts API** (auth-protected): `GET/POST /api/alerts`, `DELETE /api/alerts/:id`, and `POST /api/alerts/check` for on-demand evaluation. New `priceAlerts` collection + in-memory fallback, with `id` (unique) and `(userId, active)` indexes.
+- **Serverless-correct alert firing** — because Vercel functions are ephemeral (`setInterval` doesn't persist), the NotificationBell's 60s poll now calls `POST /api/alerts/check` first, so alerts evaluate against live prices and fire `price_alert` notifications even on serverless. On persistent hosts a 5-minute background interval also checks all active alerts.
+- **Daily digest email** — the morning digest now also sends a best-effort email per user (via `sendEmail`), and triggered price alerts email the user too.
+- **Pluggable email** — `EMAIL_WEBHOOK_URL` env var. When unset, `sendEmail` logs and no-ops, so nothing hard-fails without email configured. Point it at a Resend/SendGrid proxy accepting `{ to, subject, text }`.
+
+### Notes
+- Price evaluation uses Yahoo `v7/quote` with the `query1 → query2` fallback. An alert fires once, then is marked inactive.
+
+---
+
 ## [v0.5.0] — 2026-06-08
 
 ### Added

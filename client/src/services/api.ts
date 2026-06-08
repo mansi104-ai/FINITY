@@ -171,7 +171,8 @@ async function ensureSession(): Promise<string | null> {
 function requiresAuth(path: string): boolean {
   return path.startsWith("/api/query") || path.startsWith("/api/reports") ||
     path.startsWith("/api/profile") || path.startsWith("/api/watchlist") ||
-    path.startsWith("/api/notifications") || path.startsWith("/api/auth/logout");
+    path.startsWith("/api/notifications") || path.startsWith("/api/alerts") ||
+    path.startsWith("/api/auth/logout");
 }
 
 function getCachedReport(reportId: string): AgentReport | null {
@@ -412,6 +413,40 @@ export function updateWatchlistBuyPrice(ticker: string, buyPrice: number | null)
     method: "PATCH",
     body: JSON.stringify({ buyPrice })
   });
+}
+
+// ─── Price Alerts API ─────────────────────────────────────────────────────────
+
+export interface PriceAlert {
+  id: string;
+  userId: string;
+  ticker: string;
+  name: string;
+  direction: "above" | "below";
+  threshold: number;
+  active: boolean;
+  createdAt: string;
+  triggeredAt?: string;
+  triggeredPrice?: number;
+}
+
+export function getAlerts(): Promise<{ alerts: PriceAlert[] }> {
+  return request<{ alerts: PriceAlert[] }>("/api/alerts");
+}
+
+export function createAlert(ticker: string, name: string, direction: "above" | "below", threshold: number): Promise<{ alert: PriceAlert }> {
+  return request<{ alert: PriceAlert }>("/api/alerts", {
+    method: "POST",
+    body: JSON.stringify({ ticker, name, direction, threshold })
+  });
+}
+
+export function deleteAlert(id: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/alerts/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function checkAlerts(): Promise<{ fired: number; alerts: PriceAlert[] }> {
+  return request<{ fired: number; alerts: PriceAlert[] }>("/api/alerts/check", { method: "POST" });
 }
 
 // ─── Notifications API ────────────────────────────────────────────────────────

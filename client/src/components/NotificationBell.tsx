@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getNotifications, getSessionUser, markAllNotificationsRead, subscribeToAuthChanges, type AppNotification } from "../services/api";
+import { checkAlerts, getNotifications, getSessionUser, markAllNotificationsRead, subscribeToAuthChanges, type AppNotification } from "../services/api";
 
 function timeAgo(iso: string): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -53,6 +53,9 @@ export default function NotificationBell() {
 
   async function fetchNotifications() {
     try {
+      // Evaluate price alerts on the server before reading notifications, so
+      // alerts also fire on serverless hosts where the background job doesn't run.
+      await checkAlerts().catch(() => { /* best-effort */ });
       const data = await getNotifications();
       setNotifications(data.notifications);
       setUnreadCount(data.unreadCount);

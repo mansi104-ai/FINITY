@@ -7,6 +7,7 @@ import type { RevokedRefreshTokenRecord } from "../models/RevokedRefreshToken.mo
 import type { UserRecord } from "../models/User.model";
 import type { WatchlistRecord } from "../models/Watchlist.model";
 import type { NotificationRecord } from "../models/Notification.model";
+import type { PriceAlertRecord } from "../models/PriceAlert.model";
 
 const memoryUsers = new Map<string, UserRecord>();
 const memoryReports = new Map<string, AgentReport>();
@@ -15,6 +16,7 @@ const memoryAuthSessions = new Map<string, AuthSessionRecord>();
 const memoryRevokedRefreshTokens = new Map<string, RevokedRefreshTokenRecord>();
 const memoryWatchlists = new Map<string, WatchlistRecord>();
 const memoryNotifications = new Map<string, NotificationRecord>();
+const memoryPriceAlerts = new Map<string, PriceAlertRecord>();
 
 let mongoDbPromise: Promise<Db | null> | null = null;
 let indexesReady = false;
@@ -50,6 +52,8 @@ async function getMongoDb(): Promise<Db | null> {
       db.collection<WatchlistRecord>("watchlists").createIndex({ userId: 1 }, { unique: true }),
       db.collection<NotificationRecord>("notifications").createIndex({ id: 1 }, { unique: true }),
       db.collection<NotificationRecord>("notifications").createIndex({ userId: 1, createdAt: -1 }),
+      db.collection<PriceAlertRecord>("priceAlerts").createIndex({ id: 1 }, { unique: true }),
+      db.collection<PriceAlertRecord>("priceAlerts").createIndex({ userId: 1, active: 1 }),
     ]);
     indexesReady = true;
   }
@@ -270,6 +274,49 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
     return;
   }
   await db.collection<NotificationRecord>("notifications").updateMany({ userId, read: false }, { $set: { read: true } });
+}
+
+// ─── Price alerts ───────────────────────────────────────────────────────────
+
+export async function getPriceAlertsForUser(userId: string): Promise<PriceAlertRecord[]> {
+  const db = await getMongoDb();
+  if (!db) {
+    return Array.from(memoryPriceAlerts.values())
+      .filter((a) => a.userId === userId)
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+  }
+  return db.collection<PriceAlertRecord>("priceAlerts")
+    .find({ userId }, { projection: { _id: 0 } })
+    .sort({ createdAt: -1 })
+    .toArray();
+}
+
+export async function getActivePriceAlerts(): Promise<PriceAlertRecord[]> {
+  const db = await getMongoDb();
+  if (!db) return Array.from(memoryPriceAlerts.values()).filter((a) => a.active);
+  return db.collection<PriceAlertRecord>("priceAlerts").find({ active: true }, { projection: { _id: 0 } }).toArray();
+}
+
+export async function getActivePriceAlertsForUser(userId: string): Promise<PriceAlertRecord[]> {
+  const db = await getMongoDb();
+  if (!db) return Array.from(memoryPriceAlerts.values()).filter((a) => a.active && a.userId === userId);
+  return db.collection<PriceAlertRecord>("priceAlerts").find({ userId, active: true }, { projection: { _id: 0 } }).toArray();
+}
+
+export async function savePriceAlert(alert: PriceAlertRecord): Promise<void> {
+  const db = await getMongoDb();
+  if (!db) { memoryPriceAlerts.set(alert.id, alert); return; }
+  await db.collection<PriceAlertRecord>("priceAlerts").replaceOne({ id: alert.id }, alert, { upsert: true });
+}
+
+export async function deletePriceAlert(id: string, userId: string): Promise<void> {
+  const db = await getMongoDb();
+  if (!db) {
+    const a = memoryPriceAlerts.get(id);
+    if (a && a.userId === userId) memoryPriceAlerts.delete(id);
+    return;
+  }
+  await db.collection<PriceAlertRecord>("priceAlerts").deleteOne({ id, userId });
 }
 
 export async function isRefreshTokenRevoked(tokenHash: string): Promise<boolean> {

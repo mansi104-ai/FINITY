@@ -3585,6 +3585,32 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── Price alerts (v0.6) ── */
+.alert-create {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.alert-input {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  color: #f4efe6;
+  border-radius: 7px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.85rem;
+}
+.alert-input:focus { outline: none; border-color: #246bff; }
+.alert-ticker { width: 150px; text-transform: uppercase; }
+.alert-price { width: 110px; }
+.alert-dir-toggle { display: flex; gap: 0.3rem; }
+.alert-submit { white-space: nowrap; }
+.alert-del { color: #cc5147; cursor: pointer; background: none; border: none; }
+.alert-del:hover { text-decoration: underline; }
+.alert-row-done { opacity: 0.6; }
+
 .stk-two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;

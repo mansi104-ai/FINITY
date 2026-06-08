@@ -1,7 +1,9 @@
 import axios from "axios";
 import { randomUUID } from "crypto";
-import { getAllWatchlists, saveNotification } from "../store/db";
+import { getAllWatchlists, saveNotification, getUserById } from "../store/db";
 import type { NotificationRecord } from "../models/Notification.model";
+import { sendEmail } from "../services/email";
+import { checkAllActiveAlerts } from "../services/priceAlerts";
 
 const YAHOO_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -108,6 +110,12 @@ async function runDigestForMarket(market: MarketConfig): Promise<void> {
       };
 
       await saveNotification(notification);
+
+      // Best-effort digest email (no-op unless EMAIL_WEBHOOK_URL is configured)
+      const user = await getUserById(watchlist.userId);
+      if (user?.email) {
+        void sendEmail(user.email, notification.title, notification.body);
+      }
     }
   } catch (err) {
     console.error(`[digest] ${market.countryCode} error:`, err instanceof Error ? err.message : err);
@@ -133,4 +141,13 @@ export function startMorningDigestJobs(): void {
   // Poll every 60 seconds — fires the digest exactly at 09:00 in each market timezone Mon-Fri
   setInterval(checkAndRunDigests, 60 * 1000);
   console.log("[digest] Morning digest scheduler started — checks every 60s for 09:00 in US/IN/GB/JP/CN");
+
+  // Evaluate active price alerts every 5 minutes (persistent hosts only; on
+  // serverless the client triggers POST /api/alerts/check instead).
+  setInterval(() => {
+    void checkAllActiveAlerts()
+      .then((fired) => { if (fired > 0) console.log(`[alerts] fired ${fired} price alert(s)`); })
+      .catch((err) => console.error("[alerts] check error:", err instanceof Error ? err.message : err));
+  }, 5 * 60 * 1000);
+  console.log("[alerts] Price-alert scheduler started — checks active alerts every 5 min");
 }

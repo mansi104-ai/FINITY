@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v0.5.0**
+**Current version: v0.6.0**
 
 ---
 
@@ -75,6 +75,8 @@ npm run dev                  # Next.js dev on port 3000
 | `JWT_REFRESH_SECRET` | Yes | Secret for signing refresh tokens |
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI Brief |
 | `CLIENT_ORIGIN` | No | CORS allowed origin (default `http://localhost:3000`) |
+| `FINNHUB_API_KEY` | No | Finnhub key — live fallback when Yahoo blocks cloud IPs, plus earnings/IPO/recs |
+| `EMAIL_WEBHOOK_URL` | No | Endpoint accepting `{ to, subject, text }` for digest/alert emails. Unset = emails are logged and skipped. |
 
 ### Client (`client/.env.local`)
 
@@ -104,6 +106,9 @@ npm run dev                  # Next.js dev on port 3000
 | PATCH | `/api/profile` | Yes | Update user profile |
 | POST | `/api/query` | Yes | Run AI Brief (rate-limited: 10/hr) |
 | GET | `/api/query/history` | Yes | List past queries |
+| GET/POST | `/api/alerts` | Yes | List / create price alerts |
+| POST | `/api/alerts/check` | Yes | Evaluate this user's alerts against live prices now |
+| DELETE | `/api/alerts/:id` | Yes | Delete a price alert |
 | GET | `/api/report/:id` | Yes | Get full AI report |
 
 ---
@@ -126,7 +131,7 @@ npm run dev                  # Next.js dev on port 3000
 | v0.3 | Live-only data, Finnhub integration, Earnings + IPO calendar | **Done** |
 | v0.4 | Advanced charting (candlesticks, RSI, MACD, Bollinger Bands) | Planned |
 | v0.5 | Research tools (dividend tracker, sector heatmap) | **Done** |
-| v0.6 | Alerts & notifications (price alerts, daily digest email) | Planned |
+| v0.6 | Alerts & notifications (price alerts, daily digest email) | **Done** |
 | v0.7 | AI v2 (portfolio analysis, social sentiment, market regime) | Planned |
 | v0.8 | Sharing (public report URLs, PDF export, paper trading) | Planned |
 | v0.9 | Security hardening (Google OAuth, 2FA TOTP, Redis cache) | Planned |
