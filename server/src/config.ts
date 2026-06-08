@@ -55,6 +55,7 @@ export const env = {
   corsOrigin: readString(process.env.CORS_ORIGIN, "*"),
   mongodbUri: readString(process.env.MONGODB_URI),
   mongodbDbName: readString(process.env.MONGODB_DB_NAME, "findec"),
+  databaseUrl: readString(process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? process.env.NEON_DATABASE_URL),
   newsApiKey: readString(process.env.NEWSAPI_KEY ?? process.env.NEWS_API_KEY),
   finnhubKey: readString(process.env.FINNHUB_API_KEY),
   emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL),

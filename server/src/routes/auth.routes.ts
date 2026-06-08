@@ -10,7 +10,7 @@ import type { AuthSessionRecord } from "../models/AuthSession.model";
 import { toSafeUser, type UserRecord } from "../models/User.model";
 import {
   findUserByEmail,
-  getDb,
+  isPersistenceReady,
   getSessionById,
   getUserById,
   isRefreshTokenRevoked,
@@ -49,8 +49,7 @@ async function ensureAuthPersistence(res: Response): Promise<boolean> {
     return true;
   }
 
-  const db = await getDb();
-  if (db) {
+  if (isPersistenceReady()) {
     return true;
   }
 

@@ -5,7 +5,7 @@ import {
   type StockMarket,
   type GeoLocation
 } from "../utils/geolocation";
-import { getDb } from "../store/db";
+import { readStocksCache, writeStocksCache, readSnapshotCache, writeSnapshotCache } from "../store/db";
 import { env } from "../config";
 import {
   fhCompanyNews,
@@ -184,13 +184,11 @@ async function getStocksCache(
   options: { allowStale?: boolean } = {}
 ): Promise<{ stocks: StockQuoteResponse[]; indices: StockQuoteResponse[] } | null> {
   try {
-    const db = await getDb();
-    if (!db) return null;
-    const doc = await db.collection("stocks_cache").findOne({ countryCode });
+    const doc = await readStocksCache(countryCode);
     if (!doc) return null;
-    const age = Date.now() - new Date(doc.cachedAt as string).getTime();
+    const age = Date.now() - new Date(doc.cachedAt).getTime();
     if (!options.allowStale && age > STOCK_CACHE_TTL_MS) return null;
-    return { stocks: doc.stocks as StockQuoteResponse[], indices: doc.indices as StockQuoteResponse[] };
+    return { stocks: doc.stocks, indices: doc.indices };
   } catch {
     return null;
   }
@@ -198,24 +196,16 @@ async function getStocksCache(
 
 async function setStocksCache(countryCode: string, stocks: StockQuoteResponse[], indices: StockQuoteResponse[]): Promise<void> {
   try {
-    const db = await getDb();
-    if (!db) return;
-    await db.collection("stocks_cache").updateOne(
-      { countryCode },
-      { $set: { countryCode, stocks, indices, cachedAt: new Date().toISOString() } },
-      { upsert: true }
-    );
+    await writeStocksCache(countryCode, stocks, indices);
   } catch { /* non-critical */ }
 }
 
 // ─── MongoDB snapshot cache ───────────────────────────────────────────────────
 async function getSnapshotCache(countryCode: string): Promise<MarketSnapshotResponse["tickers"] | null> {
   try {
-    const db = await getDb();
-    if (!db) return null;
-    const doc = await db.collection("snapshot_cache").findOne({ countryCode });
+    const doc = await readSnapshotCache(countryCode);
     if (!doc) return null;
-    const age = Date.now() - new Date(doc.cachedAt as string).getTime();
+    const age = Date.now() - new Date(doc.cachedAt).getTime();
     if (age > SNAPSHOT_CACHE_STALE_MAX_MS) return null;
     return doc.tickers as MarketSnapshotResponse["tickers"];
   } catch {
@@ -225,13 +215,7 @@ async function getSnapshotCache(countryCode: string): Promise<MarketSnapshotResp
 
 async function setSnapshotCache(countryCode: string, tickers: MarketSnapshotResponse["tickers"]): Promise<void> {
   try {
-    const db = await getDb();
-    if (!db) return;
-    await db.collection("snapshot_cache").updateOne(
-      { countryCode },
-      { $set: { countryCode, tickers, cachedAt: new Date().toISOString() } },
-      { upsert: true }
-    );
+    await writeSnapshotCache(countryCode, tickers as unknown[]);
   } catch { /* non-critical */ }
 }
 

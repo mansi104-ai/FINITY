@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.1.0] — 2026-06-08
+
+### Changed
+- **Persistence migrated from MongoDB → Neon Postgres** (serverless). MongoDB Atlas was unreachable from Vercel (auth returned 503). `store/db.ts` now uses `@neondatabase/serverless` with the same function signatures, so no controller logic changed. Records are stored as `jsonb` blobs in per-entity tables (`users`, `auth_sessions`, `queries`, `reports`, `revoked_refresh_tokens`, `watchlists`, `notifications`, `price_alerts`, `paper_accounts`, `stocks_cache`, `snapshot_cache`); schema is created idempotently on first query.
+- The in-memory fallback is preserved for local dev (when `DATABASE_URL` is unset).
+- `ensureAuthPersistence` now checks `isPersistenceReady()`; market caches use new `read/writeStocksCache` + `read/writeSnapshotCache` helpers instead of raw Mongo collections.
+
+### Ops
+- **Set `DATABASE_URL`** in Vercel to a Neon Postgres connection string to enable auth/persistence in production. Local auth roundtrip (register/login) verified against the in-memory path; the Postgres path activates once `DATABASE_URL` is set.
+
+---
+
 ## [v1.0.0] — 2026-06-08 — Production launch 🚀
 
 ### Added

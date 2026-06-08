@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v1.0.0**
+**Current version: v1.1.0**
 
 ---
 
@@ -68,9 +68,9 @@ npm run dev                  # Next.js dev on port 3000
 
 | Variable | Required | Description |
 |---|---|---|
-| `PORT` | No | Server port (default 3001) |
-| `MONGODB_URI` | No | MongoDB Atlas connection string. Omit for in-memory dev mode. |
-| `MONGODB_DB_NAME` | No | Database name (default `findec`) |
+| `PORT` | No | Server port (default 4000) |
+| `DATABASE_URL` | **Prod** | Neon Postgres connection string (also accepts `POSTGRES_URL`/`NEON_DATABASE_URL`). Required for auth/persistence in production. Omit for in-memory dev mode. |
+| `MONGODB_URI` | — | Legacy (no longer used; persistence moved to Neon Postgres in v1.1.0). |
 | `JWT_SECRET` | Yes | Secret for signing access tokens (15 min TTL) |
 | `JWT_REFRESH_SECRET` | Yes | Secret for signing refresh tokens |
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI Brief |
