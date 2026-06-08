@@ -730,6 +730,14 @@ type ResearchResponse = {
 async function loadDetailedStocks(countryCode: string): Promise<StockQuoteResponse[]> {
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
   const symbols = getTrackedSymbolsForCountry(countryCode);
+
+  // Reuse the recent market cache first so repeated page loads do not keep
+  // exhausting upstream quote budgets on deployments.
+  const freshCache = await getStocksCache(countryCode);
+  if (freshCache && (freshCache.stocks.length > 0 || freshCache.indices.length > 0)) {
+    return [...freshCache.stocks, ...freshCache.indices];
+  }
+
   try {
     const all = await fetchDetailedQuotes(symbols, countryCode);
     const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
