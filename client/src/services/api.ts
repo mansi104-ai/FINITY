@@ -116,10 +116,10 @@ async function unauthenticatedRequest<T>(path: string, init: RequestInit = {}): 
   throw lastError ?? new Error("Request failed");
 }
 
-async function loginDemoUser(email: string, password: string): Promise<AuthResponse> {
+async function loginDemoUser(email: string, password: string, totp?: string): Promise<AuthResponse> {
   return unauthenticatedRequest<AuthResponse>("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password, ...(totp ? { totp } : {}) })
   });
 }
 
@@ -173,7 +173,7 @@ function requiresAuth(path: string): boolean {
     path.startsWith("/api/profile") || path.startsWith("/api/watchlist") ||
     path.startsWith("/api/notifications") || path.startsWith("/api/alerts") ||
     path.startsWith("/api/insights/portfolio") || path.startsWith("/api/paper") ||
-    path.startsWith("/api/auth/logout");
+    path.startsWith("/api/auth/2fa") || path.startsWith("/api/auth/logout");
 }
 
 function getCachedReport(reportId: string): AgentReport | null {
@@ -339,11 +339,29 @@ export function searchStocks(q: string): Promise<{ results: StockSearchResult[] 
 
 // ─── Auth UX helpers ──────────────────────────────────────────────────────────
 
-export async function loginUser(email: string, password: string): Promise<AuthResponse> {
-  const response = await loginDemoUser(email, password);
+export async function loginUser(email: string, password: string, totp?: string): Promise<AuthResponse> {
+  const response = await loginDemoUser(email, password, totp);
   setAccessToken(response.accessToken);
   saveSessionUser(response.user);
   return response;
+}
+
+// ─── 2FA (TOTP) API ─────────────────────────────────────────────────────────
+
+export function get2faStatus(): Promise<{ enabled: boolean }> {
+  return request<{ enabled: boolean }>("/api/auth/2fa/status");
+}
+
+export function enroll2fa(): Promise<{ secret: string; otpauthUri: string }> {
+  return request<{ secret: string; otpauthUri: string }>("/api/auth/2fa/enroll", { method: "POST" });
+}
+
+export function activate2fa(token: string): Promise<{ enabled: boolean }> {
+  return request<{ enabled: boolean }>("/api/auth/2fa/activate", { method: "POST", body: JSON.stringify({ token }) });
+}
+
+export function disable2fa(token: string): Promise<{ enabled: boolean }> {
+  return request<{ enabled: boolean }>("/api/auth/2fa/disable", { method: "POST", body: JSON.stringify({ token }) });
 }
 
 export async function registerUser(email: string, password: string): Promise<AuthResponse> {

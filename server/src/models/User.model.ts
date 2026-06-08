@@ -8,6 +8,10 @@ export interface UserRecord {
   budget: number;
   riskProfile: RiskProfile;
   createdAt: string;
+  /** TOTP 2FA. `totpPending` holds an unconfirmed secret during enrollment. */
+  totpEnabled?: boolean;
+  totpSecret?: string;
+  totpPending?: string;
 }
 
 export interface SafeUser {

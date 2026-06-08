@@ -21,6 +21,7 @@ import {
   saveUser,
 } from "../store/db";
 import type { RevokedRefreshTokenRecord } from "../models/RevokedRefreshToken.model";
+import { generateBase32Secret, otpauthUri, verifyTotp } from "../services/totp";
 
 type TokenType = "access" | "refresh";
 
@@ -249,6 +250,17 @@ authRoutes.post("/login", authRateLimiter, async (req, res, next) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Second factor: if TOTP 2FA is enabled, a valid 6-digit code is required.
+    if (user.totpEnabled && user.totpSecret) {
+      const code = typeof req.body?.totp === "string" ? req.body.totp : "";
+      if (!code) {
+        return res.status(401).json({ error: "2FA code required", twoFactorRequired: true });
+      }
+      if (!verifyTotp(user.totpSecret, code)) {
+        return res.status(401).json({ error: "Invalid 2FA code", twoFactorRequired: true });
+      }
+    }
+
     const tokens = await issueSessionTokens(user);
     setRefreshCookie(res, tokens.refreshToken);
     return res.status(200).json({ ...tokens, user: toSafeUser(user) });
@@ -374,6 +386,72 @@ authRoutes.post("/logout-all", authSessionRateLimiter, authMiddleware, async (re
   } catch (error) {
     return next(error);
   }
+});
+
+// ─── TOTP 2FA (dependency-free) ─────────────────────────────────────────────
+
+const totpVerifySchema = z.object({ token: z.string().trim().regex(/^\d{6}$/) });
+
+// Status: is 2FA currently enabled for the signed-in user?
+authRoutes.get("/2fa/status", authMiddleware, async (req, res, next) => {
+  try {
+    const user = await getUserById(req.authUser!.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    return res.status(200).json({ enabled: Boolean(user.totpEnabled) });
+  } catch (error) { return next(error); }
+});
+
+// Begin enrollment: generate a pending secret + otpauth URI for the QR code.
+authRoutes.post("/2fa/enroll", authSessionRateLimiter, authMiddleware, async (req, res, next) => {
+  try {
+    const user = await getUserById(req.authUser!.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.totpEnabled) return res.status(409).json({ error: "2FA is already enabled" });
+
+    const secret = generateBase32Secret();
+    await saveUser({ ...user, totpPending: secret });
+    return res.status(200).json({ secret, otpauthUri: otpauthUri(user.email, secret) });
+  } catch (error) { return next(error); }
+});
+
+// Activate: confirm a code generated from the pending secret, then enable.
+authRoutes.post("/2fa/activate", authSessionRateLimiter, authMiddleware, async (req, res, next) => {
+  try {
+    const parsed = totpVerifySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "A 6-digit code is required" });
+
+    const user = await getUserById(req.authUser!.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user.totpPending) return res.status(400).json({ error: "Start enrollment first" });
+    if (!verifyTotp(user.totpPending, parsed.data.token)) {
+      return res.status(401).json({ error: "Code did not match — check your authenticator app" });
+    }
+
+    const { totpPending, ...rest } = user;
+    void totpPending;
+    await saveUser({ ...rest, totpSecret: user.totpPending, totpEnabled: true });
+    return res.status(200).json({ enabled: true });
+  } catch (error) { return next(error); }
+});
+
+// Disable: requires a valid current code to turn 2FA off.
+authRoutes.post("/2fa/disable", authSessionRateLimiter, authMiddleware, async (req, res, next) => {
+  try {
+    const parsed = totpVerifySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "A 6-digit code is required" });
+
+    const user = await getUserById(req.authUser!.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user.totpEnabled || !user.totpSecret) return res.status(400).json({ error: "2FA is not enabled" });
+    if (!verifyTotp(user.totpSecret, parsed.data.token)) {
+      return res.status(401).json({ error: "Invalid 2FA code" });
+    }
+
+    const { totpSecret, totpPending, totpEnabled, ...rest } = user;
+    void totpSecret; void totpPending; void totpEnabled;
+    await saveUser({ ...rest });
+    return res.status(200).json({ enabled: false });
+  } catch (error) { return next(error); }
 });
 
 export default authRoutes;

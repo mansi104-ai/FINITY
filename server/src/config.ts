@@ -21,12 +21,22 @@ function readString(value: string | undefined, fallback = ""): string {
   return (value ?? fallback).trim();
 }
 
-if (nodeEnv === "production" && jwtSecret === "findec-dev-secret") {
-  console.warn("WARNING: JWT_SECRET should be configured in production! Using fallback for now.");
-}
-
-if (nodeEnv === "production" && jwtRefreshSecret === "findec-dev-refresh-secret") {
-  console.warn("WARNING: JWT_REFRESH_SECRET should be configured in production! Using fallback for now.");
+// In production, signing with the dev fallback secret is unsafe. By default we warn
+// loudly (so we never brick a running deploy that hasn't set env vars yet). Set
+// `ENFORCE_SECRETS=true` to upgrade this to a hard boot-time failure once secrets
+// are provisioned.
+const enforceSecrets = (process.env.ENFORCE_SECRETS ?? "").trim() === "true";
+if (nodeEnv === "production") {
+  const usingDefaultAccess = jwtSecret === "findec-dev-secret";
+  const usingDefaultRefresh = jwtRefreshSecret === "findec-dev-refresh-secret";
+  if (usingDefaultAccess || usingDefaultRefresh) {
+    const which = [usingDefaultAccess && "JWT_SECRET", usingDefaultRefresh && "JWT_REFRESH_SECRET"]
+      .filter(Boolean).join(" and ");
+    if (enforceSecrets) {
+      throw new Error(`${which} must be set in production — refusing to start with the dev fallback (ENFORCE_SECRETS=true).`);
+    }
+    console.warn(`WARNING: ${which} is the dev fallback in production. Set real secrets and ENFORCE_SECRETS=true.`);
+  }
 }
 
 export const env = {

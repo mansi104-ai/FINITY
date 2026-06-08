@@ -3585,6 +3585,25 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
 
+/* ── 2FA security card (v0.9) ── */
+.twofa-secret {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 0.45rem 0.7rem;
+  margin: 0.3rem 0 0.6rem;
+  color: #f4efe6;
+  word-break: break-all;
+}
+.twofa-uri-note { font-size: 0.74rem; }
+.twofa-uri { color: #777; word-break: break-all; }
+.twofa-confirm-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.4rem; }
+.twofa-msg { color: #58d08c; font-size: 0.85rem; margin-top: 0.6rem; }
+
 /* ── Sharing + PDF export (v0.8) ── */
 .report-actions {
   display: flex;

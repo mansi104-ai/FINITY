@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.9.0] — 2026-06-08
+
+### Added
+- **TOTP 2FA (dependency-free)** — RFC 6238 time-based one-time codes implemented with Node `crypto` (HMAC-SHA1) + RFC 4648 base32; no new packages. New `/security` page (reachable by clicking your username) to enroll (shows secret + `otpauth://` URI for QR import), confirm, and disable 2FA. Endpoints: `GET /api/auth/2fa/status`, `POST /api/auth/2fa/{enroll,activate,disable}`.
+- **2FA-gated login** — when enabled, `POST /api/auth/login` requires a valid 6-digit `totp`; the login page shows a code field on the `twoFactorRequired` challenge. Verification allows ±1 time-step drift.
+
+### Security
+- **Production secret enforcement** — in production the server warns loudly when `JWT_SECRET`/`JWT_REFRESH_SECRET` are the dev fallbacks, and *refuses to boot* once `ENFORCE_SECRETS=true` is set (opt-in so it never bricks a deploy that hasn't provisioned secrets yet).
+- **Hardened headers** — explicit Helmet config: HSTS (180d, includeSubDomains) in production, `Referrer-Policy: no-referrer`, cross-origin resource policy for the JSON API.
+- **Per-IP write rate limiting** — new `apiWriteRateLimiter` (60 req/min/IP) applied to `/api/alerts` and `/api/paper`.
+
+### Notes
+- The TOTP roundtrip was verified locally (current code accepted, ±1 drift accepted, wrong/±2 rejected).
+
+---
+
 ## [v0.8.0] — 2026-06-08
 
 ### Added

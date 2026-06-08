@@ -16,13 +16,24 @@ import insightsRoutes from "./routes/insights.routes";
 import paperRoutes from "./routes/paper.routes";
 import publicRoutes from "./routes/public.routes";
 import { startMorningDigestJobs } from "./jobs/morningDigest";
+import { apiWriteRateLimiter } from "./middleware/rateLimiter";
 import { env } from "./config";
 
 const app = express();
 
 app.set("trust proxy", env.trustProxy);
 app.disable("x-powered-by");
-app.use(helmet());
+app.use(
+  helmet({
+    // API is JSON-only and cross-origin (separate client deploy); relax CSP/COEP that
+    // would otherwise block the SPA, but keep the security-relevant headers strict.
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    referrerPolicy: { policy: "no-referrer" },
+    hsts: env.isProduction ? { maxAge: 15552000, includeSubDomains: true } : false,
+  })
+);
 app.use(
   cors({
     origin: env.corsOrigin === "*" ? true : env.corsOrigin,
@@ -43,9 +54,9 @@ app.use("/api/query", queryRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/watchlist", watchlistRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/alerts", alertRoutes);
+app.use("/api/alerts", apiWriteRateLimiter, alertRoutes);
 app.use("/api/insights", insightsRoutes);
-app.use("/api/paper", paperRoutes);
+app.use("/api/paper", apiWriteRateLimiter, paperRoutes);
 app.use("/api/public", publicRoutes);
 
 app.use((_req, res) => {

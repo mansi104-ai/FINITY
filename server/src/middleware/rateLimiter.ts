@@ -41,6 +41,16 @@ export const authRateLimiter = rateLimit({
   message: { error: `Too many authentication attempts. Try again later.` }
 });
 
+// Generic per-IP limiter for mutating/data endpoints (alerts, paper, share, etc.)
+export const apiWriteRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: (req) => req.ip ?? "unknown",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please slow down." }
+});
+
 export const authSessionRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: env.authAttemptsPer15Minutes * 2,

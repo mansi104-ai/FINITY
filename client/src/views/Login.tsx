@@ -9,6 +9,8 @@ export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState("");
+  const [needs2fa, setNeeds2fa] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -17,10 +19,16 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await loginUser(email.trim(), password);
+      await loginUser(email.trim(), password, needs2fa ? totp.trim() : undefined);
       router.push("/watchlist");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed. Check your credentials.");
+      const msg = err instanceof Error ? err.message : "Login failed. Check your credentials.";
+      if (/2fa code/i.test(msg)) {
+        setNeeds2fa(true);
+        setError(needs2fa ? "Invalid 2FA code — try again." : "Enter the 6-digit code from your authenticator app.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -59,9 +67,24 @@ export default function Login() {
               autoComplete="current-password"
             />
           </div>
+          {needs2fa && (
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="totp">2FA code</label>
+              <input
+                id="totp"
+                className="auth-input"
+                inputMode="numeric"
+                placeholder="123456"
+                value={totp}
+                onChange={(e) => setTotp(e.target.value)}
+                autoComplete="one-time-code"
+                autoFocus
+              />
+            </div>
+          )}
           {error && <p className="auth-error">{error}</p>}
           <button className="auth-btn" type="submit" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in…" : needs2fa ? "Verify & sign in" : "Sign in"}
           </button>
         </form>
 

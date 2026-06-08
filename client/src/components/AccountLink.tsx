@@ -20,9 +20,9 @@ export default function AccountLink() {
   if (email) {
     return (
       <div className="findec-account-wrap">
-        <span className="findec-account-email" title={email}>
+        <Link className="findec-account-email" href="/security" title={`${email} — account & security`}>
           {email.split("@")[0]}
-        </span>
+        </Link>
         <button
           className="findec-topnav-link findec-logout-btn"
           onClick={() => { void logoutUser().then(() => { setEmail(null); window.location.href = "/login"; }); }}
