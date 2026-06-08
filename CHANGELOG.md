@@ -5,6 +5,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.4.0] — 2026-06-08
+
+### Added
+- **Advanced charting on the stock detail page** — new `AdvancedChart` component renders SVG candlesticks (OHLC) with selectable ranges (1M/3M/6M/1Y/2Y).
+- **Technical indicators (all computed client-side, no extra dependencies)**:
+  - **Bollinger Bands** (20-period SMA ± 2σ) and **SMA 20/50** as toggleable price overlays.
+  - **RSI (14)** sub-pane with 30/70 overbought/oversold guides and live reading.
+  - **MACD (12, 26, 9)** sub-pane with MACD line, signal line, and histogram.
+- **Server candle endpoint** — `GET /api/market/candles/:ticker?range=` returns OHLCV from Yahoo Finance `v8/finance/chart` with the same `query1 → query2` retry fallback used elsewhere. Supported ranges: 1mo, 3mo, 6mo, 1y (daily), 2y, 5y (weekly).
+- Types `Candle` / `CandlesResponse` and `getCandles()` API client helper.
+
+### Notes
+- Charting is intentionally dependency-free (hand-rolled SVG + pure indicator math) to keep the Vercel bundle small and the build fast. The advanced chart is shown for equities, not indices.
+
+---
+
+## [v0.3.0] — 2026-05-27
+
+### Added
+- **Live-only market data** — removed all static fallback price data. Quotes and history now always reflect live sources, never stale hardcoded numbers.
+- **Finnhub integration** — `finnhub.ts` service wrapping quote, profile, metrics, company/market news, earnings calendar, IPO calendar, and analyst recommendations. Used as a live fallback when Yahoo Finance blocks Vercel's cloud IPs, and to enrich stock detail (52w range, beta, P/E, P/B, EPS, dividend yield).
+- **Earnings calendar page** (`/earnings`) — upcoming and recent earnings with EPS estimate vs. actual.
+- **IPO calendar** — upcoming IPOs via `GET /api/market/ipo`.
+- **Analyst recommendations** — consensus buy/hold/sell breakdown on the stock detail page via `GET /api/market/recommendations/:ticker`.
+- **Location-independent Finnhub fallback** — when Yahoo is blocked, the snapshot/stocks endpoints serve live US equities regardless of detected geolocation.
+
+### Changed
+- `getStockDetailController` now layers Yahoo → Finnhub quote → Finnhub metric enrichment.
+- MongoDB connection failures on Vercel are handled gracefully (in-memory fallback) instead of crashing the function.
+
+---
+
 ## [v0.2.0] — 2026-05-27
 
 ### Added

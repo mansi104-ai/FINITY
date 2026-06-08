@@ -314,6 +314,25 @@ export interface NewsResponse {
   note?: string;
 }
 
+export interface Candle {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface CandlesResponse {
+  symbol: string;
+  name: string;
+  currency: string;
+  range: string;
+  interval: string;
+  candles: Candle[];
+  source: "yahoo";
+}
+
 export interface WatchlistEntry {
   ticker: string;
   label: string;

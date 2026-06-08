@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getAnalystRecommendations, getMarketHistory, getNews, getStockDetail } from "../services/api";
 import type { AnalystRecommendation, MarketHistory, NewsArticle, StockQuote } from "../types";
+import AdvancedChart from "../components/AdvancedChart";
 
 function toChartPoints(points: MarketHistory["points"], w: number, h: number): string {
   if (!points.length) return "";
@@ -228,6 +229,9 @@ export default function StockDetail({ ticker }: { ticker: string }) {
                 </svg>
               </div>
             </article>
+
+            {/* ── Advanced chart (candlesticks, RSI, MACD, Bollinger) ── */}
+            {!stock.isIndex && <AdvancedChart ticker={ticker} />}
 
             {/* ── Two-col: Valuation + Technicals ── */}
             <div className="stk-two-col">

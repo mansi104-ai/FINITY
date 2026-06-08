@@ -3517,6 +3517,44 @@ html[data-theme="dark"] .single-note-card-accent {
   stroke-width: 1;
 }
 
+/* ── Advanced chart (v0.4) ── */
+.adv-chart-controls { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.adv-chart-toggles {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.5rem 0 0.75rem;
+}
+.adv-toggle-group { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+.adv-toggle-label { font-size: 0.7rem; color: #777; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.2rem; }
+.adv-chip {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  color: #b8b2a6;
+  border-radius: 6px;
+  padding: 0.22rem 0.6rem;
+  font-size: 0.74rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.adv-chip:hover { border-color: #3a3a3a; color: #f4efe6; }
+.adv-chip-on { background: #246bff; border-color: #246bff; color: #fff; }
+.adv-axis-text { fill: #777; font-size: 9px; }
+.adv-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: #999;
+  margin-top: 0.4rem;
+}
+.adv-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.adv-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.adv-subpane { margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid #1e1e1e; }
+.adv-subpane-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.3rem; }
+.adv-subpane-head strong { font-size: 0.85rem; font-weight: 500; }
+
 .stk-two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;

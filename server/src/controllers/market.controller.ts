@@ -451,6 +451,80 @@ async function fetchHistory(ticker: string): Promise<MarketHistoryResponse> {
   };
 }
 
+// ─── Candle (OHLC) fetch — powers advanced charting (candlesticks, RSI, MACD, BBands) ───
+type Candle = { date: string; open: number; high: number; low: number; close: number; volume: number };
+type CandlesResponse = {
+  symbol: string;
+  name: string;
+  currency: string;
+  range: string;
+  interval: string;
+  candles: Candle[];
+  source: "yahoo";
+};
+
+const ALLOWED_CANDLE_RANGES: Record<string, string> = {
+  "1mo": "1d", "3mo": "1d", "6mo": "1d", "1y": "1d", "2y": "1wk", "5y": "1wk",
+};
+
+async function fetchCandles(ticker: string, range: string): Promise<CandlesResponse> {
+  const interval = ALLOWED_CANDLE_RANGES[range] ?? "1d";
+  const chartParams = { range, interval, includePrePost: false };
+  let rawData: unknown;
+  try {
+    const response = await axios.get(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
+      { params: chartParams, timeout: 9000, headers: YAHOO_REQUEST_HEADERS }
+    );
+    rawData = response.data;
+  } catch {
+    const response = await axios.get(
+      `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
+      { params: chartParams, timeout: 9000, headers: YAHOO_REQUEST_HEADERS }
+    );
+    rawData = response.data;
+  }
+
+  const result = (rawData as { chart?: { result?: unknown[] } })?.chart?.result?.[0] as {
+    meta?: { symbol?: string; shortName?: string; longName?: string; currency?: string };
+    timestamp?: number[];
+    indicators?: { quote?: Array<{ open?: Array<number | null>; high?: Array<number | null>; low?: Array<number | null>; close?: Array<number | null>; volume?: Array<number | null> }> };
+  } | undefined;
+
+  const meta = result?.meta;
+  const timestamps = result?.timestamp;
+  const quote = result?.indicators?.quote?.[0];
+  if (!meta || !timestamps?.length || !quote?.close?.length) throw new Error("No candle data");
+
+  const candles: Candle[] = timestamps
+    .map((ts, i) => {
+      const o = quote.open?.[i];
+      const h = quote.high?.[i];
+      const l = quote.low?.[i];
+      const c = quote.close?.[i];
+      const v = quote.volume?.[i];
+      if (typeof c !== "number" || !Number.isFinite(c)) return null;
+      const open = typeof o === "number" && Number.isFinite(o) ? o : c;
+      const high = typeof h === "number" && Number.isFinite(h) ? h : Math.max(open, c);
+      const low = typeof l === "number" && Number.isFinite(l) ? l : Math.min(open, c);
+      return {
+        date: new Date(ts * 1000).toISOString(),
+        open: +open.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2),
+        close: +c.toFixed(2), volume: typeof v === "number" && Number.isFinite(v) ? v : 0,
+      };
+    })
+    .filter((p): p is Candle => p !== null);
+
+  if (candles.length < 10) throw new Error("Insufficient candle data");
+
+  return {
+    symbol: meta.symbol ?? ticker,
+    name: meta.shortName ?? meta.longName ?? ticker,
+    currency: meta.currency ?? "USD",
+    range, interval, candles, source: "yahoo",
+  };
+}
+
 // ─── News helpers ─────────────────────────────────────────────────────────────
 const BULLISH_WORDS = ["surge", "rally", "gain", "profit", "beat", "record", "strong", "growth", "upgrade", "buy", "soar", "rise", "bull", "positive", "outperform", "boom", "breakout"];
 const BEARISH_WORDS = ["fall", "drop", "miss", "loss", "decline", "sell", "crash", "weak", "downgrade", "cut", "bear", "negative", "underperform", "concern", "risk", "plunge", "slump", "recession"];
@@ -652,6 +726,18 @@ export async function getMarketHistoryController(req: Request, res: Response) {
     return res.status(200).json(await fetchHistory(ticker));
   } catch {
     return res.status(502).json({ error: `Live history is unavailable for "${ticker}" right now.` });
+  }
+}
+
+export async function getCandlesController(req: Request, res: Response) {
+  const ticker = String(req.params.ticker ?? "").trim().toUpperCase();
+  if (!ticker) return res.status(400).json({ error: "Ticker is required" });
+  const rawRange = String(req.query.range ?? "6mo").toLowerCase();
+  const range = ALLOWED_CANDLE_RANGES[rawRange] ? rawRange : "6mo";
+  try {
+    return res.status(200).json(await fetchCandles(ticker, range));
+  } catch {
+    return res.status(502).json({ error: `Candle data is unavailable for "${ticker}" right now.` });
   }
 }
 
