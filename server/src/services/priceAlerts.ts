@@ -10,6 +10,8 @@ import {
 import type { PriceAlertRecord } from "../models/PriceAlert.model";
 import type { NotificationRecord } from "../models/Notification.model";
 import { sendEmail } from "./email";
+import { fhQuote } from "./finnhub";
+import { env } from "../config";
 
 const YAHOO_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -36,15 +38,24 @@ export async function fetchLivePrices(symbols: string[]): Promise<Record<string,
     const r = resp.data?.quoteResponse?.result ?? [];
     if (r.length) return parse(r);
   } catch { /* fall through */ }
+  let out: Record<string, number> = {};
   try {
     const resp = await axios.get<{ quoteResponse?: { result?: Array<{ symbol?: string; regularMarketPrice?: number }> } }>(
       "https://query2.finance.yahoo.com/v7/finance/quote",
       { params, headers: YAHOO_HEADERS, timeout: 8000 }
     );
-    return parse(resp.data?.quoteResponse?.result ?? []);
-  } catch {
-    return {};
+    out = parse(resp.data?.quoteResponse?.result ?? []);
+  } catch { /* Yahoo blocked — fall back to Finnhub below */ }
+
+  // Finnhub fallback for any symbols Yahoo didn't return (e.g. blocked cloud IP).
+  if (env.finnhubKey) {
+    const missing = [...new Set(symbols)].filter((s) => out[s] == null && !s.startsWith("^"));
+    const results = await Promise.allSettled(missing.map((s) => fhQuote(s)));
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled" && typeof r.value.c === "number" && r.value.c > 0) out[missing[i]] = r.value.c;
+    });
   }
+  return out;
 }
 
 function isTriggered(alert: PriceAlertRecord, price: number): boolean {

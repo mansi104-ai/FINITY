@@ -25,6 +25,7 @@ const memoryPaperAccounts = new Map<string, PaperAccountRecord>();
 const memoryLedgers = new Map<string, LedgerRecord>();
 const memoryStocksCache = new Map<string, { stocks: StockQuoteResponse[]; indices: StockQuoteResponse[]; cachedAt: string }>();
 const memorySnapshotCache = new Map<string, { tickers: unknown[]; cachedAt: string }>();
+const memoryQuoteCache = new Map<string, { data: StockQuoteResponse; cachedAt: string }>();
 
 // ─── Neon Postgres (serverless) ────────────────────────────────────────────────
 type Sql = NeonQueryFunction<false, false>;
@@ -44,6 +45,7 @@ async function ensureSchema(client: Sql): Promise<void> {
   await client`CREATE TABLE IF NOT EXISTS ledgers (user_id text PRIMARY KEY, data jsonb NOT NULL)`;
   await client`CREATE TABLE IF NOT EXISTS stocks_cache (country_code text PRIMARY KEY, stocks jsonb NOT NULL, indices jsonb NOT NULL, cached_at timestamptz NOT NULL)`;
   await client`CREATE TABLE IF NOT EXISTS snapshot_cache (country_code text PRIMARY KEY, tickers jsonb NOT NULL, cached_at timestamptz NOT NULL)`;
+  await client`CREATE TABLE IF NOT EXISTS quotes_cache (symbol text PRIMARY KEY, data jsonb NOT NULL, cached_at timestamptz NOT NULL)`;
   await client`CREATE INDEX IF NOT EXISTS idx_reports_user ON reports (user_id, created_at DESC)`;
   await client`CREATE INDEX IF NOT EXISTS idx_reports_slug ON reports (public_slug)`;
   await client`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, created_at DESC)`;
@@ -371,6 +373,22 @@ export async function readSnapshotCache(countryCode: string): Promise<{ tickers:
   const rows = await q`SELECT tickers, cached_at FROM snapshot_cache WHERE country_code = ${countryCode}`;
   if (!rows[0]) return null;
   return { tickers: rows[0].tickers as unknown[], cachedAt: new Date(rows[0].cached_at as string).toISOString() };
+}
+
+export async function readQuoteCache(symbol: string): Promise<{ data: StockQuoteResponse; cachedAt: string } | null> {
+  const q = await db();
+  if (!q) return memoryQuoteCache.get(symbol) ?? null;
+  const rows = await q`SELECT data, cached_at FROM quotes_cache WHERE symbol = ${symbol}`;
+  if (!rows[0]) return null;
+  return { data: rows[0].data as StockQuoteResponse, cachedAt: new Date(rows[0].cached_at as string).toISOString() };
+}
+
+export async function writeQuoteCache(symbol: string, data: StockQuoteResponse): Promise<void> {
+  const cachedAt = new Date().toISOString();
+  const q = await db();
+  if (!q) { memoryQuoteCache.set(symbol, { data, cachedAt }); return; }
+  await q`INSERT INTO quotes_cache (symbol, data, cached_at) VALUES (${symbol}, ${J(data)}::jsonb, ${cachedAt})
+          ON CONFLICT (symbol) DO UPDATE SET data = EXCLUDED.data, cached_at = EXCLUDED.cached_at`;
 }
 
 export async function writeSnapshotCache(countryCode: string, tickers: unknown[]): Promise<void> {

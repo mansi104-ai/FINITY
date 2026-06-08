@@ -5,7 +5,7 @@ import {
   type StockMarket,
   type GeoLocation
 } from "../utils/geolocation";
-import { readStocksCache, writeStocksCache, readSnapshotCache, writeSnapshotCache } from "../store/db";
+import { readStocksCache, writeStocksCache, readSnapshotCache, writeSnapshotCache, readQuoteCache, writeQuoteCache } from "../store/db";
 import { env } from "../config";
 import {
   fhCompanyNews,
@@ -930,6 +930,16 @@ export async function getStockDetailController(req: Request, res: Response) {
   else if (ticker.endsWith(".SS") || ticker.endsWith(".SZ")) countryCode = "CN";
 
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+  const QUOTE_CACHE_FRESH_MS = 10 * 60 * 1000;
+
+  // 0. Fresh per-symbol cache — avoids re-hitting rate-limited upstreams for
+  //    repeat detail/brief/compare loads of the same ticker.
+  try {
+    const cached = await readQuoteCache(ticker);
+    if (cached && Date.now() - new Date(cached.cachedAt).getTime() < QUOTE_CACHE_FRESH_MS) {
+      return res.status(200).json(cached.data);
+    }
+  } catch { /* cache optional */ }
 
   // 1. Yahoo Finance detailed quote
   let quote: StockQuoteResponse | undefined;
@@ -983,7 +993,23 @@ export async function getStockDetailController(req: Request, res: Response) {
     }
   }
 
-  if (quote) return res.status(200).json(quote);
+  if (quote && quote.price > 0) {
+    void writeQuoteCache(ticker, quote);
+    return res.status(200).json(quote);
+  }
+
+  // 4. Fallbacks when live sources are blocked/rate-limited: stale per-symbol
+  //    cache, then the recently-cached batch stocks list for this market.
+  try {
+    const stale = await readQuoteCache(ticker);
+    if (stale?.data) return res.status(200).json(stale.data);
+  } catch { /* ignore */ }
+  try {
+    const cachedList = await readStocksCache(countryCode);
+    const found = [...(cachedList?.stocks ?? []), ...(cachedList?.indices ?? [])]
+      .find((s) => s.symbol.toUpperCase() === ticker);
+    if (found) return res.status(200).json(found);
+  } catch { /* ignore */ }
 
   return res.status(502).json({ error: `Live quote unavailable for "${ticker}". Please try again.` });
 }

@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.7.0] — 2026-06-09
+
+### Fixed
+- **Flapping "data unavailable" + broken Detail/earnings-stock pages (#1, #2, #5, #8)** — the single-quote endpoint was intermittently failing because the batch endpoints exhaust Finnhub's free 60/min budget (Yahoo is blocked from Vercel). Added a cross-invocation **per-symbol quote cache** (`quotes_cache`, ~10 min fresh) so detail/brief/compare reuse data instead of re-hitting upstreams, plus fallbacks to the stale per-symbol cache and the recently-cached batch stocks list. Clicking "Detail" in the watchlist or a symbol in Earnings now reliably loads the stock page.
+- **Price alerts never triggered (#3)** — the alert price-fetch used Yahoo only, which is blocked from Vercel, so no alert ever fired. Added a Finnhub fallback for any symbols Yahoo doesn't return, so alerts now evaluate against live prices (via the NotificationBell poll → `/api/alerts/check`).
+
+---
+
 ## [v1.6.0] — 2026-06-08
 
 ### Fixed
