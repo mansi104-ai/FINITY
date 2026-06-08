@@ -1,9 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { getEarnings, getIpoCalendar } from "../services/api";
 import type { EarningsEvent, IpoEvent } from "../types";
+
+// Dynamic external links built from each IPO's own data.
+function ipoLinks(ipo: IpoEvent): Array<{ label: string; href: string }> {
+  const q = encodeURIComponent(`${ipo.name} IPO`);
+  const links: Array<{ label: string; href: string }> = [
+    { label: "Google", href: `https://www.google.com/search?q=${q}` },
+    { label: "News", href: `https://news.google.com/search?q=${q}` },
+    { label: "SEC EDGAR", href: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(ipo.name)}&type=S-1&dateb=&owner=include&count=40` },
+  ];
+  if (ipo.symbol) {
+    links.unshift({ label: "Yahoo Finance", href: `https://finance.yahoo.com/quote/${encodeURIComponent(ipo.symbol)}` });
+  }
+  return links;
+}
 
 type Tab = "upcoming" | "recent" | "ipo";
 
@@ -50,6 +64,14 @@ export default function Earnings() {
   const [ipos, setIpos] = useState<IpoEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [ipoSearch, setIpoSearch] = useState("");
+  const [openIpo, setOpenIpo] = useState<number | null>(null);
+
+  const filteredIpos = useMemo(() => {
+    const q = ipoSearch.trim().toLowerCase();
+    if (!q) return ipos;
+    return ipos.filter((i) => i.name.toLowerCase().includes(q) || (i.symbol ?? "").toLowerCase().includes(q) || (i.exchange ?? "").toLowerCase().includes(q));
+  }, [ipos, ipoSearch]);
 
   useEffect(() => {
     const load = async () => {
@@ -212,8 +234,20 @@ export default function Earnings() {
         {/* ── IPO Calendar ── */}
         {!loading && !error && tab === "ipo" && (
           <div className="findec-panel earn-table-wrap">
+            <div className="ipo-search-row">
+              <input
+                className="ipo-search-input"
+                placeholder="Search IPOs by company, symbol, or exchange…"
+                value={ipoSearch}
+                onChange={(e) => setIpoSearch(e.target.value)}
+              />
+              {ipoSearch && <button className="scr-reset-btn" onClick={() => setIpoSearch("")}>Clear</button>}
+              <span className="ipo-search-count">{filteredIpos.length} of {ipos.length}</span>
+            </div>
             {ipos.length === 0 ? (
               <p className="earn-empty">No upcoming IPOs in the next 60 days.</p>
+            ) : filteredIpos.length === 0 ? (
+              <p className="earn-empty">No IPOs match &quot;{ipoSearch}&quot;.</p>
             ) : (
               <table className="earn-table">
                 <thead>
@@ -225,33 +259,61 @@ export default function Earnings() {
                     <th className="earn-th earn-th-r">Price Range</th>
                     <th className="earn-th earn-th-r earn-hide-sm">Total Value</th>
                     <th className="earn-th earn-th-c">Status</th>
+                    <th className="earn-th earn-th-c"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ipos.map((ipo, i) => {
+                  {filteredIpos.map((ipo, i) => {
                     const statusCls = ipo.status === "priced"
                       ? "earn-status-priced"
                       : ipo.status === "filed"
                         ? "earn-status-filed"
                         : "earn-status-expected";
+                    const open = openIpo === i;
                     return (
-                      <tr key={i} className="earn-row">
-                        <td className="earn-td earn-td-date">{fmtDate(ipo.date)}</td>
-                        <td className="earn-td">
-                          <span className="earn-company earn-ipo-name">{ipo.name}</span>
-                        </td>
-                        <td className="earn-td earn-td-c">
-                          {ipo.symbol
-                            ? <span className="earn-symbol">{ipo.symbol}</span>
-                            : <span className="earn-dim">TBD</span>}
-                        </td>
-                        <td className="earn-td earn-td-c earn-hide-sm">{ipo.exchange}</td>
-                        <td className="earn-td earn-td-r">{ipo.price || <span className="earn-dim">—</span>}</td>
-                        <td className="earn-td earn-td-r earn-hide-sm">{fmtIpoVal(ipo.totalSharesValue)}</td>
-                        <td className="earn-td earn-td-c">
-                          <span className={`earn-status-badge ${statusCls}`}>{ipo.status}</span>
-                        </td>
-                      </tr>
+                      <Fragment key={i}>
+                        <tr className="earn-row ipo-row" onClick={() => setOpenIpo(open ? null : i)}>
+                          <td className="earn-td earn-td-date">{fmtDate(ipo.date)}</td>
+                          <td className="earn-td">
+                            <span className="earn-company earn-ipo-name">{ipo.name}</span>
+                          </td>
+                          <td className="earn-td earn-td-c">
+                            {ipo.symbol
+                              ? <span className="earn-symbol">{ipo.symbol}</span>
+                              : <span className="earn-dim">TBD</span>}
+                          </td>
+                          <td className="earn-td earn-td-c earn-hide-sm">{ipo.exchange}</td>
+                          <td className="earn-td earn-td-r">{ipo.price || <span className="earn-dim">—</span>}</td>
+                          <td className="earn-td earn-td-r earn-hide-sm">{fmtIpoVal(ipo.totalSharesValue)}</td>
+                          <td className="earn-td earn-td-c">
+                            <span className={`earn-status-badge ${statusCls}`}>{ipo.status}</span>
+                          </td>
+                          <td className="earn-td earn-td-c ipo-toggle">{open ? "▲" : "▼"}</td>
+                        </tr>
+                        {open && (
+                          <tr className="ipo-details-row">
+                            <td className="earn-td" colSpan={8}>
+                              <div className="ipo-details">
+                                <div className="ipo-details-stats">
+                                  {ipo.numberOfShares > 0 && <span>Shares offered: <strong>{ipo.numberOfShares.toLocaleString()}</strong></span>}
+                                  {ipo.price && <span>Price range: <strong>{ipo.price}</strong></span>}
+                                  {ipo.totalSharesValue > 0 && <span>Deal size: <strong>{fmtIpoVal(ipo.totalSharesValue)}</strong></span>}
+                                  <span>Exchange: <strong>{ipo.exchange || "—"}</strong></span>
+                                </div>
+                                <div className="ipo-details-links">
+                                  <span className="findec-kicker">Research</span>
+                                  {ipoLinks(ipo).map((l) => (
+                                    <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="ipo-link" onClick={(e) => e.stopPropagation()}>{l.label} ↗</a>
+                                  ))}
+                                  {ipo.symbol && (
+                                    <Link href={`/stock/${encodeURIComponent(ipo.symbol)}`} className="ipo-link ipo-link-internal" onClick={(e) => e.stopPropagation()}>Stock page →</Link>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

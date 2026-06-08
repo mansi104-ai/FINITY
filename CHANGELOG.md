@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.3.0] — 2026-06-08
+
+### Added
+- **Interactive candle chart (#12)** — the AdvancedChart candlesticks now respond to hover and touch: a crosshair tracks the pointer and a live OHLC readout (date · open/high/low/close + volume) updates for the candle under the cursor, defaulting to the latest candle. `touch-action: none` so it works cleanly on mobile.
+- **IPO search + external links (#6)** — the Earnings → IPO tab gains a search box (filter by company, symbol, or exchange) and each row expands into a details dropdown with deal stats (shares offered, price range, deal size, exchange) and dynamic external research links (Yahoo Finance when a symbol exists, Google, Google News, SEC EDGAR S-1 search), plus an internal stock-page link.
+
+---
+
 ## [v1.2.0] — 2026-06-08
 
 ### Added

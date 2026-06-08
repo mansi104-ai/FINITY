@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getCandles } from "../services/api";
 import type { Candle } from "../types";
+
+function fmtDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
 // ─── Indicator math (all client-side, pure functions) ──────────────────────────
 function sma(values: number[], period: number): Array<number | null> {
@@ -104,11 +108,14 @@ export default function AdvancedChart({ ticker }: { ticker: string }) {
   const [pane, setPane] = useState<Pane>("rsi");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [hover, setHover] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
+    setHover(null);
     getCandles(ticker, range)
       .then((res) => { if (active) { setCandles(res.candles); setLoading(false); } })
       .catch((e: unknown) => {
@@ -157,6 +164,19 @@ export default function AdvancedChart({ ticker }: { ticker: string }) {
 
   const priceMarks = Array.from({ length: 5 }, (_, i) => yMax - (yRange / 4) * i);
 
+  // Hover/touch crosshair → OHLC readout for the candle under the pointer.
+  const activeIdx = hover != null ? hover : candles.length - 1;
+  const active = candles[activeIdx];
+  const activeUp = active.close >= active.open;
+
+  function handlePointer(e: React.PointerEvent<SVGSVGElement>) {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    const relX = ((e.clientX - rect.left) / rect.width) * W; // client px → viewBox units
+    const i = Math.round(((relX - padL) / plotW) * (candles.length - 1));
+    setHover(Math.max(0, Math.min(candles.length - 1, i)));
+  }
+
   return (
     <article className="findec-panel stk-chart-panel">
       <div className="stk-chart-top">
@@ -186,9 +206,28 @@ export default function AdvancedChart({ ticker }: { ticker: string }) {
         </div>
       </div>
 
+      {/* ── OHLC readout (updates on hover/touch; defaults to latest) ── */}
+      <div className="adv-readout">
+        <span className="adv-readout-date">{fmtDay(active.date)}{hover == null ? " · latest" : ""}</span>
+        <span>O <strong>{active.open.toFixed(2)}</strong></span>
+        <span>H <strong className="findec-subline-up">{active.high.toFixed(2)}</strong></span>
+        <span>L <strong className="findec-subline-down">{active.low.toFixed(2)}</strong></span>
+        <span>C <strong className={activeUp ? "findec-subline-up" : "findec-subline-down"}>{active.close.toFixed(2)}</strong></span>
+        <span className="adv-readout-vol">Vol {active.volume >= 1e6 ? `${(active.volume / 1e6).toFixed(1)}M` : active.volume.toLocaleString()}</span>
+      </div>
+
       {/* ── Price + candlesticks ── */}
       <div className="stk-chart-svg-wrap">
-        <svg viewBox={`0 0 ${W} ${H + 16}`} width="100%" aria-label="Advanced candlestick chart">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${W} ${H + 16}`}
+          width="100%"
+          aria-label="Advanced candlestick chart"
+          className="adv-interactive"
+          onPointerMove={handlePointer}
+          onPointerDown={handlePointer}
+          onPointerLeave={() => setHover(null)}
+        >
           {priceMarks.map((m, idx) => {
             const y = (H / 4) * idx;
             return (
@@ -232,6 +271,15 @@ export default function AdvancedChart({ ticker }: { ticker: string }) {
               </g>
             );
           })}
+
+          {/* Crosshair at the hovered candle */}
+          {hover != null && (
+            <g pointerEvents="none">
+              <line x1={xOf(hover)} y1={0} x2={xOf(hover)} y2={H} stroke="#cdd6e6" strokeWidth="0.8" strokeDasharray="3 3" opacity="0.6" />
+              <line x1={padL} y1={yOf(active.close)} x2={padL + plotW} y2={yOf(active.close)} stroke="#cdd6e6" strokeWidth="0.6" strokeDasharray="2 3" opacity="0.4" />
+              <circle cx={xOf(hover)} cy={yOf(active.close)} r="3" fill="#f4efe6" />
+            </g>
+          )}
         </svg>
       </div>
 

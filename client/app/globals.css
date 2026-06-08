@@ -3579,6 +3579,19 @@ html[data-theme="dark"] .single-note-card-accent {
 .adv-chip:hover { border-color: #3a3a3a; color: #f4efe6; }
 .adv-chip-on { background: #246bff; border-color: #246bff; color: #fff; }
 .adv-axis-text { fill: #777; font-size: 9px; }
+.adv-interactive { touch-action: none; cursor: crosshair; }
+.adv-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.9rem;
+  font-size: 0.78rem;
+  color: #999;
+  margin: 0.3rem 0 0.5rem;
+}
+.adv-readout strong { color: #f4efe6; font-weight: 500; }
+.adv-readout-date { color: #cdd6e6; font-weight: 500; }
+.adv-readout-vol { color: #777; }
 .adv-legend {
   display: flex;
   gap: 1rem;
@@ -3622,6 +3635,39 @@ html[data-theme="dark"] .single-note-card-accent {
 .rsrch-mover em { font-style: normal; font-size: 0.7rem; }
 .rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
 .rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
+
+/* ── IPO search + details dropdown (v1.3) ── */
+.ipo-search-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1rem; flex-wrap: wrap; }
+.ipo-search-input {
+  flex: 1;
+  min-width: 220px;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  color: #f4efe6;
+  border-radius: 7px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+.ipo-search-input:focus { outline: none; border-color: #246bff; }
+.ipo-search-count { font-size: 0.74rem; color: #777; }
+.ipo-row { cursor: pointer; }
+.ipo-row:hover { background: rgba(255,255,255,0.03); }
+.ipo-toggle { color: #777; font-size: 0.7rem; }
+.ipo-details-row > td { padding: 0 !important; }
+.ipo-details { padding: 0.85rem 1rem; background: #121212; border-top: 1px solid #222; display: grid; gap: 0.7rem; }
+.ipo-details-stats { display: flex; flex-wrap: wrap; gap: 1.2rem; font-size: 0.8rem; color: #999; }
+.ipo-details-stats strong { color: #f4efe6; font-weight: 500; }
+.ipo-details-links { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
+.ipo-link {
+  font-size: 0.78rem;
+  color: #246bff;
+  text-decoration: none;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 0.28rem 0.6rem;
+}
+.ipo-link:hover { border-color: #246bff; }
+.ipo-link-internal { color: #72b92b; }
 
 /* ── History card enrichment (v1.2) ── */
 .hist-company-name { font-size: 0.8rem; color: #b8b2a6; margin-left: 0.1rem; }
