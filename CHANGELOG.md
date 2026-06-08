@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.0.0] — 2026-06-08 — Production launch 🚀
+
+### Added
+- **OpenAPI 3.0 docs** — hand-written spec (dependency-free) at `GET /api/openapi.json` covering every endpoint, rendered with Swagger UI (CDN) at `GET /api/docs`.
+- **Responsive navigation** — the nav (now 10 items) collapses behind a hamburger toggle on screens ≤ 860px via a new `TopNav` client component; auto-closes on route change. Desktop layout unchanged.
+- **Error monitoring hooks** — global error handler now routes through a dependency-free `reportError()` that always logs and, if `ERROR_WEBHOOK_URL` (or `SENTRY_DSN`) is set, POSTs a structured payload (fire-and-forget, never blocks the response).
+- **Richer health endpoint** — `GET /api/health` now returns `version` and `uptimeSeconds` (`APP_VERSION` env, default `1.0.0`).
+
+### Notes
+- All client + server builds are green. The protected `QueryPage.tsx` was never modified across the entire v0.4→v1.0 program.
+
+---
+
 ## [v0.9.0] — 2026-06-08
 
 ### Added

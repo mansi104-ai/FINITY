@@ -17,9 +17,12 @@ import paperRoutes from "./routes/paper.routes";
 import publicRoutes from "./routes/public.routes";
 import { startMorningDigestJobs } from "./jobs/morningDigest";
 import { apiWriteRateLimiter } from "./middleware/rateLimiter";
+import { openapiSpec, swaggerHtml } from "./openapi";
+import { reportError } from "./services/errorReporter";
 import { env } from "./config";
 
 const app = express();
+const bootedAt = Date.now();
 
 app.set("trust proxy", env.trustProxy);
 app.disable("x-powered-by");
@@ -44,8 +47,18 @@ app.use(express.json({ limit: "100kb" }));
 app.use(morgan(env.isProduction ? "combined" : "dev"));
 
 app.get("/api/health", (_req, res) => {
-  res.status(200).json({ ok: true, service: "server", timestamp: new Date().toISOString() });
+  res.status(200).json({
+    ok: true,
+    service: "server",
+    version: env.appVersion,
+    uptimeSeconds: Math.floor((Date.now() - bootedAt) / 1000),
+    timestamp: new Date().toISOString(),
+  });
 });
+
+// ── API docs (OpenAPI 3.0 + Swagger UI) ──
+app.get("/api/openapi.json", (_req, res) => res.status(200).json(openapiSpec));
+app.get("/api/docs", (_req, res) => res.status(200).type("html").send(swaggerHtml));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/market", marketRoutes);
@@ -63,9 +76,9 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  // Avoid leaking internal details while still logging unexpected failures server-side.
-  console.error(err);
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // Avoid leaking internal details while still logging + reporting unexpected failures.
+  reportError(err, { method: req.method, path: req.path });
   res.status(500).json({ error: "Internal server error" });
 });
 

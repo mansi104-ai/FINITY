@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v0.9.0**
+**Current version: v1.0.0**
 
 ---
 
@@ -78,6 +78,8 @@ npm run dev                  # Next.js dev on port 3000
 | `FINNHUB_API_KEY` | No | Finnhub key — live fallback when Yahoo blocks cloud IPs, plus earnings/IPO/recs |
 | `EMAIL_WEBHOOK_URL` | No | Endpoint accepting `{ to, subject, text }` for digest/alert emails. Unset = emails are logged and skipped. |
 | `ENFORCE_SECRETS` | No | `true` makes the server refuse to boot in production if JWT secrets are dev fallbacks (default: warn only). |
+| `ERROR_WEBHOOK_URL` / `SENTRY_DSN` | No | Endpoint to POST structured error reports. Unset = errors only logged. |
+| `APP_VERSION` | No | Version string returned by `/api/health` (default `1.0.0`). |
 
 ### Client (`client/.env.local`)
 
@@ -91,6 +93,8 @@ npm run dev                  # Next.js dev on port 3000
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
+| GET | `/api/health` | No | Liveness + version + uptime |
+| GET | `/api/docs` · `/api/openapi.json` | No | Swagger UI + OpenAPI 3.0 spec |
 | GET | `/api/market/snapshot` | No | Market overview + geo-detected market status |
 | GET | `/api/market/stocks` | No | Full stock list with fundamentals (MongoDB cache, 30 min TTL) |
 | GET | `/api/market/research` | No | Sector heatmap summaries + dividend tracker list |
@@ -143,7 +147,7 @@ npm run dev                  # Next.js dev on port 3000
 | v0.7 | AI v2 (portfolio analysis, market regime) | **Done** |
 | v0.8 | Sharing (public report URLs, PDF export, paper trading) | **Done** |
 | v0.9 | Security hardening (TOTP 2FA, secret enforcement, headers, rate limits) | **Done** |
-| v1.0 | Production launch (mobile polish, Sentry, OpenAPI docs) | Planned |
+| v1.0 | Production launch (responsive nav, error webhook, OpenAPI docs) | **Done** |
 
 See [CHANGELOG.md](./CHANGELOG.md) for full release notes.
 

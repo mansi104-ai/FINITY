@@ -57,5 +57,7 @@ export const env = {
   mongodbDbName: readString(process.env.MONGODB_DB_NAME, "findec"),
   newsApiKey: readString(process.env.NEWSAPI_KEY ?? process.env.NEWS_API_KEY),
   finnhubKey: readString(process.env.FINNHUB_API_KEY),
-  emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL)
+  emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL),
+  errorWebhookUrl: readString(process.env.ERROR_WEBHOOK_URL ?? process.env.SENTRY_DSN),
+  appVersion: readString(process.env.APP_VERSION, "1.0.0")
 };
