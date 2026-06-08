@@ -333,6 +333,30 @@ export interface CandlesResponse {
   source: "yahoo";
 }
 
+export interface SectorSummary {
+  sector: string;
+  avgChangePercent: number;
+  count: number;
+  topGainer: { symbol: string; changePercent: number } | null;
+  topLoser: { symbol: string; changePercent: number } | null;
+}
+
+export interface DividendStock {
+  symbol: string;
+  name: string;
+  dividendYield: number;
+  price: number;
+  changePercent: number;
+  peRatio?: number;
+}
+
+export interface ResearchResponse {
+  asOf: string;
+  countryCode: string;
+  sectors: SectorSummary[];
+  dividendStocks: DividendStock[];
+}
+
 export interface WatchlistEntry {
   ticker: string;
   label: string;

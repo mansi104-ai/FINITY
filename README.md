@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v0.4.0**
+**Current version: v0.5.0**
 
 ---
 
@@ -90,6 +90,7 @@ npm run dev                  # Next.js dev on port 3000
 |---|---|---|---|
 | GET | `/api/market/snapshot` | No | Market overview + geo-detected market status |
 | GET | `/api/market/stocks` | No | Full stock list with fundamentals (MongoDB cache, 30 min TTL) |
+| GET | `/api/market/research` | No | Sector heatmap summaries + dividend tracker list |
 | GET | `/api/market/stock/:ticker` | No | Single stock quote + fundamentals |
 | GET | `/api/market/history/:ticker` | No | 30-day price history |
 | GET | `/api/market/candles/:ticker?range=` | No | OHLCV candles for advanced charting (1mo–5y) |
@@ -124,7 +125,7 @@ npm run dev                  # Next.js dev on port 3000
 | v0.2 | Real auth UX (/login, /register), watchlist → MongoDB, notifications | **Done** |
 | v0.3 | Live-only data, Finnhub integration, Earnings + IPO calendar | **Done** |
 | v0.4 | Advanced charting (candlesticks, RSI, MACD, Bollinger Bands) | Planned |
-| v0.5 | Research tools (dividend tracker, sector heatmap) | Planned |
+| v0.5 | Research tools (dividend tracker, sector heatmap) | **Done** |
 | v0.6 | Alerts & notifications (price alerts, daily digest email) | Planned |
 | v0.7 | AI v2 (portfolio analysis, social sentiment, market regime) | Planned |
 | v0.8 | Sharing (public report URLs, PDF export, paper trading) | Planned |

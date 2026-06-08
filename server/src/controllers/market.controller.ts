@@ -662,6 +662,83 @@ async function fetchFinnhubQuotesForSymbols(
   return out;
 }
 
+// ─── Sector map for tracked symbols (powers v0.5 sector heatmap) ───────────────
+const SYMBOL_SECTORS: Record<string, string> = {
+  // US tech
+  AAPL: "Technology", MSFT: "Technology", NVDA: "Technology", AVGO: "Technology",
+  ORCL: "Technology", CRM: "Technology", ADBE: "Technology", CSCO: "Technology",
+  AMD: "Technology", TXN: "Technology", QCOM: "Technology", IBM: "Technology",
+  INTU: "Technology", AMAT: "Technology", LRCX: "Technology", MU: "Technology",
+  NOW: "Technology", PANW: "Technology", SNOW: "Technology", PLTR: "Technology",
+  ACN: "Technology",
+  // Communication / Internet
+  GOOGL: "Communication", META: "Communication", NFLX: "Communication",
+  // Consumer
+  AMZN: "Consumer Cyclical", TSLA: "Consumer Cyclical", HD: "Consumer Cyclical",
+  MCD: "Consumer Cyclical", LOW: "Consumer Cyclical", UBER: "Consumer Cyclical",
+  F: "Consumer Cyclical", GM: "Consumer Cyclical",
+  COST: "Consumer Defensive", WMT: "Consumer Defensive", PG: "Consumer Defensive",
+  KO: "Consumer Defensive", PEP: "Consumer Defensive", PM: "Consumer Defensive",
+  // Financials
+  "BRK-B": "Financials", JPM: "Financials", V: "Financials", MA: "Financials",
+  BAC: "Financials", GS: "Financials", C: "Financials", AXP: "Financials",
+  COIN: "Financials", PYPL: "Financials",
+  // Healthcare
+  LLY: "Healthcare", UNH: "Healthcare", JNJ: "Healthcare", ABBV: "Healthcare",
+  MRK: "Healthcare", TMO: "Healthcare", ISRG: "Healthcare", AMGN: "Healthcare",
+  SYK: "Healthcare", GILD: "Healthcare",
+  // Energy / Industrials
+  XOM: "Energy", CVX: "Energy",
+  CAT: "Industrials", HON: "Industrials", ETN: "Industrials", UNP: "Industrials",
+};
+
+function sectorForSymbol(sym: string): string {
+  return SYMBOL_SECTORS[sym] ?? "Other";
+}
+
+type SectorSummary = {
+  sector: string;
+  avgChangePercent: number;
+  count: number;
+  topGainer: { symbol: string; changePercent: number } | null;
+  topLoser: { symbol: string; changePercent: number } | null;
+};
+
+type ResearchResponse = {
+  asOf: string;
+  countryCode: string;
+  sectors: SectorSummary[];
+  dividendStocks: Array<{
+    symbol: string; name: string; dividendYield: number;
+    price: number; changePercent: number; peRatio?: number;
+  }>;
+};
+
+// Shared fetch used by both the stocks list and the research endpoint.
+async function loadDetailedStocks(countryCode: string): Promise<StockQuoteResponse[]> {
+  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+  const symbols = getTrackedSymbolsForCountry(countryCode);
+  try {
+    const all = await fetchDetailedQuotes(symbols, countryCode);
+    const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
+    const indices = all.filter((s) => indexSymbols.has(s.symbol));
+    void setStocksCache(countryCode, stocks, indices);
+    return all;
+  } catch { /* try Finnhub / cache */ }
+
+  if (env.finnhubKey && countryCode === "US") {
+    try {
+      const equitySymbols = symbols.filter((s) => !s.startsWith("^")).slice(0, 40);
+      const all = await fetchFinnhubQuotesForSymbols(equitySymbols, countryCode);
+      if (all.length > 0) { void setStocksCache(countryCode, all, []); return all; }
+    } catch { /* try cache */ }
+  }
+
+  const stale = await getStocksCache(countryCode, { allowStale: true });
+  if (stale) return [...stale.stocks, ...stale.indices];
+  return [];
+}
+
 // ─── Default geo ──────────────────────────────────────────────────────────────
 const defaultGeo: GeoLocation = {
   country: "United States", countryCode: "US", timezone: NEW_YORK_TIMEZONE,
@@ -748,38 +825,69 @@ export async function getStocksController(req: Request, res: Response) {
 
   const { countryCode } = geo;
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
-  const symbols = getTrackedSymbolsForCountry(countryCode);
 
-  // 1. Live Yahoo Finance batch
-  try {
-    const all = await fetchDetailedQuotes(symbols, countryCode);
+  const all = await loadDetailedStocks(countryCode);
+  if (all.length > 0) {
     const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
     const indices = all.filter((s) => indexSymbols.has(s.symbol));
-    void setStocksCache(countryCode, stocks, indices);
     return res.status(200).json({ stocks, indices, countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
-  } catch { /* try Finnhub */ }
-
-  // 2. Finnhub fallback — US equity symbols, top 40 to stay within rate limit
-  if (env.finnhubKey && countryCode === "US") {
-    try {
-      const equitySymbols = symbols.filter(s => !s.startsWith("^")).slice(0, 40);
-      const all = await fetchFinnhubQuotesForSymbols(equitySymbols, countryCode);
-      if (all.length > 0) {
-        void setStocksCache(countryCode, all, []);
-        return res.status(200).json({ stocks: all, indices: [], countryCode, asOf: now.toISOString() } satisfies StocksListResponse);
-      }
-    } catch { /* try stale cache */ }
-  }
-
-  // 3. Stale MongoDB stocks cache
-  const stale = await getStocksCache(countryCode, { allowStale: true });
-  if (stale) {
-    return res.status(200).json({
-      stocks: stale.stocks, indices: stale.indices, countryCode, asOf: now.toISOString()
-    } satisfies StocksListResponse);
   }
 
   return res.status(502).json({ error: "Live stock data is unavailable right now." });
+}
+
+export async function getResearchController(req: Request, res: Response) {
+  const now = new Date();
+  let geo = defaultGeo;
+  try { geo = await getGeolocation(req); } catch { /* use default */ }
+  const { countryCode } = geo;
+  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+
+  const all = await loadDetailedStocks(countryCode);
+  const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
+  if (stocks.length === 0) {
+    return res.status(502).json({ error: "Research data is unavailable right now." });
+  }
+
+  // ── Sector heatmap ──
+  const bySector = new Map<string, StockQuoteResponse[]>();
+  for (const s of stocks) {
+    const sector = sectorForSymbol(s.symbol);
+    const arr = bySector.get(sector) ?? [];
+    arr.push(s);
+    bySector.set(sector, arr);
+  }
+
+  const sectors: SectorSummary[] = Array.from(bySector.entries())
+    .map(([sector, members]) => {
+      const avg = members.reduce((sum, m) => sum + m.changePercent, 0) / members.length;
+      const sorted = [...members].sort((a, b) => b.changePercent - a.changePercent);
+      const top = sorted[0];
+      const bottom = sorted[sorted.length - 1];
+      return {
+        sector,
+        avgChangePercent: +avg.toFixed(2),
+        count: members.length,
+        topGainer: top ? { symbol: top.symbol, changePercent: +top.changePercent.toFixed(2) } : null,
+        topLoser: bottom ? { symbol: bottom.symbol, changePercent: +bottom.changePercent.toFixed(2) } : null,
+      };
+    })
+    .sort((a, b) => b.avgChangePercent - a.avgChangePercent);
+
+  // ── Dividend tracker ──
+  const dividendStocks = stocks
+    .filter((s) => s.dividendYield != null && s.dividendYield > 0)
+    .map((s) => ({
+      symbol: s.symbol, name: s.name, dividendYield: s.dividendYield as number,
+      price: s.price, changePercent: +s.changePercent.toFixed(2),
+      ...(s.peRatio != null ? { peRatio: s.peRatio } : {}),
+    }))
+    .sort((a, b) => b.dividendYield - a.dividendYield)
+    .slice(0, 30);
+
+  return res.status(200).json({
+    asOf: now.toISOString(), countryCode, sectors, dividendStocks,
+  } satisfies ResearchResponse);
 }
 
 export async function getStockDetailController(req: Request, res: Response) {

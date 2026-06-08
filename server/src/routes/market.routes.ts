@@ -4,6 +4,7 @@ import {
   getCandlesController,
   getMarketSnapshotController,
   getStocksController,
+  getResearchController,
   getStockDetailController,
   getNewsController,
   searchStocksController,
@@ -18,6 +19,7 @@ marketRoutes.get("/snapshot", getMarketSnapshotController);
 marketRoutes.get("/history/:ticker", getMarketHistoryController);
 marketRoutes.get("/candles/:ticker", getCandlesController);
 marketRoutes.get("/stocks", getStocksController);
+marketRoutes.get("/research", getResearchController);
 marketRoutes.get("/stock/:ticker", getStockDetailController);
 marketRoutes.get("/news", getNewsController);
 marketRoutes.get("/search", searchStocksController);

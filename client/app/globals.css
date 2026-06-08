@@ -3555,6 +3555,36 @@ html[data-theme="dark"] .single-note-card-accent {
 .adv-subpane-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.3rem; }
 .adv-subpane-head strong { font-size: 0.85rem; font-weight: 500; }
 
+/* ── Research: sector heatmap + dividend tracker (v0.5) ── */
+.rsrch-heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.6rem;
+}
+.rsrch-sector-cell {
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 0.85rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 110px;
+}
+.rsrch-sector-head { display: flex; justify-content: space-between; align-items: center; }
+.rsrch-sector-name { font-size: 0.85rem; color: #f4efe6; font-weight: 500; }
+.rsrch-sector-count {
+  font-size: 0.66rem; color: #cdd6e6; background: rgba(0,0,0,0.3);
+  border-radius: 10px; padding: 0.05rem 0.45rem;
+}
+.rsrch-sector-pct { font-size: 1.35rem; font-weight: 600; }
+.rsrch-sector-foot { display: flex; gap: 0.75rem; margin-top: auto; font-size: 0.72rem; flex-wrap: wrap; }
+.rsrch-mover { display: inline-flex; gap: 0.3rem; align-items: baseline; }
+.rsrch-mover a { color: #e6e0d4; text-decoration: none; font-weight: 500; }
+.rsrch-mover a:hover { text-decoration: underline; }
+.rsrch-mover em { font-style: normal; font-size: 0.7rem; }
+.rsrch-note { font-size: 0.74rem; color: #777; margin-top: 0.75rem; }
+.rsrch-div-sort { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
+
 .stk-two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
