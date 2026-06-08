@@ -29,9 +29,7 @@ async function getMongoDb(): Promise<Db | null> {
     mongoDbPromise = MongoClient.connect(env.mongodbUri, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      minPoolSize: 2
+      socketTimeoutMS: 45000
     })
       .then((client) => client.db(env.mongodbDbName || "findec"))
       .catch((err: unknown) => {
@@ -43,21 +41,25 @@ async function getMongoDb(): Promise<Db | null> {
 
   const db = await mongoDbPromise;
   if (db && !indexesReady) {
-    await Promise.all([
-      db.collection<UserRecord>("users").createIndex({ id: 1 }, { unique: true }),
-      db.collection<UserRecord>("users").createIndex({ email: 1 }, { unique: true }),
-      db.collection<AuthSessionRecord>("authSessions").createIndex({ id: 1 }, { unique: true }),
-      db.collection<AuthSessionRecord>("authSessions").createIndex({ userId: 1 }),
-      db.collection<QueryRecord>("queries").createIndex({ id: 1 }, { unique: true }),
-      db.collection<AgentReport>("reports").createIndex({ id: 1 }, { unique: true }),
-      db.collection<AgentReport>("reports").createIndex({ userId: 1, createdAt: -1 }),
-      db.collection<RevokedRefreshTokenRecord>("revokedRefreshTokens").createIndex({ tokenHash: 1 }, { unique: true }),
-      db.collection<RevokedRefreshTokenRecord>("revokedRefreshTokens").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
-      db.collection<WatchlistRecord>("watchlists").createIndex({ userId: 1 }, { unique: true }),
-      db.collection<NotificationRecord>("notifications").createIndex({ id: 1 }, { unique: true }),
-      db.collection<NotificationRecord>("notifications").createIndex({ userId: 1, createdAt: -1 }),
-    ]);
-    indexesReady = true;
+    try {
+      await Promise.all([
+        db.collection<UserRecord>("users").createIndex({ id: 1 }, { unique: true }),
+        db.collection<UserRecord>("users").createIndex({ email: 1 }, { unique: true }),
+        db.collection<AuthSessionRecord>("authSessions").createIndex({ id: 1 }, { unique: true }),
+        db.collection<AuthSessionRecord>("authSessions").createIndex({ userId: 1 }),
+        db.collection<QueryRecord>("queries").createIndex({ id: 1 }, { unique: true }),
+        db.collection<AgentReport>("reports").createIndex({ id: 1 }, { unique: true }),
+        db.collection<AgentReport>("reports").createIndex({ userId: 1, createdAt: -1 }),
+        db.collection<RevokedRefreshTokenRecord>("revokedRefreshTokens").createIndex({ tokenHash: 1 }, { unique: true }),
+        db.collection<RevokedRefreshTokenRecord>("revokedRefreshTokens").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+        db.collection<WatchlistRecord>("watchlists").createIndex({ userId: 1 }, { unique: true }),
+        db.collection<NotificationRecord>("notifications").createIndex({ id: 1 }, { unique: true }),
+        db.collection<NotificationRecord>("notifications").createIndex({ userId: 1, createdAt: -1 }),
+      ]);
+      indexesReady = true;
+    } catch (indexErr) {
+      console.warn("Failed to create indexes:", indexErr instanceof Error ? indexErr.message : indexErr);
+    }
   }
 
   return db;

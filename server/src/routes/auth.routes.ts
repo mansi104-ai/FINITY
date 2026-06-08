@@ -107,25 +107,20 @@ function isSessionActive(session: AuthSessionRecord): boolean {
 }
 
 function readCookie(req: Request, name: string): string | undefined {
-  try {
-    const raw = req.headers.cookie;
-    if (!raw) {
-      return undefined;
-    }
+  const raw = req.headers.cookie;
+  if (!raw) {
+    return undefined;
+  }
 
-    for (const part of raw.split(";")) {
-      const [key, ...rest] = part.trim().split("=");
-      if (!key || key.trim() !== name) {
-        continue;
-      }
-      const value = rest.join("=").trim();
-      if (!value) {
+  for (const part of raw.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) {
+      try {
+        return decodeURIComponent(rest.join("="));
+      } catch {
         return undefined;
       }
-      return decodeURIComponent(value);
     }
-  } catch (error) {
-    console.warn(`Failed to parse cookie "${name}": ${error instanceof Error ? error.message : "unknown error"}`);
   }
   return undefined;
 }

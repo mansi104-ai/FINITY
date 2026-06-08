@@ -23,43 +23,14 @@ const VERSION = "0.0.6";
 app.set("trust proxy", env.trustProxy);
 app.disable("x-powered-by");
 
-// Security & compression middleware
+// Security middleware
 app.use(helmet());
 app.use(compression());
 app.use(requestIdMiddleware);
 
-// HTTPS redirect in production
-if (env.isProduction) {
-  app.use((req, res, next) => {
-    if (req.header("x-forwarded-proto") !== "https") {
-      return res.redirect(301, `https://${req.header("host")}${req.url}`);
-    }
-    next();
-  });
-}
-
-// CORS - Restrict origin in production
+// CORS - Permissive by default, strict only if explicitly configured
 const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Allow requests without origin (mobile apps, curl, server-to-server)
-    if (!origin) {
-      return callback(null, true);
-    }
-
-    // In production, strictly validate origin
-    if (env.isProduction && env.corsOrigin !== "*") {
-      const allowedOrigins = env.corsOrigin.split(",").map(o => o.trim());
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      // Log rejected origins for debugging
-      console.warn(`[CORS] Rejected origin: ${origin}. Allowed: ${allowedOrigins.join(", ")}`);
-      return callback(new Error("CORS not allowed"));
-    }
-
-    // In development or if CORS_ORIGIN=*, allow all
-    callback(null, true);
-  },
+  origin: env.corsOrigin === "*" ? true : env.corsOrigin.split(",").map(o => o.trim()),
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
@@ -72,17 +43,25 @@ app.use(express.json({ limit: "100kb" }));
 app.use(morgan(env.isProduction ? "combined" : "dev"));
 
 app.get("/api/health", async (req, res) => {
-  const db = await getDb();
-  res.status(200).json({
-    ok: true,
-    service: "server",
-    version: VERSION,
-    requestId: req.requestId,
-    timestamp: new Date().toISOString(),
-    dbConnected: Boolean(db),
-    finnhubConfigured: Boolean(env.finnhubKey),
-    mongodbConfigured: Boolean(env.mongodbUri)
-  });
+  try {
+    const db = await getDb();
+    res.status(200).json({
+      ok: true,
+      service: "server",
+      version: VERSION,
+      requestId: req.requestId,
+      timestamp: new Date().toISOString(),
+      dbConnected: Boolean(db),
+      finnhubConfigured: Boolean(env.finnhubKey),
+      mongodbConfigured: Boolean(env.mongodbUri)
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: "Health check failed",
+      requestId: req.requestId
+    });
+  }
 });
 
 app.use("/api/auth", authRoutes);
@@ -98,20 +77,17 @@ app.use((_req, res) => {
 });
 
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  // Structured error logging with request context
+  // Log error server-side
   const errorMessage = err instanceof Error ? err.message : String(err);
-  const errorStack = err instanceof Error ? err.stack : undefined;
-  
   console.error({
     timestamp: new Date().toISOString(),
     requestId: req.requestId,
     method: req.method,
     path: req.path,
-    error: errorMessage,
-    stack: errorStack
+    error: errorMessage
   });
 
-  // Send safe error response without internal details
+  // Send response
   res.status(500).json({
     error: "Internal server error",
     requestId: req.requestId,

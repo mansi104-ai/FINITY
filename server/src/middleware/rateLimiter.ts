@@ -4,30 +4,25 @@ import { env } from "../config";
 
 const queryWindowMs = 60 * 60 * 1000;
 const queryUserBuckets = new Map<string, number[]>();
-let cleanupIntervalId: NodeJS.Timeout | null = null;
 
 function pruneWindow(timestamps: number[], now: number): number[] {
   return timestamps.filter((timestamp) => now - timestamp < queryWindowMs);
 }
 
-// Start cleanup job to prevent memory leak
-function startCleanupJob() {
-  if (cleanupIntervalId) return;
-  
-  cleanupIntervalId = setInterval(() => {
-    const now = Date.now();
-    for (const [userId, timestamps] of queryUserBuckets.entries()) {
-      const pruned = pruneWindow(timestamps, now);
-      if (pruned.length === 0) {
-        queryUserBuckets.delete(userId);
-      } else if (pruned.length !== timestamps.length) {
-        queryUserBuckets.set(userId, pruned);
-      }
+// Cleanup expired entries every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  const toDelete: string[] = [];
+  for (const [userId, timestamps] of queryUserBuckets.entries()) {
+    const pruned = pruneWindow(timestamps, now);
+    if (pruned.length === 0) {
+      toDelete.push(userId);
+    } else if (pruned.length !== timestamps.length) {
+      queryUserBuckets.set(userId, pruned);
     }
-  }, 5 * 60 * 1000); // Cleanup every 5 minutes
-}
-
-startCleanupJob();
+  }
+  toDelete.forEach(userId => queryUserBuckets.delete(userId));
+}, 10 * 60 * 1000);
 
 export function queryRateLimiter(req: Request, res: Response, next: NextFunction) {
   const userId = req.authUser?.id;
@@ -42,8 +37,7 @@ export function queryRateLimiter(req: Request, res: Response, next: NextFunction
     const retryAfterSeconds = Math.max(1, Math.ceil((queryWindowMs - (now - history[0])) / 1000));
     res.setHeader("Retry-After", retryAfterSeconds.toString());
     return res.status(429).json({
-      error: `Rate limit reached: max ${env.queryLimitPerHour} queries per hour`,
-      retryAfter: retryAfterSeconds
+      error: `Rate limit reached: max ${env.queryLimitPerHour} queries per hour`
     });
   }
 
