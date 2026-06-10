@@ -43,7 +43,15 @@ export async function createAlertController(req: Request, res: Response) {
   let fired = 0;
   try { fired = await checkAlertsForUser(userId); } catch { /* best-effort */ }
 
-  return res.status(201).json({ alert, fired });
+  // Return the post-check state so the UI reflects an immediate trigger
+  // (e.g. active:false for a "once" alert that just fired).
+  let saved: PriceAlertRecord = alert;
+  try {
+    const latest = (await getPriceAlertsForUser(userId)).find((a) => a.id === alert.id);
+    if (latest) saved = latest;
+  } catch { /* fall back to the created object */ }
+
+  return res.status(201).json({ alert: saved, fired });
 }
 
 export async function deleteAlertController(req: Request, res: Response) {

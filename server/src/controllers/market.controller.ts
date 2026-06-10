@@ -915,6 +915,23 @@ async function enrichFinnhubUsStocks(stocks: StockQuoteResponse[]): Promise<Stoc
   return [...enriched, ...stocks.slice(limited.length)];
 }
 
+// Enrich a freshly-fetched stock list with fundamentals (P/E, market cap,
+// dividend yield, beta) so the Screener filters and Dividend tracker work.
+// US → Finnhub (free). Other markets keep price+52w; India/global fundamentals
+// are layered in by the FMP integration when TWELVEDATA/ FMP keys are present.
+async function enrichListFundamentals(all: StockQuoteResponse[], countryCode: string): Promise<StockQuoteResponse[]> {
+  if (countryCode === "US" && env.finnhubKey) {
+    const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+    const equities = all.filter((s) => !indexSymbols.has(s.symbol));
+    const indices = all.filter((s) => indexSymbols.has(s.symbol));
+    if (equities.some((s) => s.peRatio == null || s.marketCap == null)) {
+      const enriched = await enrichFinnhubUsStocks(equities);
+      return [...enriched, ...indices];
+    }
+  }
+  return all;
+}
+
 // ─── Sector map for tracked symbols (powers v0.5 sector heatmap) ───────────────
 const SYMBOL_SECTORS: Record<string, string> = {
   // US tech
@@ -1050,7 +1067,10 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
   // exhausting upstream quote budgets on deployments.
   const freshCache = await getStocksCache(countryCode);
   if (freshCache && (freshCache.stocks.length > 0 || freshCache.indices.length > 0)
-    && cacheMatchesCountry(freshCache.stocks, freshCache.indices, countryCode)) {
+    && cacheMatchesCountry(freshCache.stocks, freshCache.indices, countryCode)
+    // For US we expect fundamentals (P/E, cap) — bypass a cache that predates the
+    // Finnhub list-enrichment so the Screener/Dividend tracker repopulate.
+    && !(countryCode === "US" && !freshCache.stocks.some((s) => s.peRatio != null || s.marketCap != null))) {
     return [...freshCache.stocks, ...freshCache.indices];
   }
 
@@ -1066,8 +1086,9 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
   // India/NSE + global markets that Finnhub's free US-only tier can't serve.
   if (tdEnabled()) {
     try {
-      const all = await fetchTwelveDataQuotes(symbols, countryCode);
+      let all = await fetchTwelveDataQuotes(symbols, countryCode);
       if (all.length > 0) {
+        all = await enrichListFundamentals(all, countryCode);
         const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
         const indices = all.filter((s) => indexSymbols.has(s.symbol));
         void setStocksCache(countryCode, stocks, indices);
@@ -1080,8 +1101,9 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
   // v7/quote batch above is blocked. This is what makes India/NSE (and every
   // other non-US market) show its OWN stocks instead of a US fallback list.
   try {
-    const all = await fetchChartQuotes(symbols, countryCode);
+    let all = await fetchChartQuotes(symbols, countryCode);
     if (all.length > 0) {
+      all = await enrichListFundamentals(all, countryCode);
       const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
       const indices = all.filter((s) => indexSymbols.has(s.symbol));
       void setStocksCache(countryCode, stocks, indices);

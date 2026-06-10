@@ -46,7 +46,20 @@
       "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/research?cc=US\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('sectors:', [\\(s['sector'],s['count']\\) for s in d.get\\('sectors',[]\\)][:12]\\)\")",
       "Bash(curl -s https://server-gray-iota.vercel.app/api/health)",
-      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/alerts/cron\" -w \"\\\\nHTTP %{http_code}\\\\n\")"
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/alerts/cron\" -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s https://server-gray-iota.vercel.app/api/market/snapshot?cc=US)",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('cc',d['geoLocation']['countryCode'],'tickers',len\\(d['tickers']\\),'first',[t['symbol'] for t in d['tickers'][:4]]\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);s=d['stocks'];print\\('n',len\\(s\\),'withPE',sum\\(1 for x in s if x.get\\('peRatio'\\)\\),'withCap',sum\\(1 for x in s if x.get\\('marketCap'\\)\\),'withDiv',sum\\(1 for x in s if x.get\\('dividendYield'\\)\\)\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);s=d['stocks'];print\\('n',len\\(s\\),'withPE',sum\\(1 for x in s if x.get\\('peRatio'\\)\\),'withCap',sum\\(1 for x in s if x.get\\('marketCap'\\)\\),'with52w',sum\\(1 for x in s if x.get\\('high52w'\\)\\)\\)\")",
+      "Bash(curl -s https://server-gray-iota.vercel.app/api/market/stock/AAPL)",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\({k:d.get\\(k\\) for k in ['price','marketCap','peRatio','eps','dividendYield','beta','high52w']}\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\({k:d.get\\(k\\) for k in ['price','marketCap','peRatio','eps','dividendYield','high52w']}\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('sectors',len\\(d['sectors']\\),'dividends',len\\(d['dividendStocks']\\)\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('sectors',[\\(s['sector'],s['count']\\) for s in d['sectors']],'dividends',len\\(d['dividendStocks']\\)\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('upcoming',len\\(d.get\\('upcoming',[]\\)\\),'recent',len\\(d.get\\('recent',[]\\)\\)\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('ipos',len\\(d.get\\('ipos',[]\\)\\)\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('source',d.get\\('source'\\),'articles',len\\(d.get\\('articles',[]\\)\\)\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\(d\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\mansi\\FINITY\\.git",

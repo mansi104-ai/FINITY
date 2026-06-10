@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.20.0] — 2026-06-11
+
+### Fixed
+- **Screener fundamentals + Dividend tracker work again for US (regression).** The chart-quote path (added when Yahoo's quote API got blocked) returned before Finnhub enrichment, so the US stock *list* lost P/E, market cap, dividend yield and beta — breaking the Screener's fundamental filters and emptying the Dividend tracker. The list is now enriched with Finnhub fundamentals (US) regardless of which price source served it, and a stale fundamental-less US cache is bypassed so it repopulates.
+- **Alert create response** now returns the post-evaluation alert state (so a "once" alert that fires immediately shows as resolved rather than still-active).
+
+### Notes
+- India/global list fundamentals (P/E, market cap, dividend) still pending the FMP integration (next release) — India shows price + 52-week range today.
+
+---
+
 ## [v1.19.0] — 2026-06-11
 
 ### Fixed

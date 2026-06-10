@@ -70,5 +70,5 @@ export const env = {
   emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL),
   cronSecret: readString(process.env.CRON_SECRET),
   errorWebhookUrl: readString(process.env.ERROR_WEBHOOK_URL ?? process.env.SENTRY_DSN),
-  appVersion: readString(process.env.APP_VERSION, "1.19.1")
+  appVersion: readString(process.env.APP_VERSION, "1.20.0")
 };
