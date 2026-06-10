@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.15.0] — 2026-06-09
+
+### Added
+- **Home dashboard** — `/` is now a real landing page (was a redirect to /brief): hero with AI-Brief CTA + live market status, index cards, a market-regime card, Top Gainers / Top Losers lists, and quick-access tiles to every tool. Built on the live snapshot/stocks/regime endpoints.
+
+---
+
 ## [v1.14.0] — 2026-06-09
 
 ### Added
