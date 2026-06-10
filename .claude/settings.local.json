@@ -44,7 +44,9 @@
       "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/research?cc=IN\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('sectors:', [\\(s['sector'],s['count']\\) for s in d.get\\('sectors',[]\\)][:10]\\); print\\('dividends:', len\\(d.get\\('dividendStocks',[]\\)\\)\\)\")",
       "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/research?cc=US\")",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('sectors:', [\\(s['sector'],s['count']\\) for s in d.get\\('sectors',[]\\)][:12]\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('sectors:', [\\(s['sector'],s['count']\\) for s in d.get\\('sectors',[]\\)][:12]\\)\")",
+      "Bash(curl -s https://server-gray-iota.vercel.app/api/health)",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/alerts/cron\" -w \"\\\\nHTTP %{http_code}\\\\n\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\mansi\\FINITY\\.git",
