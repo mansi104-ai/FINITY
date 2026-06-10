@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { getWatchlist } from "../store/db";
-import { fetchQuoteForSymbol, sectorForSymbol } from "./market.controller";
+import { fetchQuoteForSymbol, sectorForSymbol, loadDetailedStocks } from "./market.controller";
 
 // ─── Portfolio analysis ─────────────────────────────────────────────────────
 // Treats the user's watchlist (those with a buyPrice) as a portfolio of one
@@ -111,8 +111,16 @@ const REGIME_BASKET = [
 ];
 
 export async function getMarketRegimeController(_req: Request, res: Response) {
-  const quotes = (await Promise.all(REGIME_BASKET.map((s) => fetchQuoteForSymbol(s))))
-    .filter((q): q is NonNullable<typeof q> => q != null && q.price > 0);
+  // Reuse the cached US stock list (cache-first, shared with /stocks + /research)
+  // so regime never fires its own 20 Finnhub calls and stays within the free tier.
+  let quotes = (await loadDetailedStocks("US"))
+    .filter((q) => !q.isIndex && q.price > 0 && Number.isFinite(q.changePercent));
+
+  // Fallback: only if the shared list is empty, fetch the small basket directly.
+  if (quotes.length < 5) {
+    quotes = (await Promise.all(REGIME_BASKET.map((s) => fetchQuoteForSymbol(s))))
+      .filter((q): q is NonNullable<typeof q> => q != null && q.price > 0);
+  }
 
   if (quotes.length < 5) {
     return res.status(502).json({ error: "Market regime data is unavailable right now." });

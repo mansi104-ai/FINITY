@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.9.1] — 2026-06-09
+
+### Fixed
+- **"Live stock data unavailable" flapping** — the free Finnhub tier (60 req/min) was being exhausted because the market-regime endpoint fired 20 quote calls on every load and the ticker strip re-hit upstreams on every page. Now: **market regime reuses the cached US stock list** (shared with `/stocks` + `/research`, zero extra calls) and the **snapshot/ticker-strip serves a ≤15-min cache before touching upstreams**. Together this keeps the deployment under the rate limit so live data stays available; `/insights/regime` no longer returns "unavailable" when the cache is warm.
+
+---
+
 ## [v1.9.0] — 2026-06-09
 
 ### Added

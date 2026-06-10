@@ -726,8 +726,8 @@ type ResearchResponse = {
   }>;
 };
 
-// Shared fetch used by both the stocks list and the research endpoint.
-async function loadDetailedStocks(countryCode: string): Promise<StockQuoteResponse[]> {
+// Shared fetch used by the stocks list, research, and market-regime endpoints.
+export async function loadDetailedStocks(countryCode: string): Promise<StockQuoteResponse[]> {
   const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
   const symbols = getTrackedSymbolsForCountry(countryCode);
 
@@ -800,6 +800,15 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
     lastTradingDayLabel: getLastTradingDayLabel(now, geo.timezone),
     featuredTickers: getFeaturedTickersForCountry(geo.countryCode),
   };
+
+  // 0. Cache-first — the ticker strip loads on every page, so serve a recent
+  //    snapshot (≤15 min) without touching upstreams to stay within rate limits.
+  try {
+    const recent = await readSnapshotCache(geo.countryCode);
+    if (recent && recent.tickers.length > 0 && Date.now() - new Date(recent.cachedAt).getTime() < 15 * 60 * 1000) {
+      return res.status(200).json({ ...base, tickers: recent.tickers as MarketSnapshotResponse["tickers"] } satisfies MarketSnapshotResponse);
+    }
+  } catch { /* fall through to live */ }
 
   // 1. Live Yahoo Finance
   try {
