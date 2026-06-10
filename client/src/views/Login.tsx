@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { loginUser } from "../services/api";
+import Brand from "../components/Brand";
 
 export default function Login() {
   const router = useRouter();
@@ -37,8 +38,9 @@ export default function Login() {
   return (
     <section className="findec-minimal-page auth-page">
       <div className="auth-card">
+        <div className="auth-brand"><Brand size={40} /></div>
         <p className="findec-kicker">Welcome back</p>
-        <h1 className="auth-title">Sign in to FINITY</h1>
+        <h1 className="auth-title">Sign in to Findec</h1>
 
         <form className="auth-form" onSubmit={(e) => void handleSubmit(e)}>
           <div className="auth-field">

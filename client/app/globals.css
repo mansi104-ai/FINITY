@@ -78,6 +78,22 @@ html {
 .fd-container { width: 100%; max-width: var(--fd-container); margin-inline: auto; }
 @media (min-width: 2560px) { .fd-container { max-width: var(--fd-container-wide); } }
 
+/* ── Brand lockup (v1.11.0) ── */
+.fd-brand { display: inline-flex; align-items: center; gap: 0.5rem; line-height: 1; }
+.fd-brand-mark { display: block; flex-shrink: 0; }
+.fd-brand-word {
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.2px;
+  color: #ffffff;
+  background: linear-gradient(90deg, #eaf4ff 0%, #cfe0ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.findec-brand-link { display: inline-flex; align-items: center; text-decoration: none; }
+.auth-brand { display: flex; justify-content: center; margin-bottom: 0.75rem; }
+
 body {
   margin: 0;
   color: var(--text);

@@ -8,6 +8,7 @@ import MarketTickerStrip from "../src/components/MarketTickerStrip";
 import NotificationBell from "../src/components/NotificationBell";
 import AccountLink from "../src/components/AccountLink";
 import TopNav from "../src/components/TopNav";
+import Brand from "../src/components/Brand";
 import "./globals.css";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="findec-app-body">
         <div className="findec-app-shell">
           <header className="findec-app-header">
-            <strong className="findec-brand">FINDEC</strong>
+            <a href="/" className="findec-brand-link"><Brand size={28} /></a>
             <TopNav />
             <div className="findec-topnav-right">
               <NotificationBell />

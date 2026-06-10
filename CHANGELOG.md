@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.11.0] — 2026-06-09
+
+### Added
+- **Findec brand/logo system** — new `<Brand>` component: a crisp, transparent **SVG recreation** of the new Findec logo (gradient angular "F" mark + "Findec" wordmark), used in the app header (links home), the login and register cards, and as the browser **favicon** (`app/icon.svg`). Single source of truth, scales perfectly at all sizes incl. 4K. Renamed visible brand from "FINDEC/FINITY" to **Findec**.
+- To use the exact raster instead of the vector, drop `client/public/logo.png` and point `<Brand>` at it (one-line change).
+
+---
+
 ## [v1.10.0] — 2026-06-09
 
 ### Added

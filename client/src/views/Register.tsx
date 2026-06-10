@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { registerUser } from "../services/api";
+import Brand from "../components/Brand";
 
 export default function Register() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function Register() {
   return (
     <section className="findec-minimal-page auth-page">
       <div className="auth-card">
+        <div className="auth-brand"><Brand size={40} /></div>
         <p className="findec-kicker">Get started</p>
         <h1 className="auth-title">Create your account</h1>
 
