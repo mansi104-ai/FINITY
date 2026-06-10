@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.19.0] — 2026-06-11
+
+### Fixed
+- **Price alerts now actually fire (#4).** Root cause: the alert price fetch used Yahoo's `v7/quote` (IP-blocked on Vercel) and Finnhub (US-only), so it could never get a price for Indian/non-US tickers — alerts silently never triggered. Added the same Yahoo `v8/chart` fallback used elsewhere, so alert prices resolve for India/NSE + global. (Alerts are checked every minute while you're signed in, via the notification poll.)
+
+### Added
+- **Reminder cadence (#4)** — when creating an alert you now choose **Once** (notify a single time when crossed, then deactivate) or **Daily** (keep the alert active and re-remind at most once per day while the condition holds). Shown as a "Daily" tag on recurring alerts.
+- **Background cron sweep** — a secret-gated `/api/alerts/cron` endpoint plus a Vercel Cron entry evaluates every user's active alerts on a schedule, so alerts can fire even when you're not on the site. Gated by `CRON_SECRET`.
+
+---
+
 ## [v1.18.0] — 2026-06-11
 
 ### Added

@@ -5,9 +5,15 @@ import {
   createAlertController,
   deleteAlertController,
   checkAlertsController,
+  cronCheckAlertsController,
 } from "../controllers/alert.controller";
 
 const alertRoutes = Router();
+
+// Unauthenticated cron sweep (secret-gated) — must be registered BEFORE the auth
+// middleware so Vercel Cron can reach it without a user session.
+alertRoutes.get("/cron", cronCheckAlertsController);
+alertRoutes.post("/cron", cronCheckAlertsController);
 
 alertRoutes.use(authMiddleware);
 

@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v1.18.0**
+**Current version: v1.19.0**
 
 ---
 
@@ -79,6 +79,7 @@ npm run dev                  # Next.js dev on port 3000
 | `TWELVEDATA_API_KEY` | Recommended | Twelve Data key — primary live source for India/NSE + global quotes, search, candles, and earnings (Yahoo is IP-blocked on cloud hosts). Also accepts `TWELVE_DATA_API_KEY`/`TWELVEDATA_KEY`. |
 | `EMAIL_WEBHOOK_URL` | No | Endpoint accepting `{ to, subject, text }` for digest/alert emails. Unset = emails are logged and skipped. |
 | `ENFORCE_SECRETS` | No | `true` makes the server refuse to boot in production if JWT secrets are dev fallbacks (default: warn only). |
+| `CRON_SECRET` | No | Shared secret gating the `/api/alerts/cron` sweep. Vercel Cron is allowed automatically via its `x-vercel-cron` header; external callers must pass `?key=<secret>`. |
 | `ERROR_WEBHOOK_URL` / `SENTRY_DSN` | No | Endpoint to POST structured error reports. Unset = errors only logged. |
 | `APP_VERSION` | No | Version string returned by `/api/health` (default `1.0.0`). |
 

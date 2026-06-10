@@ -24,6 +24,7 @@ export default function Alerts() {
   const [ticker, setTicker] = useState("");
   const [direction, setDirection] = useState<"above" | "below">("above");
   const [threshold, setThreshold] = useState("");
+  const [cadence, setCadence] = useState<"once" | "daily">("once");
   const [submitting, setSubmitting] = useState(false);
   const [checkMsg, setCheckMsg] = useState("");
 
@@ -58,7 +59,7 @@ export default function Alerts() {
     setSubmitting(true);
     setError("");
     try {
-      await createAlert(t, t, direction, th);
+      await createAlert(t, t, direction, th, cadence);
       setTicker(""); setThreshold("");
       await load();
     } catch (err) {
@@ -137,10 +138,17 @@ export default function Alerts() {
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
           />
+          <div className="alert-dir-toggle alert-cadence-toggle" title="How often you want to be reminded once the price crosses your target">
+            <button type="button" className={`adv-chip ${cadence === "once" ? "adv-chip-on" : ""}`} onClick={() => setCadence("once")}>Once</button>
+            <button type="button" className={`adv-chip ${cadence === "daily" ? "adv-chip-on" : ""}`} onClick={() => setCadence("daily")}>Daily</button>
+          </div>
           <button type="submit" className="earn-nav-btn alert-submit" disabled={submitting}>
             {submitting ? "Adding…" : "Add alert"}
           </button>
         </form>
+        <p className="rsrch-note" style={{ marginTop: "-0.25rem" }}>
+          <strong>Once</strong> notifies a single time when the price crosses your target. <strong>Daily</strong> keeps the alert active and reminds you at most once per day while the condition holds. Alerts are checked automatically every minute while you&apos;re signed in, and hourly in the background.
+        </p>
 
         {error && <div className="findec-panel earn-error">{error}</div>}
         {loading && <p className="findec-kicker earn-loading">Loading alerts…</p>}
@@ -172,6 +180,7 @@ export default function Alerts() {
                           <span className={a.direction === "above" ? "findec-subline-up" : "findec-subline-down"}>
                             {a.direction === "above" ? "Crosses above ↑" : "Drops below ↓"}
                           </span>
+                          {a.cadence === "daily" && <span className="findec-tag findec-tag-amber" style={{ marginLeft: "0.4rem" }}>Daily</span>}
                         </td>
                         <td className="earn-td earn-td-r"><strong>{a.threshold.toFixed(2)}</strong></td>
                         <td className="earn-td earn-td-r earn-hide-sm">{fmtWhen(a.createdAt)}</td>

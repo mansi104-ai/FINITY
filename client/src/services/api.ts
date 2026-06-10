@@ -594,6 +594,8 @@ export function getMarketRegime(): Promise<MarketRegime> {
 
 // ─── Price Alerts API ─────────────────────────────────────────────────────────
 
+export type AlertCadence = "once" | "daily";
+
 export interface PriceAlert {
   id: string;
   userId: string;
@@ -602,19 +604,21 @@ export interface PriceAlert {
   direction: "above" | "below";
   threshold: number;
   active: boolean;
+  cadence?: AlertCadence;
   createdAt: string;
   triggeredAt?: string;
   triggeredPrice?: number;
+  lastNotifiedAt?: string;
 }
 
 export function getAlerts(): Promise<{ alerts: PriceAlert[] }> {
   return request<{ alerts: PriceAlert[] }>("/api/alerts");
 }
 
-export function createAlert(ticker: string, name: string, direction: "above" | "below", threshold: number): Promise<{ alert: PriceAlert }> {
+export function createAlert(ticker: string, name: string, direction: "above" | "below", threshold: number, cadence: AlertCadence = "once"): Promise<{ alert: PriceAlert }> {
   return request<{ alert: PriceAlert }>("/api/alerts", {
     method: "POST",
-    body: JSON.stringify({ ticker, name, direction, threshold })
+    body: JSON.stringify({ ticker, name, direction, threshold, cadence })
   });
 }
 
