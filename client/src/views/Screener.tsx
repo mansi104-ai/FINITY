@@ -266,7 +266,7 @@ export default function Screener() {
                     <tr key={s.symbol} className="scr-row">
                       <td className="scr-td scr-td-name">
                         <Link href={`/stock/${encodeURIComponent(s.symbol)}`} className="scr-symbol">{s.symbol}</Link>
-                        <span className="scr-name">{s.name}</span>
+                        <Link href={`/stock/${encodeURIComponent(s.symbol)}`} className="scr-name scr-name-link">{s.name}</Link>
                       </td>
                       <td className="scr-td scr-td-r">{fmtNum(s.price)}</td>
                       <td className={`scr-td scr-td-r ${s.changePercent >= 0 ? "findec-subline-up" : "findec-subline-down"}`}>

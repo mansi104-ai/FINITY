@@ -31,10 +31,24 @@
       "Bash(curl -s -m 30 https://server-gray-iota.vercel.app/api/market/stocks)",
       "Bash(curl -s -m 30 -X POST https://server-gray-iota.vercel.app/api/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"alert-__CMDSUB_OUTPUT__@example.com\",\"password\":\"alertpass12\"}')",
       "Bash(curl -s \"https://query1.finance.yahoo.com/v8/finance/chart/RELIANCE.NS?range=5d&interval=1d\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\)\")",
-      "Bash(python -c \"import sys,json; m=json.load\\(sys.stdin\\)['chart']['result'][0]['meta']; print\\(json.dumps\\(m,indent=1\\)\\)\")"
+      "Bash(python -c \"import sys,json; m=json.load\\(sys.stdin\\)['chart']['result'][0]['meta']; print\\(json.dumps\\(m,indent=1\\)\\)\")",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/stock/RELIANCE.NS\")",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/stock/TCS.NS\")",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/stocks?cc=IN\")",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/snapshot?cc=IN\")",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/earnings\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('upcoming:',len\\(d.get\\('upcoming',[]\\)\\),'recent:',len\\(d.get\\('recent',[]\\)\\)\\); print\\('sample:', d.get\\('upcoming',[{}]\\)[0] if d.get\\('upcoming'\\) else d.get\\('recent',[{}]\\)[0] if d.get\\('recent'\\) else 'none'\\)\")",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/stock/AAPL\")",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/stock/SHEL.L\")",
+      "Read(//c/Users/mansi/.claude/projects/c--Users-mansi-FINITY/memory/**)",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/research?cc=IN\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('sectors:', [\\(s['sector'],s['count']\\) for s in d.get\\('sectors',[]\\)][:10]\\); print\\('dividends:', len\\(d.get\\('dividendStocks',[]\\)\\)\\)\")",
+      "Bash(curl -s \"https://server-gray-iota.vercel.app/api/market/research?cc=US\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('sectors:', [\\(s['sector'],s['count']\\) for s in d.get\\('sectors',[]\\)][:12]\\)\")"
     ],
     "additionalDirectories": [
-      "C:\\Users\\mansi\\FINITY\\.git"
+      "C:\\Users\\mansi\\FINITY\\.git",
+      "c:\\Users\\mansi\\.claude\\projects\\c--Users-mansi-FINITY\\memory"
     ]
   }
 }

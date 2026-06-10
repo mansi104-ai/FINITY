@@ -87,6 +87,59 @@ function momentumSignal(pct: number): string {
   return "Heavy distribution today";
 }
 
+type ExtLink = { label: string; url: string; tag: string };
+
+// Research sites that resolve consistently for ANY company via a templated URL
+// (no per-company id needed). Market-aware: Indian (.NS/.BO), UK (.L), and global.
+function externalResearchLinks(symbol: string, name: string): ExtLink[] {
+  const dot = symbol.lastIndexOf(".");
+  const suffix = dot > -1 ? symbol.slice(dot) : "";
+  const base = dot > -1 ? symbol.slice(0, dot) : symbol;
+  const q = encodeURIComponent(name || symbol);
+
+  // Universal — work for every market.
+  const universal: ExtLink[] = [
+    { label: "Yahoo Finance", url: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`, tag: "Quote" },
+    { label: "Google News", url: `https://news.google.com/search?q=${q}%20stock`, tag: "News" },
+  ];
+
+  // India (NSE/BSE)
+  if (suffix === ".NS" || suffix === ".BO") {
+    const tvEx = suffix === ".BO" ? "BSE" : "NSE";
+    const saEx = suffix === ".BO" ? "bse" : "nse";
+    return [
+      { label: "Screener.in", url: `https://www.screener.in/company/${encodeURIComponent(base)}/`, tag: "Fundamentals" },
+      { label: "Tickertape", url: `https://www.tickertape.in/search?q=${q}`, tag: "Analysis" },
+      { label: "Trendlyne", url: `https://trendlyne.com/equity/search/?q=${q}`, tag: "Forecasts" },
+      { label: "StockAnalysis", url: `https://stockanalysis.com/quote/${saEx}/${encodeURIComponent(base)}/`, tag: "Financials" },
+      { label: "NSE India", url: `https://www.nseindia.com/get-quotes/equity?symbol=${encodeURIComponent(base)}`, tag: "Exchange" },
+      { label: "TradingView", url: `https://www.tradingview.com/symbols/${tvEx}-${encodeURIComponent(base)}/`, tag: "Charts" },
+      ...universal,
+    ];
+  }
+
+  // UK (LSE)
+  if (suffix === ".L") {
+    return [
+      { label: "StockAnalysis", url: `https://stockanalysis.com/quote/lon/${encodeURIComponent(base)}/`, tag: "Financials" },
+      { label: "TradingView", url: `https://www.tradingview.com/symbols/LSE-${encodeURIComponent(base)}/`, tag: "Charts" },
+      { label: "FT Markets", url: `https://markets.ft.com/data/search?query=${q}`, tag: "News" },
+      ...universal,
+    ];
+  }
+
+  // US / default
+  return [
+    { label: "StockAnalysis", url: `https://stockanalysis.com/stocks/${encodeURIComponent(base)}/`, tag: "Financials" },
+    { label: "Finviz", url: `https://finviz.com/quote.ashx?t=${encodeURIComponent(base)}`, tag: "Snapshot" },
+    { label: "TradingView", url: `https://www.tradingview.com/symbols/${encodeURIComponent(base)}/`, tag: "Charts" },
+    { label: "MarketWatch", url: `https://www.marketwatch.com/investing/stock/${encodeURIComponent(base.toLowerCase())}`, tag: "Quote" },
+    { label: "SEC EDGAR", url: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker=${encodeURIComponent(base)}&type=10-K`, tag: "Filings" },
+    { label: "Seeking Alpha", url: `https://seekingalpha.com/symbol/${encodeURIComponent(base)}`, tag: "Analysis" },
+    ...universal,
+  ];
+}
+
 export default function StockDetail({ ticker }: { ticker: string }) {
   const [stock, setStock] = useState<StockQuote | null>(null);
   const [history, setHistory] = useState<MarketHistory | null>(null);
@@ -203,6 +256,20 @@ export default function StockDetail({ ticker }: { ticker: string }) {
                   {stock.marketCap != null && <span className="stk-hero-cap">Mkt cap {fmtCap(stock.marketCap)}</span>}
                 </div>
               )}
+            </article>
+
+            {/* ── External research links ── */}
+            <article className="findec-panel stk-links-panel">
+              <p className="findec-kicker">Research this stock elsewhere</p>
+              <div className="stk-links-grid">
+                {externalResearchLinks(stock.symbol, stock.name).map((l) => (
+                  <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer" className="stk-link-chip">
+                    <span className="stk-link-label">{l.label}</span>
+                    <span className="stk-link-tag">{l.tag}</span>
+                    <span className="stk-link-arrow" aria-hidden="true">↗</span>
+                  </a>
+                ))}
+              </div>
             </article>
 
             {/* ── 30-day chart ── */}

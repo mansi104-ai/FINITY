@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.18.0] — 2026-06-11
+
+### Added
+- **External research links on the stock page** — a market-aware "Research this stock elsewhere" panel with consistent, templated links that resolve for *any* company (no per-company id needed). India (.NS/.BO) → Screener.in, Tickertape, Trendlyne, StockAnalysis, NSE, TradingView; UK (.L) → StockAnalysis, TradingView, FT; US → StockAnalysis, Finviz, TradingView, MarketWatch, SEC EDGAR, Seeking Alpha; plus Yahoo Finance + Google News everywhere.
+
+### Changed
+- **Screener company name is now clickable (#2)** — clicking the company name (not just the symbol) opens its stock page.
+- **Sector heatmap now works for India + global (#3)** — added NSE/LSE/TSE/SSE sector mappings, so the Research → Sectors tab shows a real heatmap (Technology, Financials, Energy, Healthcare, …) instead of a single "Other" bucket for non-US markets.
+- **UI polish (#5)** — the ticker tape scrolls much slower (and pauses on hover so you can read/click it); the AI-Brief search bar is larger and more prominent (bigger text, focus ring, gradient "brief" button).
+
+---
+
 ## [v1.17.1] — 2026-06-11
 
 ### Fixed

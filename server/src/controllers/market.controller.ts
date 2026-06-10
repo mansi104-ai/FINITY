@@ -943,6 +943,52 @@ const SYMBOL_SECTORS: Record<string, string> = {
   // Energy / Industrials
   XOM: "Energy", CVX: "Energy",
   CAT: "Industrials", HON: "Industrials", ETN: "Industrials", UNP: "Industrials",
+
+  // ── India (NSE) ──
+  "TCS.NS": "Technology", "INFY.NS": "Technology", "WIPRO.NS": "Technology",
+  "HCLTECH.NS": "Technology", "TECHM.NS": "Technology",
+  "HDFCBANK.NS": "Financials", "ICICIBANK.NS": "Financials", "SBIN.NS": "Financials",
+  "AXISBANK.NS": "Financials", "KOTAKBANK.NS": "Financials", "INDUSINDBK.NS": "Financials",
+  "BAJFINANCE.NS": "Financials", "BAJAJFINSV.NS": "Financials",
+  "RELIANCE.NS": "Energy", "ONGC.NS": "Energy", "BPCL.NS": "Energy",
+  "IOC.NS": "Energy", "COALINDIA.NS": "Energy",
+  "SUNPHARMA.NS": "Healthcare", "DIVISLAB.NS": "Healthcare", "DRREDDY.NS": "Healthcare",
+  "CIPLA.NS": "Healthcare",
+  "MARUTI.NS": "Consumer Cyclical", "TATAMOTORS.NS": "Consumer Cyclical",
+  "EICHERMOT.NS": "Consumer Cyclical", "HEROMOTOCO.NS": "Consumer Cyclical",
+  "TITAN.NS": "Consumer Cyclical",
+  "HINDUNILVR.NS": "Consumer Defensive", "NESTLEIND.NS": "Consumer Defensive",
+  "BRITANNIA.NS": "Consumer Defensive", "TATACONSUM.NS": "Consumer Defensive",
+  "TATASTEEL.NS": "Materials", "JSWSTEEL.NS": "Materials", "HINDALCO.NS": "Materials",
+  "ULTRACEMCO.NS": "Materials", "GRASIM.NS": "Materials", "ASIANPAINT.NS": "Materials",
+  "UPL.NS": "Materials",
+  "NTPC.NS": "Utilities", "POWERGRID.NS": "Utilities",
+  "LT.NS": "Industrials", "ADANIENT.NS": "Industrials",
+  "BHARTIARTL.NS": "Communication",
+
+  // ── UK (LSE) ──
+  "SHEL.L": "Energy", "BP.L": "Energy",
+  "AZN.L": "Healthcare", "GSK.L": "Healthcare",
+  "HSBA.L": "Financials", "LLOY.L": "Financials", "BARC.L": "Financials",
+  "PRU.L": "Financials", "LGEN.L": "Financials",
+  "ULVR.L": "Consumer Defensive", "DGE.L": "Consumer Defensive", "BATS.L": "Consumer Defensive",
+  "RIO.L": "Materials", "REL.L": "Communication", "VOD.L": "Communication", "BT-A.L": "Communication",
+  "NG.L": "Utilities", "SSE.L": "Utilities", "CPG.L": "Consumer Cyclical", "FLTR.L": "Consumer Cyclical",
+
+  // ── Japan (TSE) ──
+  "7203.T": "Consumer Cyclical", "6758.T": "Technology", "9984.T": "Communication",
+  "6501.T": "Industrials", "8306.T": "Financials", "8316.T": "Financials",
+  "6954.T": "Industrials", "8035.T": "Technology", "9432.T": "Communication",
+  "9433.T": "Communication", "7974.T": "Communication", "4063.T": "Materials",
+  "6367.T": "Industrials", "4502.T": "Healthcare", "2802.T": "Consumer Defensive", "9022.T": "Industrials",
+
+  // ── China (SSE/SZSE) ──
+  "600519.SS": "Consumer Defensive", "000858.SZ": "Consumer Defensive",
+  "601318.SS": "Financials", "600036.SS": "Financials", "601166.SS": "Financials",
+  "601398.SS": "Financials", "601288.SS": "Financials",
+  "601888.SS": "Consumer Cyclical", "000333.SZ": "Consumer Cyclical",
+  "600276.SS": "Healthcare", "600900.SS": "Utilities",
+  "002415.SZ": "Technology", "600309.SS": "Materials",
 };
 
 export function sectorForSymbol(sym: string): string {

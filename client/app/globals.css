@@ -2722,8 +2722,11 @@ html[data-theme="dark"] .single-note-card-accent {
   width: max-content;
   gap: 0.65rem;
   padding: 0.65rem;
-  animation: ticker-scroll 56s linear infinite;
+  animation: ticker-scroll 120s linear infinite;
 }
+
+/* Pause the tape on hover so it can actually be read / clicked. */
+.findec-ticker-marquee:hover .findec-ticker-track { animation-play-state: paused; }
 
 .findec-ticker-chip {
   display: inline-flex;
@@ -2748,10 +2751,17 @@ html[data-theme="dark"] .single-note-card-accent {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
-  padding: 0.6rem;
-  border: 1px solid #272727;
-  border-radius: 12px;
+  padding: 0.5rem 0.5rem 0.5rem 0.85rem;
+  border: 1px solid #2f2f2f;
+  border-radius: 16px;
   background: #141414;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.findec-search-row:focus-within {
+  border-color: #4f8ef7;
+  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.12);
 }
 
 .findec-search-input,
@@ -2765,11 +2775,15 @@ html[data-theme="dark"] .single-note-card-accent {
 }
 
 .findec-search-input {
-  padding: 0.82rem 0.95rem;
+  padding: 1.05rem 0.8rem;
   border: none;
   background: transparent;
-  color: #7c7f84;
+  color: #f2efe8;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
 }
+
+.findec-search-input::placeholder { color: #6f7378; }
 
 .findec-search-input:focus,
 .findec-mini-input:focus {
@@ -2783,14 +2797,21 @@ html[data-theme="dark"] .single-note-card-accent {
 }
 
 .findec-search-button {
-  min-width: 78px;
-  border: 1px solid #353535;
-  border-radius: 9px;
-  background: #1b1b1b;
-  color: #d8d0c2;
-  padding: 0 1rem;
+  min-width: 110px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4f8ef7, #3a6fd0);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  padding: 0 1.3rem;
   cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
 }
+
+.findec-search-button:hover:not(:disabled) { filter: brightness(1.08); }
+.findec-search-button:active:not(:disabled) { transform: translateY(1px); }
 
 .findec-search-button:disabled {
   opacity: 0.5;
@@ -3787,6 +3808,37 @@ html[data-theme="dark"] .single-note-card-accent {
   padding: 1.1rem 1.25rem;
   margin-bottom: 0.75rem;
 }
+
+/* ── External research links ── */
+.stk-links-panel { padding: 1rem 1.25rem; margin-bottom: 0.75rem; }
+.stk-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+.stk-link-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #262626;
+  border-radius: 10px;
+  background: #151515;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.05s ease;
+}
+.stk-link-chip:hover { border-color: #3a6fd0; background: #181b22; }
+.stk-link-chip:active { transform: translateY(1px); }
+.stk-link-label { color: #e9e4d9; font-size: 0.86rem; font-weight: 500; }
+.stk-link-tag {
+  margin-left: auto;
+  color: #7c7f84;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stk-link-arrow { color: #4f8ef7; font-size: 0.8rem; }
 
 .stk-chart-top {
   display: flex;
@@ -4899,6 +4951,8 @@ html[data-theme="dark"] .single-note-card-accent {
 .scr-symbol:hover { color: #7aadff; }
 
 .scr-name { color: #777; font-size: 0.75rem; white-space: normal; max-width: 160px; }
+.scr-name-link { text-decoration: none; transition: color 0.15s ease; }
+.scr-name-link:hover { color: #b7b1a5; text-decoration: underline; }
 
 .scr-dim { color: #444; }
 
