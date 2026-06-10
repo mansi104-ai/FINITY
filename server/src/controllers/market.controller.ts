@@ -646,6 +646,45 @@ async function fetchFinnhubQuotesForSymbols(
   return out;
 }
 
+function hasFundamentalFields(stock: StockQuoteResponse): boolean {
+  return stock.peRatio != null ||
+    stock.marketCap != null ||
+    stock.dividendYield != null ||
+    stock.high52w != null ||
+    stock.ma50 != null ||
+    stock.beta != null;
+}
+
+async function enrichFinnhubUsStocks(stocks: StockQuoteResponse[]): Promise<StockQuoteResponse[]> {
+  const limited = stocks.slice(0, 15);
+  const enriched = await Promise.all(limited.map(async (stock) => {
+    const [metricRes, profileRes] = await Promise.allSettled([
+      fhMetrics(stock.symbol),
+      fhProfile(stock.symbol),
+    ]);
+
+    if (metricRes.status === "fulfilled") {
+      const metric = metricRes.value.metric;
+      if (stock.high52w == null && metric["52WeekHigh"] != null) stock.high52w = +Number(metric["52WeekHigh"]).toFixed(2);
+      if (stock.low52w == null && metric["52WeekLow"] != null) stock.low52w = +Number(metric["52WeekLow"]).toFixed(2);
+      if (stock.peRatio == null && metric.peTTM != null) stock.peRatio = +Number(metric.peTTM).toFixed(2);
+      if (stock.dividendYield == null && metric.dividendYieldIndicatedAnnual != null) stock.dividendYield = +Number(metric.dividendYieldIndicatedAnnual).toFixed(2);
+      if (stock.beta == null && metric.beta != null) stock.beta = +Number(metric.beta).toFixed(2);
+    }
+
+    if (profileRes.status === "fulfilled") {
+      const profile = profileRes.value;
+      if (stock.marketCap == null && profile.marketCapitalization) stock.marketCap = Math.round(Number(profile.marketCapitalization) * 1e6);
+      if ((!stock.name || stock.name === stock.symbol) && profile.name) stock.name = profile.name;
+      if (!stock.exchange && profile.exchange) stock.exchange = profile.exchange;
+    }
+
+    return stock;
+  }));
+
+  return [...enriched, ...stocks.slice(limited.length)];
+}
+
 // ─── Sector map for tracked symbols (powers v0.5 sector heatmap) ───────────────
 const SYMBOL_SECTORS: Record<string, string> = {
   // US tech
@@ -751,8 +790,18 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
   if (env.finnhubKey) {
     try {
       const equitySymbols = symbols.filter((s) => !s.startsWith("^")).slice(0, 40);
-      const all = await fetchFinnhubQuotesForSymbols(equitySymbols, countryCode);
-      if (all.length > 0) { void setStocksCache(countryCode, all, []); return all; }
+      let all = await fetchFinnhubQuotesForSymbols(equitySymbols, countryCode);
+      if (countryCode === "US" && all.length > 0) {
+        all = await enrichFinnhubUsStocks(all);
+      }
+      if (all.some(hasFundamentalFields)) {
+        void setStocksCache(countryCode, all, []);
+        return all;
+      }
+      if (countryCode === "US" && all.length > 0) {
+        void setStocksCache(countryCode, all, []);
+        return all;
+      }
     } catch { /* try cache / US fallback */ }
   }
 
@@ -767,8 +816,8 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
   // geolocation-based scroll strip (snapshot) keeps its own US fallback already.
   if (env.finnhubKey && countryCode !== "US") {
     try {
-      const usSymbols = getTrackedSymbolsForCountry("US").filter((s) => !s.startsWith("^")).slice(0, 40);
-      const all = await fetchFinnhubQuotesForSymbols(usSymbols, "US");
+      const usSymbols = getTrackedSymbolsForCountry("US").filter((s) => !s.startsWith("^")).slice(0, 15);
+      const all = await enrichFinnhubUsStocks(await fetchFinnhubQuotesForSymbols(usSymbols, "US"));
       // Cache under this country so repeat loads are served cache-first and don't
       // keep re-hitting (and exhausting) Finnhub for the same fallback data.
       if (all.length > 0) { void setStocksCache(countryCode, all, []); return all; }
