@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.12.0] — 2026-06-09
+
+### Changed
+- **Hybrid web-app shell** — replaced the narrow 838px centered column with a proper app layout: a persistent **left sidebar** (grouped, icon+label nav: AI Brief, Market group, and an auth-only "You" group) + a **slim sticky top bar** (notifications + account). The sidebar **collapses to icons** (persisted) on desktop and becomes an **off-canvas drawer** with a hamburger + scrim on ≤860px. Content now uses a fluid container (max 1320px, 1680px at 4K) instead of 838px. New `AppShell` component; `layout.tsx` simplified; print styles updated for the new chrome. (Mobile bottom-bar nav arrives in the v1.21+ track.)
+
+---
+
 ## [v1.11.0] — 2026-06-09
 
 ### Added
