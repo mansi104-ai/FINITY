@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.13.0] — 2026-06-09
+
+### Added
+- **Global header tools** — the slim top bar now has an integrated **stock search** (debounced autocomplete → jumps to the stock page; Enter picks the top hit) and a compact **region menu** (flag dropdown to switch market: Auto/US/IN/GB/JP/CN) alongside notifications + account. Search collapses gracefully and the region label hides on narrow widths.
+
+---
+
 ## [v1.12.0] — 2026-06-09
 
 ### Changed

@@ -8,6 +8,8 @@ import Brand from "./Brand";
 import NotificationBell from "./NotificationBell";
 import AccountLink from "./AccountLink";
 import MarketTickerStrip from "./MarketTickerStrip";
+import GlobalSearch from "./GlobalSearch";
+import RegionMenu from "./RegionMenu";
 import { getSessionUser, subscribeToAuthChanges } from "../services/api";
 
 const COLLAPSE_KEY = "findec-sidebar-collapsed";
@@ -125,8 +127,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <span /><span /><span />
           </button>
           <Link href="/" className="ash-topbar-brand"><Brand size={24} /></Link>
+          <GlobalSearch />
           <div className="ash-topbar-spacer" />
           <div className="ash-topbar-actions">
+            <RegionMenu />
             <NotificationBell />
             <AccountLink />
           </div>
