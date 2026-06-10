@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.10.0] — 2026-06-09
+
+### Added
+- **Design-token foundation (redesign v1.10–v1.30 kickoff)** — introduced a `--fd-*` dark-app design system (color, spacing, radius, shadow, type scale, layout dims) layered additively over the existing styles so nothing regresses, plus **4K/large-display root-font scaling** (≥1600/2560/3400px) and a `.fd-container` width utility. This is the base the upcoming hybrid web-app shell (sidebar + top bar) and mobile redesign build on. Logo remains a pending swap-in.
+
+---
+
 ## [v1.9.2] — 2026-06-09
 
 ### Fixed

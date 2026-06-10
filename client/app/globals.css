@@ -17,6 +17,46 @@
   --board-mint: #dff5ec;
   --board-coral: #ffe1d7;
   --board-paper: #fffaf2;
+
+  /* ── FINDEC design tokens (v1.10.0) — dark-app system; additive, consumed by
+     the redesign. Mirrors the existing dark UI palette so nothing regresses. ── */
+  --fd-bg: #0c0c0d;
+  --fd-surface: #121214;
+  --fd-surface-2: #161616;
+  --fd-elevated: #0f0f0f;
+  --fd-border: #2a2a2a;
+  --fd-border-soft: #1e1e1e;
+  --fd-text: #f4efe6;
+  --fd-text-dim: #b8b2a6;
+  --fd-text-muted: #777;
+  --fd-text-cool: #cdd6e6;
+  --fd-primary: #246bff;
+  --fd-primary-weak: rgba(36, 107, 255, 0.16);
+  --fd-up: #33b36b;
+  --fd-down: #cc5147;
+  --fd-warning: #e0a32e;
+  --fd-accent: #7b61ff;
+
+  /* spacing scale */
+  --fd-s1: 0.25rem; --fd-s2: 0.5rem; --fd-s3: 0.75rem; --fd-s4: 1rem;
+  --fd-s5: 1.5rem; --fd-s6: 2rem; --fd-s7: 3rem;
+
+  /* radius + shadow */
+  --fd-radius-sm: 6px; --fd-radius: 10px; --fd-radius-lg: 14px; --fd-radius-pill: 999px;
+  --fd-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  --fd-shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.35);
+
+  /* type scale (rem → scales with root font-size at 4K) */
+  --fd-fs-xs: 0.72rem; --fd-fs-sm: 0.82rem; --fd-fs-md: 0.92rem;
+  --fd-fs-lg: 1.1rem; --fd-fs-xl: 1.4rem; --fd-fs-2xl: 1.9rem;
+
+  /* layout */
+  --fd-container: 1320px;     /* max content width on 1080p */
+  --fd-container-wide: 1680px;/* used at 4K */
+  --fd-sidebar-w: 232px;
+  --fd-sidebar-collapsed-w: 64px;
+  --fd-topbar-h: 60px;
+  --fd-bottombar-h: 60px;
 }
 
 * {
@@ -25,7 +65,18 @@
 
 html {
   scroll-behavior: smooth;
+  font-size: 16px;
 }
+
+/* 4K / large-display scaling: bump the root font-size so rem-based sizing and
+   spacing scale up instead of leaving tiny UI on huge screens. No effect ≤1599px. */
+@media (min-width: 1600px) { html { font-size: 17px; } }
+@media (min-width: 2560px) { html { font-size: 19px; } }
+@media (min-width: 3400px) { html { font-size: 22px; } }
+
+/* Reusable centered content container for the redesign. */
+.fd-container { width: 100%; max-width: var(--fd-container); margin-inline: auto; }
+@media (min-width: 2560px) { .fd-container { max-width: var(--fd-container-wide); } }
 
 body {
   margin: 0;
