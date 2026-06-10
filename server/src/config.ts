@@ -66,7 +66,8 @@ export const env = {
   databaseUrl: readString(process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? process.env.NEON_DATABASE_URL),
   newsApiKey: readString(process.env.NEWSAPI_KEY ?? process.env.NEWS_API_KEY),
   finnhubKey: readString(process.env.FINNHUB_API_KEY),
+  twelvedataKey: readString(process.env.TWELVEDATA_API_KEY ?? process.env.TWELVE_DATA_API_KEY ?? process.env.TWELVEDATA_KEY),
   emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL),
   errorWebhookUrl: readString(process.env.ERROR_WEBHOOK_URL ?? process.env.SENTRY_DSN),
-  appVersion: readString(process.env.APP_VERSION, "1.16.0")
+  appVersion: readString(process.env.APP_VERSION, "1.17.0")
 };

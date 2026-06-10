@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.17.0] — 2026-06-11
+
+### Added
+- **Twelve Data integration — reliable live data for India + global markets.** Yahoo Finance is IP-blocked on Vercel's cloud IPs and Finnhub's free tier is US-only, which left India/NSE (and other non-US) quotes, search, charts, and earnings empty. Twelve Data is now wired in as the primary source for those, with the existing Yahoo → Finnhub → cache chain preserved as fallback. Set `TWELVEDATA_API_KEY` on the server.
+  - **Quotes / Markets / Screener / Research (#2, #5)** — `loadDetailedStocks` now falls back to Twelve Data (batched per exchange) when Yahoo fails, so non-US markets show their *own* stocks instead of a US fallback list.
+  - **Stock detail (#7, #10)** — Indian/global tickers (e.g. `RELIANCE.NS`) resolve via Twelve Data when Yahoo/Finnhub can't serve them.
+  - **Search (#6)** — `/api/market/search` falls back to Twelve Data symbol search and re-attaches Yahoo suffixes (`.NS`, `.L`, `.T`, …) so the rest of the app stays consistent.
+  - **History + candles** — `/history` and `/candles` fall back to Twelve Data time-series.
+  - **Earnings calendar (#8)** — Twelve Data's earnings calendar is tried first (covers India + global), with Finnhub as fallback.
+- New `server/src/services/twelvedata.ts` with Yahoo↔Twelve Data symbol/exchange conversion and quote/batch/search/time-series/earnings helpers.
+
+---
+
 ## [v1.16.0] — 2026-06-11
 
 ### Changed

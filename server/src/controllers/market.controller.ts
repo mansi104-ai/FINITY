@@ -18,6 +18,17 @@ import {
   fhRecommendations,
   type FinnhubNewsItem,
 } from "../services/finnhub";
+import {
+  tdEnabled,
+  tdQuoteBatch,
+  tdQuoteSingle,
+  tdSearch,
+  tdTimeSeries,
+  tdEarningsCalendar,
+  toTwelveData,
+  toYahooSymbol,
+  type TdQuote,
+} from "../services/twelvedata";
 
 const NEW_YORK_TIMEZONE = "America/New_York";
 const STOCK_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -160,7 +171,7 @@ type MarketHistoryResponse = {
   symbol: string; name: string; currency: string;
   points: MarketHistoryPoint[]; latestClose: number;
   changePercent30d: number; high30d: number; low30d: number;
-  source: "yahoo";
+  source: "yahoo" | "twelvedata";
 };
 
 type StocksListResponse = {
@@ -444,7 +455,7 @@ type CandlesResponse = {
   range: string;
   interval: string;
   candles: Candle[];
-  source: "yahoo";
+  source: "yahoo" | "twelvedata";
 };
 
 const ALLOWED_CANDLE_RANGES: Record<string, string> = {
@@ -506,6 +517,64 @@ async function fetchCandles(ticker: string, range: string): Promise<CandlesRespo
     name: meta.shortName ?? meta.longName ?? ticker,
     currency: meta.currency ?? "USD",
     range, interval, candles, source: "yahoo",
+  };
+}
+
+// ─── Twelve Data history/candles (fallback when Yahoo is blocked) ─────────────
+async function fetchHistoryTwelveData(ticker: string): Promise<MarketHistoryResponse | null> {
+  const ts = await tdTimeSeries(ticker, "1day", 30);
+  if (!ts?.values?.length) return null;
+  const points = ts.values
+    .map((v) => {
+      const close = Number(v.close);
+      if (!Number.isFinite(close)) return null;
+      return { date: new Date(v.datetime).toISOString(), close: +close.toFixed(2) };
+    })
+    .filter((p): p is MarketHistoryPoint => p !== null)
+    .slice(-30);
+  if (points.length < 5) return null;
+  const series = points.map((p) => p.close);
+  const latestClose = series[series.length - 1];
+  const firstClose = series[0];
+  return {
+    symbol: ts.meta?.symbol ?? ticker, name: ts.meta?.symbol ?? ticker,
+    currency: ts.meta?.currency ?? "USD", points,
+    latestClose: +latestClose.toFixed(2),
+    changePercent30d: +(((latestClose - firstClose) / firstClose) * 100).toFixed(2),
+    high30d: +Math.max(...series).toFixed(2),
+    low30d: +Math.min(...series).toFixed(2),
+    source: "twelvedata",
+  };
+}
+
+async function fetchCandlesTwelveData(ticker: string, range: string): Promise<CandlesResponse | null> {
+  const interval = ALLOWED_CANDLE_RANGES[range] ?? "1d";
+  const tdInterval = interval === "1wk" ? "1week" : "1day";
+  // Approximate the number of bars the range implies.
+  const OUTPUT_BY_RANGE: Record<string, number> = {
+    "1mo": 23, "3mo": 65, "6mo": 130, "1y": 252, "2y": 110, "5y": 260,
+  };
+  const ts = await tdTimeSeries(ticker, tdInterval, OUTPUT_BY_RANGE[range] ?? 130);
+  if (!ts?.values?.length) return null;
+  const candles: Candle[] = ts.values
+    .map((v) => {
+      const c = Number(v.close);
+      if (!Number.isFinite(c)) return null;
+      const o = Number.isFinite(Number(v.open)) ? Number(v.open) : c;
+      const h = Number.isFinite(Number(v.high)) ? Number(v.high) : Math.max(o, c);
+      const l = Number.isFinite(Number(v.low)) ? Number(v.low) : Math.min(o, c);
+      const vol = Number(v.volume);
+      return {
+        date: new Date(v.datetime).toISOString(),
+        open: +o.toFixed(2), high: +h.toFixed(2), low: +l.toFixed(2),
+        close: +c.toFixed(2), volume: Number.isFinite(vol) ? vol : 0,
+      };
+    })
+    .filter((p): p is Candle => p !== null);
+  if (candles.length < 10) return null;
+  return {
+    symbol: ts.meta?.symbol ?? ticker, name: ts.meta?.symbol ?? ticker,
+    currency: ts.meta?.currency ?? "USD", range, interval, candles, source: "twelvedata",
   };
 }
 
@@ -646,6 +715,67 @@ async function fetchFinnhubQuotesForSymbols(
   return out;
 }
 
+// ─── Twelve Data live quotes (primary for international markets) ──────────────
+// Yahoo is IP-blocked on Vercel and Finnhub free is US-only, so Twelve Data is
+// the reliable source for India/NSE + global equities and indices.
+function tdToStockQuote(yahoo: string, q: TdQuote, indexSymbols: Set<string>): StockQuoteResponse | null {
+  const price = Number(q.close);
+  if (!Number.isFinite(price) || price <= 0) return null;
+  const lastClose = Number(q.previous_close ?? q.close);
+  const change = q.change != null ? Number(q.change) : price - lastClose;
+  const changePercent = q.percent_change != null
+    ? Number(q.percent_change)
+    : (lastClose ? ((price - lastClose) / lastClose) * 100 : 0);
+  const high52 = q.fifty_two_week?.high != null ? Number(q.fifty_two_week.high) : undefined;
+  const low52 = q.fifty_two_week?.low != null ? Number(q.fifty_two_week.low) : undefined;
+  const volume = q.volume != null && Number.isFinite(Number(q.volume)) ? Number(q.volume) : undefined;
+  const avgVolume = q.average_volume != null && Number.isFinite(Number(q.average_volume)) ? Number(q.average_volume) : undefined;
+  return {
+    symbol: yahoo,
+    name: q.name || yahoo,
+    exchange: q.exchange || "",
+    currency: q.currency || "USD",
+    price: +price.toFixed(2),
+    lastClose: +Number(lastClose || price).toFixed(2),
+    change: +Number(change).toFixed(2),
+    changePercent: +Number(changePercent).toFixed(4),
+    volume,
+    avgVolume,
+    high52w: high52 != null && Number.isFinite(high52) ? +high52.toFixed(2) : undefined,
+    low52w: low52 != null && Number.isFinite(low52) ? +low52.toFixed(2) : undefined,
+    isIndex: indexSymbols.has(yahoo),
+  };
+}
+
+async function fetchTwelveDataQuotes(symbols: string[], countryCode: string): Promise<StockQuoteResponse[]> {
+  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+  // Twelve Data's `exchange` param applies to the whole /quote call, so group
+  // symbols by their resolved exchange (indices in their own group).
+  const groups = new Map<string, string[]>();
+  for (const sym of symbols) {
+    const r = toTwelveData(sym);
+    const key = r.isIndex ? "__index__" : (r.exchange ?? "__none__");
+    const arr = groups.get(key) ?? [];
+    arr.push(sym);
+    groups.set(key, arr);
+  }
+  const out: StockQuoteResponse[] = [];
+  const settled = await Promise.allSettled(
+    Array.from(groups.entries()).map(([key, group]) => {
+      const exchange = key === "__index__" || key === "__none__" ? undefined : key;
+      return tdQuoteBatch(group, exchange);
+    })
+  );
+  for (const result of settled) {
+    if (result.status !== "fulfilled") continue;
+    for (const [yahoo, q] of result.value) {
+      const mapped = tdToStockQuote(yahoo, q, indexSymbols);
+      if (mapped) out.push(mapped);
+    }
+  }
+  return out;
+}
+
 function hasFundamentalFields(stock: StockQuoteResponse): boolean {
   return stock.peRatio != null ||
     stock.marketCap != null ||
@@ -783,7 +913,21 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
     const indices = all.filter((s) => indexSymbols.has(s.symbol));
     void setStocksCache(countryCode, stocks, indices);
     return all;
-  } catch { /* try Finnhub / cache */ }
+  } catch { /* try Twelve Data / Finnhub / cache */ }
+
+  // Twelve Data — the reliable source when Yahoo is IP-blocked (Vercel). Covers
+  // India/NSE + global markets that Finnhub's free US-only tier can't serve.
+  if (tdEnabled()) {
+    try {
+      const all = await fetchTwelveDataQuotes(symbols, countryCode);
+      if (all.length > 0) {
+        const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
+        const indices = all.filter((s) => indexSymbols.has(s.symbol));
+        void setStocksCache(countryCode, stocks, indices);
+        return all;
+      }
+    } catch { /* try Finnhub / cache */ }
+  }
 
   // Finnhub fallback for the detected market's own symbols (works for US;
   // may return partial data for some international tickers).
@@ -898,9 +1042,14 @@ export async function getMarketHistoryController(req: Request, res: Response) {
   if (!ticker) return res.status(400).json({ error: "Ticker is required" });
   try {
     return res.status(200).json(await fetchHistory(ticker));
-  } catch {
-    return res.status(502).json({ error: `Live history is unavailable for "${ticker}" right now.` });
+  } catch { /* try Twelve Data */ }
+  if (tdEnabled()) {
+    try {
+      const td = await fetchHistoryTwelveData(ticker);
+      if (td) return res.status(200).json(td);
+    } catch { /* fall through */ }
   }
+  return res.status(502).json({ error: `Live history is unavailable for "${ticker}" right now.` });
 }
 
 export async function getCandlesController(req: Request, res: Response) {
@@ -910,9 +1059,14 @@ export async function getCandlesController(req: Request, res: Response) {
   const range = ALLOWED_CANDLE_RANGES[rawRange] ? rawRange : "6mo";
   try {
     return res.status(200).json(await fetchCandles(ticker, range));
-  } catch {
-    return res.status(502).json({ error: `Candle data is unavailable for "${ticker}" right now.` });
+  } catch { /* try Twelve Data */ }
+  if (tdEnabled()) {
+    try {
+      const td = await fetchCandlesTwelveData(ticker, range);
+      if (td) return res.status(200).json(td);
+    } catch { /* fall through */ }
   }
+  return res.status(502).json({ error: `Candle data is unavailable for "${ticker}" right now.` });
 }
 
 export async function getStocksController(req: Request, res: Response) {
@@ -1014,7 +1168,17 @@ export async function getStockDetailController(req: Request, res: Response) {
   try {
     const [result] = await fetchDetailedQuotesBatch([ticker], indexSymbols);
     quote = result;
-  } catch { /* try Finnhub */ }
+  } catch { /* try Twelve Data / Finnhub */ }
+
+  // 1b. Twelve Data — primary fallback for international tickers (India/NSE,
+  //     LSE, TSE, etc.) where Yahoo is blocked and Finnhub free can't serve.
+  if ((!quote || !(quote.price > 0)) && tdEnabled() && !ticker.startsWith("^")) {
+    const tq = await tdQuoteSingle(ticker);
+    if (tq) {
+      const mapped = tdToStockQuote(ticker, tq, indexSymbols);
+      if (mapped && mapped.price > 0) quote = mapped;
+    }
+  }
 
   // 2. Finnhub fallback when Yahoo is blocked (US stocks only)
   if (!quote && env.finnhubKey && countryCode === "US" && !ticker.startsWith("^")) {
@@ -1086,6 +1250,7 @@ export async function searchStocksController(req: Request, res: Response) {
   const q = String(req.query.q ?? "").trim();
   if (!q || q.length < 1) return res.status(200).json({ results: [] });
 
+  // 1. Yahoo Finance search (rich, multi-market) — works locally; blocked on Vercel.
   try {
     type YahooSearchQuote = {
       symbol?: string; shortname?: string; longname?: string;
@@ -1109,10 +1274,34 @@ export async function searchStocksController(req: Request, res: Response) {
         type: r.typeDisp ?? r.quoteType ?? "Equity"
       }));
 
-    return res.status(200).json({ results: quotes });
-  } catch {
-    return res.status(200).json({ results: [] });
+    if (quotes.length > 0) return res.status(200).json({ results: quotes });
+  } catch { /* try Twelve Data */ }
+
+  // 2. Twelve Data search — works on Vercel and covers India/NSE + global.
+  //    Re-attach Yahoo suffixes so the rest of the app stays consistent.
+  if (tdEnabled()) {
+    try {
+      const items = await tdSearch(q);
+      const seen = new Set<string>();
+      const results = items
+        .filter((it) => it.symbol && (!it.instrument_type || /stock|etf|index|equity|common/i.test(it.instrument_type)))
+        .map((it) => ({
+          symbol: toYahooSymbol(it),
+          name: it.instrument_name ?? it.symbol,
+          exchange: it.exchange ?? it.mic_code ?? "",
+          type: it.instrument_type ?? "Equity",
+        }))
+        .filter((r) => {
+          if (seen.has(r.symbol)) return false;
+          seen.add(r.symbol);
+          return true;
+        })
+        .slice(0, 12);
+      if (results.length > 0) return res.status(200).json({ results });
+    } catch { /* fall through */ }
   }
+
+  return res.status(200).json({ results: [] });
 }
 
 export async function getNewsController(req: Request, res: Response) {
@@ -1166,12 +1355,56 @@ export async function getNewsController(req: Request, res: Response) {
   return res.status(200).json({ articles: [], source: "unavailable", ticker: ticker || null });
 }
 
+type EarningsRow = {
+  date: string; symbol: string; company: string;
+  epsEstimate: number | null; epsActual: number | null;
+  revenueEstimate: number | null; revenueActual: number | null;
+  hour: string; quarter: number; year: number;
+};
+
 export async function getEarningsController(_req: Request, res: Response) {
   const now = new Date();
   const todayStr = isoDate(now);
   const futureStr = isoDate(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
   const pastStr = isoDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
 
+  // 1. Twelve Data calendar — covers India + global, where Finnhub free is empty.
+  if (tdEnabled()) {
+    try {
+      const items = await tdEarningsCalendar(pastStr, futureStr);
+      if (items.length > 0) {
+        const rows: EarningsRow[] = items
+          .filter((e) => e.symbol && e.date)
+          .map((e) => ({
+            date: e.date!,
+            symbol: toYahooSymbol({ symbol: e.symbol!, exchange: e.exchange }),
+            company: e.name || e.symbol!,
+            epsEstimate: e.eps_estimate ?? null,
+            epsActual: e.eps_actual ?? null,
+            revenueEstimate: null,
+            revenueActual: null,
+            hour: e.time || "",
+            quarter: 0,
+            year: new Date(e.date!).getFullYear(),
+          }));
+        const upcoming = rows
+          .filter((r) => r.date >= todayStr)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .slice(0, 100);
+        const recent = rows
+          .filter((r) => r.date < todayStr && (r.epsActual != null || r.epsEstimate != null))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 50);
+        if (upcoming.length > 0 || recent.length > 0) {
+          return res.status(200).json({ upcoming, recent });
+        }
+      }
+    } catch (e) {
+      console.warn("Twelve Data earnings failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // 2. Finnhub calendar (US-centric).
   try {
     const [upcomingRes, recentRes] = await Promise.all([
       fhEarnings(todayStr, futureStr),
