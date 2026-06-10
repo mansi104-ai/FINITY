@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.9.2] — 2026-06-09
+
+### Fixed
+- **Stocks/markets went empty on repeated loads for non-US regions** — the US last-resort fallback (used when a market like India is Yahoo-blocked) wasn't being cached, so every page load re-hit Finnhub and eventually got rate-limited to empty. It's now cached under the country code, so the first load warms it and subsequent loads are served cache-first.
+
+---
+
 ## [v1.9.1] — 2026-06-09
 
 ### Fixed

@@ -769,7 +769,9 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
     try {
       const usSymbols = getTrackedSymbolsForCountry("US").filter((s) => !s.startsWith("^")).slice(0, 40);
       const all = await fetchFinnhubQuotesForSymbols(usSymbols, "US");
-      if (all.length > 0) return all;
+      // Cache under this country so repeat loads are served cache-first and don't
+      // keep re-hitting (and exhausting) Finnhub for the same fallback data.
+      if (all.length > 0) { void setStocksCache(countryCode, all, []); return all; }
     } catch { /* nothing left */ }
   }
 
