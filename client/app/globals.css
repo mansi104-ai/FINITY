@@ -4112,6 +4112,28 @@ html[data-theme="dark"] .single-note-card-accent {
 .ipo-link:hover { border-color: #246bff; }
 .ipo-link-internal { color: #72b92b; }
 
+/* ── History track-record redesign (v1.16) ── */
+.hist-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; text-align: right; }
+.hist-card-right .hist-time { font-size: 0.74rem; color: var(--fd-text-muted); }
+.hist-card-right .hist-score { font-size: 0.72rem; color: var(--fd-text-dim); }
+.hist-verdict-chip { font-size: 0.68rem; padding: 0.12rem 0.5rem; border-radius: var(--fd-radius-pill); border: 1px solid transparent; }
+.hist-verdict-right { background: rgba(51,179,107,0.16); color: #58d08c; border-color: rgba(51,179,107,0.4); }
+.hist-verdict-wrong { background: rgba(204,81,71,0.16); color: #e07a72; border-color: rgba(204,81,71,0.4); }
+.hist-verdict-pending { background: rgba(224,163,46,0.14); color: #e0a32e; border-color: rgba(224,163,46,0.32); }
+.hist-card { border-left: 3px solid transparent; }
+.hist-card.hist-v-wrong { border-left-color: rgba(204,81,71,0.5); }
+.hist-card.hist-v-right { border-left-color: rgba(51,179,107,0.5); }
+.hist-card.hist-v-pending { border-left-color: rgba(224,163,46,0.4); }
+.hist-outcome {
+  display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap;
+  background: #141414; border: 1px solid #222; border-radius: var(--fd-radius-sm);
+  padding: 0.6rem 0.85rem; margin: 0.5rem 0 0.7rem;
+}
+.hist-outcome-cell { display: grid; gap: 0.1rem; }
+.hist-outcome-cell span { font-size: 0.64rem; color: var(--fd-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.hist-outcome-cell strong { font-size: 0.95rem; color: var(--fd-text); font-weight: 500; }
+.hist-outcome-arrow { color: var(--fd-text-muted); font-size: 1rem; }
+
 /* ── History card enrichment (v1.2) ── */
 .hist-company-name { font-size: 0.8rem; color: #b8b2a6; margin-left: 0.1rem; }
 .hist-graph-block {

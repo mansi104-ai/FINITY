@@ -34,7 +34,13 @@ export async function createAlertController(req: Request, res: Response) {
   };
 
   await savePriceAlert(alert);
-  return res.status(201).json({ alert });
+
+  // Evaluate immediately so an already-crossed alert fires right away instead of
+  // waiting for the next poll (a common "nothing happened" confusion).
+  let fired = 0;
+  try { fired = await checkAlertsForUser(userId); } catch { /* best-effort */ }
+
+  return res.status(201).json({ alert, fired });
 }
 
 export async function deleteAlertController(req: Request, res: Response) {

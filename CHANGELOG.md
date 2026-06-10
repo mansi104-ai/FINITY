@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.16.0] — 2026-06-11
+
+### Changed
+- **History page completely redesigned (#9) into an "AI Track Record"** — instead of mirroring the brief, each past call is now scored against what the stock actually did since: a hit-rate / resolved / avg-buy-move summary, and per-call cards showing "Called at X → Now Y", return-since-call, AI-predicted vs actual, and a ✓ Played out / ✗ Missed / ⏳ Pending verdict (color-coded). Filter by outcome.
+
+### Fixed
+- **Price alerts evaluate on creation (#3)** — adding an alert now immediately checks live price, so an already-crossed target fires right away instead of waiting for the next poll. (Indian-ticker alerts still need the live-data provider; US works now.)
+
+---
+
 ## [v1.15.0] — 2026-06-09
 
 ### Added
