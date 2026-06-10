@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.14.0] — 2026-06-09
+
+### Added
+- **Global footer** — a proper site footer in the app shell: brand + tagline, link columns (Market / Tools / Account), and a bottom bar with copyright, version, and the "not financial advice" disclaimer. Responsive (stacks on mobile), hidden in print/PDF exports.
+
+---
+
 ## [v1.13.0] — 2026-06-09
 
 ### Added

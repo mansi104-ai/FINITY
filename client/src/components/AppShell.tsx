@@ -10,6 +10,7 @@ import AccountLink from "./AccountLink";
 import MarketTickerStrip from "./MarketTickerStrip";
 import GlobalSearch from "./GlobalSearch";
 import RegionMenu from "./RegionMenu";
+import AppFooter from "./AppFooter";
 import { getSessionUser, subscribeToAuthChanges } from "../services/api";
 
 const COLLAPSE_KEY = "findec-sidebar-collapsed";
@@ -141,6 +142,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <main className="ash-content">
           <div className="ash-content-inner">{children}</div>
         </main>
+
+        <AppFooter />
       </div>
 
       <button className="ash-scrim" aria-label="Close menu" onClick={() => setMobileOpen(false)} />
