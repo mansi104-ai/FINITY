@@ -29,7 +29,9 @@
       "Bash(curl -s -m 30 \"https://server-gray-iota.vercel.app/api/market/research\")",
       "Bash(curl -s -m 25 https://server-gray-iota.vercel.app/api/market/history/AAPL)",
       "Bash(curl -s -m 30 https://server-gray-iota.vercel.app/api/market/stocks)",
-      "Bash(curl -s -m 30 -X POST https://server-gray-iota.vercel.app/api/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"alert-__CMDSUB_OUTPUT__@example.com\",\"password\":\"alertpass12\"}')"
+      "Bash(curl -s -m 30 -X POST https://server-gray-iota.vercel.app/api/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"alert-__CMDSUB_OUTPUT__@example.com\",\"password\":\"alertpass12\"}')",
+      "Bash(curl -s \"https://query1.finance.yahoo.com/v8/finance/chart/RELIANCE.NS?range=5d&interval=1d\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\)\")",
+      "Bash(python -c \"import sys,json; m=json.load\\(sys.stdin\\)['chart']['result'][0]['meta']; print\\(json.dumps\\(m,indent=1\\)\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\mansi\\FINITY\\.git"

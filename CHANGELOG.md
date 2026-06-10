@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.17.1] — 2026-06-11
+
+### Fixed
+- **India/global live quotes now work (#2, #5, #7, #10).** Diagnosis: on Vercel, Yahoo's `v7/finance/quote` endpoint is IP-blocked (so detail/Markets/Screener failed for non-US), but the `v8/finance/chart` endpoint is *not* — and its `meta` block carries price, previous close, 52-week range, day high/low, volume, name and currency. Added a chart-derived quote path used wherever the v7 quote is blocked:
+  - **Stock detail** falls back to a chart-derived quote (covers `RELIANCE.NS` etc.).
+  - **Markets / Screener / Research** (`loadDetailedStocks`) fetch chart-derived quotes for the market's tracked symbols (bounded concurrency), so India shows Indian stocks instead of a US fallback.
+  - **Ticker strip** (`/snapshot`) shows the user's own market via chart quotes before any US fallback.
+- **Cross-country cache poisoning fixed.** During the outage, US-fallback data got cached under non-US country codes (e.g. `IN`), and the cache-first reads kept serving it. Added a country-match guard to the fresh-cache, stale-cache, and snapshot-cache reads so a cached list is only used if it actually contains that country's instruments.
+
+---
+
 ## [v1.17.0] — 2026-06-11
 
 ### Added

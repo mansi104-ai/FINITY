@@ -69,5 +69,5 @@ export const env = {
   twelvedataKey: readString(process.env.TWELVEDATA_API_KEY ?? process.env.TWELVE_DATA_API_KEY ?? process.env.TWELVEDATA_KEY),
   emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL),
   errorWebhookUrl: readString(process.env.ERROR_WEBHOOK_URL ?? process.env.SENTRY_DSN),
-  appVersion: readString(process.env.APP_VERSION, "1.17.0")
+  appVersion: readString(process.env.APP_VERSION, "1.17.1")
 };

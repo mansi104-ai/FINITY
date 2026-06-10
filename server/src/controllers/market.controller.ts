@@ -520,6 +520,106 @@ async function fetchCandles(ticker: string, range: string): Promise<CandlesRespo
   };
 }
 
+// ─── Yahoo chart-derived quote ────────────────────────────────────────────────
+// Yahoo's v7 /quote endpoint is IP-blocked on Vercel, but the v8 /chart endpoint
+// is NOT — and its `meta` block carries enough for a full quote (price, previous
+// close, 52w range, day high/low, volume, name, currency). This is the reliable
+// quote source for India/NSE + every other market on cloud hosts.
+type YahooChartMeta = {
+  symbol?: string;
+  shortName?: string;
+  longName?: string;
+  currency?: string;
+  fullExchangeName?: string;
+  exchangeName?: string;
+  regularMarketPrice?: number;
+  chartPreviousClose?: number;
+  previousClose?: number;
+  regularMarketDayHigh?: number;
+  regularMarketDayLow?: number;
+  regularMarketVolume?: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
+};
+
+function mapChartMetaToQuote(meta: YahooChartMeta, fallbackSymbol: string, indexSymbols: Set<string>): StockQuoteResponse | null {
+  const price = Number(meta.regularMarketPrice ?? meta.previousClose ?? 0);
+  if (!Number.isFinite(price) || price <= 0) return null;
+  const lastClose = Number(meta.chartPreviousClose ?? meta.previousClose ?? price);
+  const change = price - lastClose;
+  const changePercent = lastClose ? (change / lastClose) * 100 : 0;
+  const symbol = meta.symbol ?? fallbackSymbol;
+  return {
+    symbol,
+    name: meta.shortName ?? meta.longName ?? symbol,
+    exchange: meta.fullExchangeName ?? meta.exchangeName ?? "",
+    currency: meta.currency ?? "USD",
+    price: +price.toFixed(2),
+    lastClose: +Number(lastClose).toFixed(2),
+    change: +change.toFixed(2),
+    changePercent: +changePercent.toFixed(4),
+    volume: meta.regularMarketVolume != null ? Number(meta.regularMarketVolume) : undefined,
+    high52w: meta.fiftyTwoWeekHigh != null ? +Number(meta.fiftyTwoWeekHigh).toFixed(2) : undefined,
+    low52w: meta.fiftyTwoWeekLow != null ? +Number(meta.fiftyTwoWeekLow).toFixed(2) : undefined,
+    isIndex: indexSymbols.has(symbol) || indexSymbols.has(fallbackSymbol),
+  };
+}
+
+async function fetchQuoteFromChart(ticker: string, indexSymbols: Set<string>): Promise<StockQuoteResponse | null> {
+  const params = { range: "5d", interval: "1d", includePrePost: false };
+  let rawData: unknown;
+  try {
+    const response = await axios.get(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
+      { params, timeout: 7000, headers: YAHOO_REQUEST_HEADERS }
+    );
+    rawData = response.data;
+  } catch {
+    try {
+      const response = await axios.get(
+        `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
+        { params, timeout: 7000, headers: YAHOO_REQUEST_HEADERS }
+      );
+      rawData = response.data;
+    } catch {
+      return null;
+    }
+  }
+  const meta = (rawData as { chart?: { result?: Array<{ meta?: YahooChartMeta }> } })?.chart?.result?.[0]?.meta;
+  if (!meta) return null;
+  return mapChartMetaToQuote(meta, ticker, indexSymbols);
+}
+
+// Fetch chart-derived quotes for many symbols with bounded concurrency so we
+// don't trip Yahoo's burst rate-limiting on the serverless function.
+async function fetchChartQuotes(symbols: string[], countryCode: string): Promise<StockQuoteResponse[]> {
+  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+  const capped = symbols.slice(0, 30);
+  const CHUNK = 8;
+  const out: StockQuoteResponse[] = [];
+  for (let i = 0; i < capped.length; i += CHUNK) {
+    const chunk = capped.slice(i, i + CHUNK);
+    const settled = await Promise.allSettled(chunk.map((s) => fetchQuoteFromChart(s, indexSymbols)));
+    for (const r of settled) {
+      if (r.status === "fulfilled" && r.value) out.push(r.value);
+    }
+  }
+  return out;
+}
+
+// A cached stock list is only valid for a country if it actually contains that
+// country's instruments — guards against US-fallback data that was previously
+// cached under a non-US country code during the data outage.
+function cacheMatchesCountry(stocks: StockQuoteResponse[], indices: StockQuoteResponse[], countryCode: string): boolean {
+  if (countryCode === "US") return true;
+  const symbols = [...stocks, ...indices].map((s) => s.symbol);
+  if (!symbols.length) return false;
+  // Valid only if at least one cached symbol belongs to this country's tracked
+  // set — US-fallback symbols (AAPL, MSFT…) cached under "IN" fail this check.
+  const tracked = new Set(getTrackedSymbolsForCountry(countryCode));
+  return symbols.some((s) => tracked.has(s));
+}
+
 // ─── Twelve Data history/candles (fallback when Yahoo is blocked) ─────────────
 async function fetchHistoryTwelveData(ticker: string): Promise<MarketHistoryResponse | null> {
   const ts = await tdTimeSeries(ticker, "1day", 30);
@@ -903,7 +1003,8 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
   // Reuse the recent market cache first so repeated page loads do not keep
   // exhausting upstream quote budgets on deployments.
   const freshCache = await getStocksCache(countryCode);
-  if (freshCache && (freshCache.stocks.length > 0 || freshCache.indices.length > 0)) {
+  if (freshCache && (freshCache.stocks.length > 0 || freshCache.indices.length > 0)
+    && cacheMatchesCountry(freshCache.stocks, freshCache.indices, countryCode)) {
     return [...freshCache.stocks, ...freshCache.indices];
   }
 
@@ -926,8 +1027,21 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
         void setStocksCache(countryCode, stocks, indices);
         return all;
       }
-    } catch { /* try Finnhub / cache */ }
+    } catch { /* try chart quotes / Finnhub / cache */ }
   }
+
+  // Yahoo chart-derived quotes — v8/chart is reachable on Vercel even though the
+  // v7/quote batch above is blocked. This is what makes India/NSE (and every
+  // other non-US market) show its OWN stocks instead of a US fallback list.
+  try {
+    const all = await fetchChartQuotes(symbols, countryCode);
+    if (all.length > 0) {
+      const stocks = all.filter((s) => !indexSymbols.has(s.symbol));
+      const indices = all.filter((s) => indexSymbols.has(s.symbol));
+      void setStocksCache(countryCode, stocks, indices);
+      return all;
+    }
+  } catch { /* try Finnhub / cache */ }
 
   // Finnhub fallback for the detected market's own symbols (works for US;
   // may return partial data for some international tickers).
@@ -949,9 +1063,11 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
     } catch { /* try cache / US fallback */ }
   }
 
-  // Prefer the geo's own stale cache before degrading to a different market.
+  // Prefer the geo's own stale cache before degrading to a different market —
+  // but only if it actually holds this country's instruments (not poisoned US fallback).
   const stale = await getStocksCache(countryCode, { allowStale: true });
-  if (stale && (stale.stocks.length > 0 || stale.indices.length > 0)) {
+  if (stale && (stale.stocks.length > 0 || stale.indices.length > 0)
+    && cacheMatchesCountry(stale.stocks, stale.indices, countryCode)) {
     return [...stale.stocks, ...stale.indices];
   }
 
@@ -1000,8 +1116,12 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
   //    snapshot (≤15 min) without touching upstreams to stay within rate limits.
   try {
     const recent = await readSnapshotCache(geo.countryCode);
-    if (recent && recent.tickers.length > 0 && Date.now() - new Date(recent.cachedAt).getTime() < 15 * 60 * 1000) {
-      return res.status(200).json({ ...base, tickers: recent.tickers as MarketSnapshotResponse["tickers"] } satisfies MarketSnapshotResponse);
+    const recentTickers = (recent?.tickers ?? []) as MarketSnapshotResponse["tickers"];
+    const trackedSet = new Set(getTrackedSymbolsForCountry(geo.countryCode));
+    const matchesCountry = geo.countryCode === "US" || recentTickers.some((t) => trackedSet.has(t.symbol));
+    if (recent && recentTickers.length > 0 && matchesCountry
+      && Date.now() - new Date(recent.cachedAt).getTime() < 15 * 60 * 1000) {
+      return res.status(200).json({ ...base, tickers: recentTickers } satisfies MarketSnapshotResponse);
     }
   } catch { /* fall through to live */ }
 
@@ -1010,6 +1130,17 @@ export async function getMarketSnapshotController(req: Request, res: Response) {
     const tickers = await fetchQuotes(getTrackedSymbolsForCountry(geo.countryCode));
     void setSnapshotCache(geo.countryCode, tickers);
     return res.status(200).json({ ...base, tickers } satisfies MarketSnapshotResponse);
+  } catch { /* try chart quotes / Finnhub */ }
+
+  // 1b. Yahoo chart-derived quotes — keeps the strip in the user's OWN market
+  //     (India shows Indian tickers, not a US fallback) since v8/chart works on Vercel.
+  try {
+    const chartQuotes = await fetchChartQuotes(getTrackedSymbolsForCountry(geo.countryCode), geo.countryCode);
+    if (chartQuotes.length > 0) {
+      const tickers = chartQuotes.map((q) => ({ symbol: q.symbol, name: q.name, lastClose: q.lastClose, changePercent: q.changePercent }));
+      void setSnapshotCache(geo.countryCode, tickers);
+      return res.status(200).json({ ...base, tickers } satisfies MarketSnapshotResponse);
+    }
   } catch { /* try Finnhub */ }
 
   // 2. Finnhub fallback — use live US equities when Yahoo is blocked, even for non-US geolocation
@@ -1178,6 +1309,13 @@ export async function getStockDetailController(req: Request, res: Response) {
       const mapped = tdToStockQuote(ticker, tq, indexSymbols);
       if (mapped && mapped.price > 0) quote = mapped;
     }
+  }
+
+  // 1c. Yahoo chart-derived quote — v8/chart works on Vercel where v7/quote is
+  //     blocked. Reliable for India/NSE + global tickers (and indices).
+  if (!quote || !(quote.price > 0)) {
+    const chartQuote = await fetchQuoteFromChart(ticker, indexSymbols);
+    if (chartQuote && chartQuote.price > 0) quote = chartQuote;
   }
 
   // 2. Finnhub fallback when Yahoo is blocked (US stocks only)
