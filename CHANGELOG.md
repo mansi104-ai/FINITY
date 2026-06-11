@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.29.0] — 2026-06-11
+
+### Changed — Redesign phase 2 (brand system applied app-wide)
+- Elevated the shared primitives every page is built from, so the whole app picks up the bold brand at once: **panels** now use a subtle gradient + elevation + softer radius; **section kickers** are brand-tinted and bolder; **page titles** unified (removed the off-brand green); **nav buttons** rebranded green→brand blue; the **active sidebar item** gets a brand-gradient background + cyan indicator bar.
+- Global polish: consistent **brand focus rings** on all inputs, brand text selection, brand-tinted **table-row hover**, slim modern scrollbars, and a hover-lift on clickable cards.
+
+---
+
 ## [v1.28.0] — 2026-06-11
 
 ### Added (net-new differentiators)

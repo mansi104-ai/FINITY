@@ -140,7 +140,15 @@ html {
   border: 1px solid transparent; white-space: nowrap;
 }
 .ash-nav-link:hover { background: rgba(255,255,255,0.05); color: var(--fd-text); }
-.ash-nav-link-active { background: var(--fd-primary-weak); color: #cfe0ff; border-color: rgba(36,107,255,0.35); }
+.ash-nav-link-active {
+  position: relative; background: var(--fd-brand-grad-soft); color: #eaf4ff;
+  border-color: rgba(58,215,255,0.32);
+}
+.ash-nav-link-active::before {
+  content: ""; position: absolute; left: -0.55rem; top: 18%; bottom: 18%; width: 3px;
+  border-radius: 2px; background: linear-gradient(180deg, var(--fd-brand-1), var(--fd-brand-2));
+}
+.ash-nav-link-active .ash-nav-ico { color: var(--fd-brand-cyan); }
 .ash-nav-link-cta { color: #72b92b; }
 .ash-nav-link-cta.ash-nav-link-active { background: rgba(114,185,43,0.14); border-color: rgba(114,185,43,0.4); color: #8fd14a; }
 .ash-nav-ico { display: inline-flex; width: 18px; height: 18px; flex-shrink: 0; align-items: center; justify-content: center; }
@@ -2852,9 +2860,10 @@ html[data-theme="dark"] .single-note-card-accent {
 }
 
 .findec-panel {
-  border: 1px solid #252525;
-  border-radius: 12px;
-  background: #111111;
+  border: 1px solid #1f2024;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #131418 0%, #0f0f12 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.02);
 }
 
 .findec-metric-panel {
@@ -2864,10 +2873,11 @@ html[data-theme="dark"] .single-note-card-accent {
 
 .findec-kicker {
   margin: 0;
-  color: #55585d;
+  color: #7e8aa0;
   font-size: 0.68rem;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .findec-metric-panel strong,
@@ -6065,14 +6075,14 @@ html[data-theme="dark"] .single-note-card-accent {
 /* ─── Earnings & IPO Calendar ──────────────────────────────────────────────── */
 .earn-shell { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 .earn-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-.earn-title { font-size: 1.8rem; font-weight: 700; color: #d4f0a0; margin: 0.25rem 0 0; letter-spacing: -0.02em; }
+.earn-title { font-size: 1.8rem; font-weight: 700; color: #f1f4fa; margin: 0.25rem 0 0; letter-spacing: -0.02em; }
 .earn-header-actions { display: flex; gap: 0.5rem; }
 .earn-nav-btn {
-  background: transparent; border: 1px solid rgba(114,185,43,0.4); color: #72b92b;
-  border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.82rem; text-decoration: none;
-  cursor: pointer; transition: background 0.15s;
+  background: transparent; border: 1px solid #2c3b56; color: #cfe0ff;
+  border-radius: 9px; padding: 0.45rem 0.95rem; font-size: 0.82rem; text-decoration: none;
+  cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.earn-nav-btn:hover { background: rgba(114,185,43,0.1); }
+.earn-nav-btn:hover { background: rgba(43,140,255,0.12); border-color: var(--fd-brand-1); color: #fff; }
 
 .earn-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .earn-tab {
@@ -6341,3 +6351,23 @@ html[data-theme="dark"] .single-note-card-accent {
 .cmp-verdict-win { border-color: rgba(58,215,255,0.5); box-shadow: var(--fd-brand-glow); }
 .cmp-verdict-tag { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: #5ef0ff; }
 .cmp-verdict-foot { margin-top: 0.8rem; font-size: 0.72rem; color: #6f7378; }
+
+/* ═══ v1.29.0 — Phase-2 global polish (brand-consistent primitives) ════════════ */
+/* Consistent brand focus rings on all inputs/selects */
+.scr-input:focus, .alert-input:focus, .cmp-input:focus, .findec-mini-input:focus {
+  outline: none; border-color: var(--fd-brand-2); box-shadow: 0 0 0 3px rgba(43,140,255,0.14);
+}
+/* Branded text selection */
+::selection { background: rgba(43,140,255,0.32); color: #fff; }
+/* Subtle brand-tinted table row hover everywhere */
+.scr-row:hover, .earn-row:hover, .cmp-row:hover { background: rgba(43,140,255,0.06); }
+/* Slim, modern scrollbars */
+* { scrollbar-width: thin; scrollbar-color: #2a2f3a transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: #2a2f3a; border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: #3a4356; }
+/* Breathing room at the top of every page */
+.findec-minimal-page { padding-top: 0.5rem; }
+/* Panel hover lift for interactive cards */
+a.findec-panel { transition: border-color 0.15s ease, transform 0.1s ease; }
+a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
