@@ -18,7 +18,15 @@ const COLLAPSE_KEY = "findec-sidebar-collapsed";
 type NavItem = { href: string; label: string; icon: IconKey };
 type IconKey =
   | "markets" | "screener" | "calendar" | "research" | "insights"
-  | "star" | "bell" | "paper" | "clock" | "brief";
+  | "star" | "bell" | "paper" | "clock" | "brief" | "home" | "menu";
+
+// Compact set for the mobile bottom bar (the 4 most-used destinations + More).
+const BOTTOM_NAV: NavItem[] = [
+  { href: "/", label: "Home", icon: "home" },
+  { href: "/markets", label: "Markets", icon: "markets" },
+  { href: "/brief", label: "Brief", icon: "brief" },
+  { href: "/screener", label: "Screener", icon: "screener" },
+];
 
 const PRIMARY: NavItem = { href: "/brief", label: "AI Brief", icon: "brief" };
 const GROUPS: Array<{ title: string; authOnly?: boolean; items: NavItem[] }> = [
@@ -58,6 +66,8 @@ function Icon({ k }: { k: IconKey }) {
     case "paper": return <svg width="18" height="18" viewBox="0 0 24 24" {...p}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>;
     case "clock": return <svg width="18" height="18" viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
     case "brief": return <svg width="18" height="18" viewBox="0 0 24 24" {...p}><path d="M13 2L4 14h7l-1 8 9-12h-7z" /></svg>;
+    case "home": return <svg width="18" height="18" viewBox="0 0 24 24" {...p}><path d="M3 11l9-8 9 8M5 10v10h14V10" /></svg>;
+    case "menu": return <svg width="18" height="18" viewBox="0 0 24 24" {...p}><path d="M4 7h16M4 12h16M4 17h16" /></svg>;
   }
 }
 
@@ -149,6 +159,20 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         <AppFooter />
       </div>
+
+      {/* Mobile bottom navigation (≤860px) */}
+      <nav className="ash-bottombar" aria-label="Primary">
+        {BOTTOM_NAV.map((it) => (
+          <Link key={it.href} href={it.href} className={`ash-bn-item${isActive(it.href) ? " ash-bn-active" : ""}`}>
+            <span className="ash-bn-ico"><Icon k={it.icon} /></span>
+            <span className="ash-bn-label">{it.label}</span>
+          </Link>
+        ))}
+        <button className={`ash-bn-item${mobileOpen ? " ash-bn-active" : ""}`} onClick={() => setMobileOpen((v) => !v)} aria-label="More">
+          <span className="ash-bn-ico"><Icon k="menu" /></span>
+          <span className="ash-bn-label">More</span>
+        </button>
+      </nav>
 
       <button className="ash-scrim" aria-label="Close menu" onClick={() => setMobileOpen(false)} />
     </div>

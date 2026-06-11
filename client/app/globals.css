@@ -6415,3 +6415,27 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   .cmp-verdict-line { font-size: 0.95rem; }
   .ash-topbar { gap: 0.4rem; padding: 0 0.7rem; }
 }
+
+/* ═══ v1.31.0 — Mobile bottom navigation ═══════════════════════════════════════ */
+.ash-bottombar { display: none; }
+@media (max-width: 860px) {
+  .ash-bottombar {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    background: rgba(14,15,18,0.96); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--fd-border-soft);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .ash-bn-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    padding: 0.45rem 0.2rem 0.5rem; min-height: 56px; background: none; border: none;
+    color: var(--fd-text-muted); text-decoration: none; cursor: pointer; font: inherit;
+  }
+  .ash-bn-ico { display: grid; place-items: center; }
+  .ash-bn-label { font-size: 0.62rem; letter-spacing: 0.02em; }
+  .ash-bn-active { color: var(--fd-brand-cyan); }
+  .ash-bn-active .ash-bn-ico { filter: drop-shadow(0 0 6px rgba(94,240,255,0.4)); }
+  /* keep content clear of the bar + hide the long footer on phones */
+  .ash-content { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .ash-footer { display: none; }
+}
