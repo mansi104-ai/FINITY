@@ -6472,3 +6472,21 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   .stk-news-img-wrap { width: 64px; height: 64px; flex: none; }
   .stk-chart-kpis { gap: 0.7rem; flex-wrap: wrap; }
 }
+
+/* ═══ v1.34.0 — AI Brief on mobile ═════════════════════════════════════════════ */
+@media (max-width: 700px) {
+  .findec-results-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .findec-market-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0.55rem; margin-top: 1rem; }
+  .brief-profile { flex-direction: column; align-items: stretch; gap: 0.8rem; }
+  .brief-risk-toggle { flex-wrap: wrap; }
+  .brief-risk-toggle .adv-chip { flex: 1; text-align: center; }
+  .findec-risk-grid { grid-template-columns: 1fr; gap: 0.6rem; }
+  .findec-fund-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .findec-chart-top { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .findec-chart-stats { gap: 1rem; }
+  .findec-action-banner strong { font-size: 1rem; }
+  .findec-inline-actions { flex-direction: column; }
+  .findec-inline-actions a { width: 100%; text-align: center; }
+}
