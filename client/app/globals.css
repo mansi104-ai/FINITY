@@ -6229,3 +6229,24 @@ html[data-theme="dark"] .single-note-card-accent {
   .pr-grid { grid-template-columns: 1fr; }
   .pr-waitlist { flex-direction: column; align-items: stretch; }
 }
+
+/* ─── Findec Scorecard (stock detail) ─────────────────────────────────────────── */
+.stk-scorecard { padding: 1.1rem 1.25rem; margin-bottom: 0.75rem; }
+.stk-sc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.stk-sc-sub { color: #7c7f84; font-size: 0.78rem; }
+.stk-sc-overall { text-align: right; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.stk-sc-overall strong { font-size: 2.1rem; font-weight: 700; }
+.stk-sc-overall span { font-size: 0.74rem; color: #8a857b; text-transform: uppercase; letter-spacing: 0.04em; }
+.stk-sc-dims { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 1.4rem; margin-top: 1rem; }
+.stk-sc-dim-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85rem; color: #cfc9bd; margin-bottom: 0.3rem; }
+.stk-sc-dim-top strong { font-size: 0.95rem; }
+.stk-sc-bar { height: 6px; border-radius: 999px; background: #222; overflow: hidden; }
+.stk-sc-fill { height: 100%; border-radius: 999px; }
+.stk-sc-note { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: #7c7f84; }
+.stk-sc-foot { margin-top: 1rem; font-size: 0.72rem; color: #6f7378; }
+/* score bands */
+.sc-strong { color: #46c46a; } .stk-sc-fill.sc-strong { background: linear-gradient(90deg,#3a9d56,#5ee089); }
+.sc-good { color: #8fce3f; } .stk-sc-fill.sc-good { background: linear-gradient(90deg,#6f9e2e,#9fd152); }
+.sc-avg { color: #e0b24a; } .stk-sc-fill.sc-avg { background: linear-gradient(90deg,#b08628,#e6c24f); }
+.sc-weak { color: #d9663f; } .stk-sc-fill.sc-weak { background: linear-gradient(90deg,#a8472a,#dd7a4f); }
+@media (max-width: 560px) { .stk-sc-dims { grid-template-columns: 1fr; } }

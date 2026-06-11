@@ -2,7 +2,9 @@ import rateLimit from "express-rate-limit";
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../config";
 
-const queryWindowMs = 60 * 60 * 1000;
+// Free tier: a small daily allowance of AI briefs (competitors gate AI similarly).
+// Pro lifts this. Configurable via QUERY_LIMIT_PER_DAY.
+const queryWindowMs = 24 * 60 * 60 * 1000;
 const queryUserBuckets = new Map<string, number[]>();
 
 function pruneWindow(timestamps: number[], now: number): number[] {
@@ -18,11 +20,11 @@ export function queryRateLimiter(req: Request, res: Response, next: NextFunction
   const now = Date.now();
   const history = pruneWindow(queryUserBuckets.get(userId) ?? [], now);
 
-  if (history.length >= env.queryLimitPerHour) {
+  if (history.length >= env.queryLimitPerDay) {
     const retryAfterSeconds = Math.max(1, Math.ceil((queryWindowMs - (now - history[0])) / 1000));
     res.setHeader("Retry-After", retryAfterSeconds.toString());
     return res.status(429).json({
-      error: `Rate limit reached: max ${env.queryLimitPerHour} queries per hour`
+      error: `Free plan limit reached: ${env.queryLimitPerDay} AI briefs per day. Upgrade to Pro for unlimited briefs.`
     });
   }
 

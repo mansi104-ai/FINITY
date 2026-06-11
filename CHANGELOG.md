@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.24.0] — 2026-06-11
+
+### Added
+- **Findec Scorecard** — a 0–100 multi-factor read on every stock (Valuation, Momentum, Stability, Income + a weighted Overall with Strong/Good/Average/Weak bands), shown prominently on the stock detail page. Computed live from fundamentals. This matches the headline feature of Tickertape (Scorecard) and Trendlyne (DVM score), which Indian investors expect.
+
+### Changed
+- **Free plan = 4 AI briefs/day** (was 10/hour) — aligned with how Indian competitors gate AI; Pro lifts the cap. Configurable via `QUERY_LIMIT_PER_DAY`. The 429 message and on-page hints now reflect the daily limit.
+
+---
+
 ## [v1.23.0] — 2026-06-11
 
 ### Added

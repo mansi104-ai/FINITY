@@ -25,7 +25,7 @@ const TIERS: Tier[] = [
     cta: "current",
     features: [
       { label: "Live India + global market data", on: true },
-      { label: "AI Brief — 10 / day", on: true },
+      { label: "AI Brief — 4 / day", on: true },
       { label: "Screener & sector heatmap", on: true },
       { label: "Watchlist + price alerts (5)", on: true },
       { label: "Paper trading", on: true },

@@ -59,7 +59,12 @@
       "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('upcoming',len\\(d.get\\('upcoming',[]\\)\\),'recent',len\\(d.get\\('recent',[]\\)\\)\\)\")",
       "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('ipos',len\\(d.get\\('ipos',[]\\)\\)\\)\")",
       "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('source',d.get\\('source'\\),'articles',len\\(d.get\\('articles',[]\\)\\)\\)\")",
-      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\(d\\)\")"
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\(d\\)\")",
+      "WebSearch",
+      "Bash(sed -i 's/\"1.23.0\"/\"1.24.0\"/' server/package.json client/package.json)",
+      "Bash(sed -i 's/APP_VERSION, \"1.23.0\"/APP_VERSION, \"1.24.0\"/' server/src/config.ts)",
+      "Bash(sed -i 's/v1.23.0/v1.24.0/' client/src/components/AppFooter.tsx)",
+      "Bash(sed -i 's/\\\\*\\\\*Current version: v1.23.0\\\\*\\\\*/**Current version: v1.24.0**/' README.md)"
     ],
     "additionalDirectories": [
       "C:\\Users\\mansi\\FINITY\\.git",

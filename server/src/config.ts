@@ -58,6 +58,7 @@ export const env = {
   refreshTokenTtlSeconds: readNumber(process.env.REFRESH_TOKEN_TTL, 604800, "REFRESH_TOKEN_TTL"),
   pythonServiceUrl: readString(process.env.PYTHON_SERVICE_URL, "http://localhost:8000/run"),
   queryLimitPerHour: readNumber(process.env.QUERY_LIMIT_PER_HOUR, 10, "QUERY_LIMIT_PER_HOUR"),
+  queryLimitPerDay: readNumber(process.env.QUERY_LIMIT_PER_DAY, 4, "QUERY_LIMIT_PER_DAY"),
   authAttemptsPer15Minutes: readNumber(process.env.AUTH_ATTEMPTS_PER_15_MINUTES, 10, "AUTH_ATTEMPTS_PER_15_MINUTES"),
   trustProxy: readString(process.env.TRUST_PROXY) === "true",
   corsOrigin: readString(process.env.CORS_ORIGIN, "*"),
@@ -71,5 +72,5 @@ export const env = {
   emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL),
   cronSecret: readString(process.env.CRON_SECRET),
   errorWebhookUrl: readString(process.env.ERROR_WEBHOOK_URL ?? process.env.SENTRY_DSN),
-  appVersion: readString(process.env.APP_VERSION, "1.23.0")
+  appVersion: readString(process.env.APP_VERSION, "1.24.0")
 };
