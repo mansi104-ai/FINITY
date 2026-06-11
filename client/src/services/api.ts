@@ -579,6 +579,8 @@ export interface MarketRegime {
   total: number;
   avgMovePercent: number;
   score: number;
+  fearGreed?: number;
+  fearGreedLabel?: string;
   leaders: Array<{ symbol: string; changePercent: number }>;
   laggards: Array<{ symbol: string; changePercent: number }>;
   asOf: string;

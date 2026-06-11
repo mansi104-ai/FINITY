@@ -143,11 +143,34 @@ export async function getMarketRegimeController(_req: Request, res: Response) {
   const laggards = [...quotes].sort((a, b) => a.changePercent - b.changePercent).slice(0, 3)
     .map((q) => ({ symbol: q.symbol, changePercent: pct(q.changePercent) }));
 
+  // ── Fear & Greed index (0–100), MMI-style ──
+  // Blend market breadth (how many names are up) with momentum (how hard the
+  // basket moved) + a 52-week position nudge where available.
+  const momentumComponent = Math.max(0, Math.min(100, 50 + avgMove * 12));
+  const with52 = quotes.filter((q) => q.high52w != null && q.low52w != null && (q.high52w as number) > (q.low52w as number));
+  let positionComponent = 50;
+  if (with52.length >= 3) {
+    const avgPos = with52.reduce((s, q) => {
+      const lo = q.low52w as number, hi = q.high52w as number;
+      return s + Math.max(0, Math.min(1, (q.price - lo) / (hi - lo)));
+    }, 0) / with52.length;
+    positionComponent = avgPos * 100;
+  }
+  const fearGreed = Math.round(
+    Math.max(0, Math.min(100, breadthPercent * 0.5 + momentumComponent * 0.3 + positionComponent * 0.2))
+  );
+  const fearGreedLabel =
+    fearGreed < 25 ? "Extreme Fear" :
+    fearGreed < 45 ? "Fear" :
+    fearGreed <= 55 ? "Neutral" :
+    fearGreed <= 75 ? "Greed" : "Extreme Greed";
+
   return res.status(200).json({
     regime, label,
     breadthPercent, advancing, total: quotes.length,
     avgMovePercent: avgMove,
     score: pct(score),
+    fearGreed, fearGreedLabel,
     leaders, laggards,
     asOf: new Date().toISOString(),
   });

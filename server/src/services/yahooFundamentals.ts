@@ -125,3 +125,57 @@ export async function getYahooFundamentals(symbol: string): Promise<YahooFundame
   if (out.marketCap == null && out.peRatio == null && out.eps == null && out.beta == null) return null;
   return out;
 }
+
+// ─── Earnings (calendar) ──────────────────────────────────────────────────────
+export interface YahooEarnings {
+  symbol: string;
+  name?: string;
+  nextDate?: string;        // upcoming earnings date (ISO)
+  epsEstimate?: number;     // consensus EPS for the upcoming quarter
+  lastDate?: string;        // most recent reported quarter date
+  lastEpsActual?: number;
+  lastEpsEstimate?: number;
+}
+
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/** Next + most-recent earnings for one symbol (calendarEvents + earningsHistory). */
+export async function getYahooEarnings(symbol: string): Promise<YahooEarnings | null> {
+  let s = await getSession();
+  if (!s) return null;
+  const run = async (sess: Session) => axios.get(
+    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}`,
+    {
+      params: { modules: "calendarEvents,earningsHistory,price", crumb: sess.crumb },
+      headers: { "User-Agent": UA, Cookie: sess.cookie, Accept: "application/json" },
+      timeout: 8000, validateStatus: () => true,
+    }
+  );
+  let res = await run(s);
+  if (res.status === 401 || res.data?.quoteSummary?.error) {
+    s = await getSession(true);
+    if (!s) return null;
+    res = await run(s);
+  }
+  const r = res.data?.quoteSummary?.result?.[0];
+  if (!r) return null;
+
+  const earn = r.calendarEvents?.earnings ?? {};
+  const dates: number[] = (earn.earningsDate ?? []).map((d: { raw?: number }) => d?.raw).filter((n: unknown): n is number => typeof n === "number");
+  const nextRaw = dates.length ? Math.min(...dates) * 1000 : undefined;
+  const hist = r.earningsHistory?.history ?? [];
+  const last = hist.length ? hist[hist.length - 1] : undefined;
+  const lastRaw = raw(last?.quarter);
+
+  const out: YahooEarnings = {
+    symbol,
+    name: r.price?.shortName ?? r.price?.longName ?? undefined,
+    nextDate: nextRaw ? isoDay(nextRaw) : undefined,
+    epsEstimate: raw(earn.earningsAverage),
+    lastDate: lastRaw ? isoDay(lastRaw * 1000) : undefined,
+    lastEpsActual: raw(last?.epsActual),
+    lastEpsEstimate: raw(last?.epsEstimate),
+  };
+  if (!out.nextDate && !out.lastDate) return null;
+  return out;
+}

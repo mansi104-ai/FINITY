@@ -70,6 +70,18 @@ export default function Insights() {
           {!regime && !regimeErr && <p className="findec-kicker">Reading the tape…</p>}
           {regime && (
             <>
+              {regime.fearGreed != null && (
+                <div className="ins-fg">
+                  <div className="ins-fg-head">
+                    <span className="findec-kicker">Fear &amp; Greed Index</span>
+                    <strong className="ins-fg-val">{regime.fearGreed} · {regime.fearGreedLabel}</strong>
+                  </div>
+                  <div className="ins-fg-track">
+                    <div className="ins-fg-marker" style={{ left: `${regime.fearGreed}%` }} />
+                  </div>
+                  <div className="ins-fg-scale"><span>Extreme Fear</span><span>Neutral</span><span>Extreme Greed</span></div>
+                </div>
+              )}
               <div className={`ins-regime-badge ${regimeClass(regime.regime)}`}>
                 {regime.regime.toUpperCase()}
               </div>

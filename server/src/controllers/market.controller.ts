@@ -37,7 +37,7 @@ import {
   fmpRatiosTtm,
   fmpEarningsCalendar,
 } from "../services/fmp";
-import { getYahooFundamentals, type YahooFundamentals } from "../services/yahooFundamentals";
+import { getYahooFundamentals, getYahooEarnings, type YahooFundamentals } from "../services/yahooFundamentals";
 
 const NEW_YORK_TIMEZONE = "America/New_York";
 const STOCK_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -1675,13 +1675,66 @@ type EarningsRow = {
   hour: string; quarter: number; year: number;
 };
 
-export async function getEarningsController(_req: Request, res: Response) {
+// In-memory earnings cache per country (Yahoo calendar is ~24 calls; cache 6h).
+const earningsCache = new Map<string, { data: { upcoming: EarningsRow[]; recent: EarningsRow[] }; at: number }>();
+const EARNINGS_TTL_MS = 6 * 60 * 60 * 1000;
+
+export async function getEarningsController(req: Request, res: Response) {
   const now = new Date();
   const todayStr = isoDate(now);
   const futureStr = isoDate(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
   const pastStr = isoDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
 
-  // 0. FMP earnings calendar — best free coverage (US + global incl. India).
+  let geo = defaultGeo;
+  try { geo = await getGeolocation(req); } catch { /* default US */ }
+  const cc = geo.countryCode;
+
+  // 0. Yahoo calendar (free, every market incl. India) — built from the tracked
+  //    symbols of the user's market, cached 6h. Primary because FMP-free is empty.
+  const cached = earningsCache.get(cc);
+  if (cached && Date.now() - cached.at < EARNINGS_TTL_MS && (cached.data.upcoming.length || cached.data.recent.length)) {
+    return res.status(200).json(cached.data);
+  }
+  try {
+    const symbols = getTrackedSymbolsForCountry(cc).filter((s) => !s.startsWith("^")).slice(0, 24);
+    const CHUNK = 6;
+    const results: NonNullable<Awaited<ReturnType<typeof getYahooEarnings>>>[] = [];
+    for (let i = 0; i < symbols.length; i += CHUNK) {
+      const chunk = symbols.slice(i, i + CHUNK);
+      const settled = await Promise.allSettled(chunk.map((s) => getYahooEarnings(s)));
+      settled.forEach((r) => { if (r.status === "fulfilled" && r.value) results.push(r.value); });
+    }
+    if (results.length) {
+      const yearOf = (d: string) => new Date(d).getFullYear();
+      const upcoming: EarningsRow[] = results
+        .filter((e) => e.nextDate && e.nextDate >= todayStr)
+        .map((e) => ({
+          date: e.nextDate!, symbol: e.symbol, company: e.name || e.symbol,
+          epsEstimate: e.epsEstimate ?? null, epsActual: null,
+          revenueEstimate: null, revenueActual: null, hour: "", quarter: 0, year: yearOf(e.nextDate!),
+        }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(0, 100);
+      const recent: EarningsRow[] = results
+        .filter((e) => e.lastDate && e.lastEpsActual != null)
+        .map((e) => ({
+          date: e.lastDate!, symbol: e.symbol, company: e.name || e.symbol,
+          epsEstimate: e.lastEpsEstimate ?? null, epsActual: e.lastEpsActual ?? null,
+          revenueEstimate: null, revenueActual: null, hour: "", quarter: 0, year: yearOf(e.lastDate!),
+        }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 50);
+      if (upcoming.length || recent.length) {
+        const data = { upcoming, recent };
+        earningsCache.set(cc, { data, at: Date.now() });
+        return res.status(200).json(data);
+      }
+    }
+  } catch (e) {
+    console.warn("Yahoo earnings failed:", e instanceof Error ? e.message : e);
+  }
+
+  // 0b. FMP earnings calendar — best free coverage (US + global incl. India).
   if (fmpEnabled()) {
     try {
       const items = await fmpEarningsCalendar(pastStr, futureStr);

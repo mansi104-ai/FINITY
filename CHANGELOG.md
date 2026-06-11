@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.27.0] — 2026-06-11
+
+### Added
+- **Earnings calendar — now populated, free (#8).** Built from Yahoo `calendarEvents`/`earningsHistory` (via the crumb flow) across the user's market's tracked symbols, cached 6h. Upcoming earnings (with consensus EPS) + recent results (actual vs estimate) — finally non-empty, including India. (FMP/Finnhub remain fallbacks.)
+- **Fear & Greed Index** — an MMI-style 0–100 market-sentiment gauge on Insights (blends breadth, momentum, and 52-week position) with Extreme Fear → Extreme Greed bands. Matches Tickertape's MMI.
+
+---
+
 ## [v1.26.0] — 2026-06-11
 
 ### Added / Changed
