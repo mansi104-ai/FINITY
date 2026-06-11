@@ -6490,3 +6490,21 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   .findec-inline-actions { flex-direction: column; }
   .findec-inline-actions a { width: 100%; text-align: center; }
 }
+
+/* ═══ v1.35.0 — Markets / Home / ticker on mobile ══════════════════════════════ */
+@media (max-width: 640px) {
+  /* Markets page */
+  .mkt-page-header { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+  .mkt-page-title { font-size: 1.5rem; }
+  .mkt-indices-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+  .mkt-featured-grid { grid-template-columns: 1fr !important; }
+  .mkt-movers-grid { grid-template-columns: 1fr !important; }
+  .mkt-tab-row { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .mkt-tab-row::-webkit-scrollbar { display: none; }
+  .mkt-mover-name { max-width: 46vw; }
+  /* Home */
+  .home-indices { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  /* Ticker strip: lighter, smaller chips and faster-feeling but readable */
+  .findec-ticker-chip { min-height: 2.1rem; font-size: 0.76rem; padding: 0 0.7rem; gap: 0.45rem; }
+  .findec-strip-topline { font-size: 0.72rem; }
+}

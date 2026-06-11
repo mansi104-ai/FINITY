@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v1.34.0**
+**Current version: v1.35.0**
 
 ---
 
