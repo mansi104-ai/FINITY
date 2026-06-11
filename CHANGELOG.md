@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.28.0] — 2026-06-11
+
+### Added (net-new differentiators)
+- **Natural-language screener** — describe what you want in plain English ("large-cap value stocks under P/E 20 with a dividend above 2%") and Findec builds the screen, showing which filters it applied. Free; Trendlyne only offers this on a premium tier.
+- **Findec Verdict on Compare** — a data-grounded head-to-head that scores each stock with the Findec Scorecard and calls a winner with reasoning ("TCS edges out INFY, led by valuation and stability; INFY still wins on income"). Competitors only show side-by-side data.
+- Extracted the Scorecard scoring into a shared `lib/scorecard` used by both the stock detail page and Compare.
+
+---
+
 ## [v1.27.0] — 2026-06-11
 
 ### Added

@@ -47,6 +47,49 @@ function isFiltersActive(f: Filters): boolean {
     f.yieldMin !== "" || f.betaMax !== "" || f.maCross !== "all" || f.changeDir !== "all";
 }
 
+// ── Natural-language → filters. Turns "profitable large-cap stocks under P/E 20
+//    with a dividend above 2%" into the structured Filters object. ──
+function parseNaturalLanguage(qRaw: string): { filters: Partial<Filters>; matched: string[] } {
+  const q = ` ${qRaw.toLowerCase()} `;
+  const f: Partial<Filters> = {};
+  const matched: string[] = [];
+  const num = (re: RegExp): string | null => { const m = q.match(re); return m ? m[1] : null; };
+
+  // P/E
+  let pe = num(/p\/?e\s*(?:ratio)?\s*(?:under|below|less than|<|<=|max)\s*(\d+(?:\.\d+)?)/);
+  if (!pe) pe = num(/(?:under|below|less than|<|<=)\s*(\d+(?:\.\d+)?)\s*p\/?e/);
+  if (!pe && /\b(cheap|undervalued|value)\b/.test(q)) { pe = "20"; matched.push("value (P/E ≤ 20)"); }
+  if (pe) { f.peMax = pe; if (!matched.some((m) => m.includes("P/E"))) matched.push(`P/E ≤ ${pe}`); }
+  const peMin = num(/p\/?e\s*(?:over|above|greater than|>|>=|min)\s*(\d+(?:\.\d+)?)/);
+  if (peMin) { f.peMin = peMin; matched.push(`P/E ≥ ${peMin}`); }
+
+  // Dividend yield
+  let dy = num(/(?:dividend|yield)\D*(?:over|above|greater than|>|>=|at least|min)?\s*(\d+(?:\.\d+)?)\s*%/);
+  if (!dy && /\b(high\s*dividend|income|dividend(?:\s*payers?| stocks?)?)\b/.test(q)) { dy = "2"; }
+  if (dy) { f.yieldMin = dy; matched.push(`dividend ≥ ${dy}%`); }
+
+  // Market cap
+  if (/\b(mega\s*cap|>?\s*1\s*t(?:rillion)?)\b/.test(q)) { f.capMin = "1e12"; matched.push("mega cap (>$1T)"); }
+  else if (/\b(large\s*cap|big\s*cap)\b/.test(q)) { f.capMin = "100e9"; matched.push("large cap (>$100B)"); }
+  else if (/\b(mid\s*cap)\b/.test(q)) { f.capMin = "10e9"; matched.push("mid+ cap (>$10B)"); }
+  else if (/\b(small\s*cap)\b/.test(q)) { f.capMin = "1e9"; matched.push("small+ cap (>$1B)"); }
+
+  // Beta / volatility
+  const beta = num(/beta\s*(?:under|below|less than|<|<=|max)?\s*(\d+(?:\.\d+)?)/);
+  if (beta) { f.betaMax = beta; matched.push(`beta ≤ ${beta}`); }
+  else if (/\b(low\s*risk|low\s*volatility|defensive|stable|safe)\b/.test(q)) { f.betaMax = "1"; matched.push("low volatility (β ≤ 1)"); }
+
+  // MA cross
+  if (/\b(golden\s*cross|uptrend|trending\s*up|bullish)\b/.test(q)) { f.maCross = "golden"; matched.push("golden cross"); }
+  else if (/\b(death\s*cross|downtrend|bearish)\b/.test(q)) { f.maCross = "death"; matched.push("death cross"); }
+
+  // Direction today
+  if (/\b(gainers?|gaining|up\s*today|advancing|winners?)\b/.test(q)) { f.changeDir = "up"; matched.push("gaining today"); }
+  else if (/\b(losers?|losing|down\s*today|declining|fallers?)\b/.test(q)) { f.changeDir = "down"; matched.push("losing today"); }
+
+  return { filters: f, matched };
+}
+
 export default function Screener() {
   const [stocks, setStocks] = useState<StockQuote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +97,16 @@ export default function Screener() {
   const [hasFundamentals, setHasFundamentals] = useState(true);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "marketCap", dir: "desc" });
+  const [nlQuery, setNlQuery] = useState("");
+  const [nlMatched, setNlMatched] = useState<string[] | null>(null);
+
+  function applyNaturalLanguage() {
+    const q = nlQuery.trim();
+    if (!q) return;
+    const { filters: parsed, matched } = parseNaturalLanguage(q);
+    setFilters({ ...DEFAULT_FILTERS, ...parsed });
+    setNlMatched(matched);
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -167,6 +220,28 @@ export default function Screener() {
             Live fundamentals are unavailable from the current market data provider right now. Fundamental filters (P/E, cap, yield) will not apply.
           </div>
         )}
+
+        {/* Natural-language screener */}
+        <div className="findec-panel scr-nl">
+          <div className="scr-nl-row">
+            <span className="scr-nl-spark" aria-hidden="true">✨</span>
+            <input
+              className="scr-nl-input"
+              placeholder='Describe what you want — e.g. "large-cap value stocks under P/E 20 with a dividend above 2%"'
+              value={nlQuery}
+              onChange={(e) => setNlQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyNaturalLanguage(); }}
+            />
+            <button className="scr-nl-btn" onClick={applyNaturalLanguage} disabled={!nlQuery.trim()}>Build screen</button>
+          </div>
+          {nlMatched != null && (
+            <p className="scr-nl-result">
+              {nlMatched.length > 0
+                ? <>Applied: {nlMatched.map((m) => <span key={m} className="scr-nl-chip">{m}</span>)}</>
+                : "Couldn't read specific filters — try terms like P/E, dividend %, large-cap, low volatility, gainers."}
+            </p>
+          )}
+        </div>
 
         {/* Filters */}
         <div className="findec-panel scr-filters">

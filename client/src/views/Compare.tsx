@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getMarketHistory, getStockDetail } from "../services/api";
 import type { MarketHistory, StockQuote } from "../types";
+import { buildScorecard } from "../lib/scorecard";
 
 const PALETTE = ["#4f8ef7", "#f2b327", "#72b92b", "#cc5147"];
 const MAX_TICKERS = 4;
@@ -212,6 +213,39 @@ export default function Compare() {
   const isEmpty = tickers.length === 0;
   const availableQuotes = data.filter((d) => d.quote);
 
+  // ── Findec verdict: a data-grounded head-to-head from the Scorecard ──
+  const verdict = useMemo(() => {
+    const entries = availableQuotes
+      .map((d) => ({ ticker: d.ticker, name: d.quote!.name, card: buildScorecard(d.quote!) }))
+      .filter((e): e is { ticker: string; name: string; card: NonNullable<ReturnType<typeof buildScorecard>> } => e.card != null)
+      .sort((a, b) => b.card.overall - a.card.overall);
+    if (entries.length < 2) return null;
+
+    const win = entries[0];
+    const runner = entries[1];
+    const dimLabel = (k: string) => ({ val: "valuation", mom: "momentum", stab: "stability", inc: "income" }[k] ?? k);
+    const winScore = (k: string) => win.card.dims.find((d) => d.key === k)?.score ?? -1;
+    const runScore = (k: string) => runner.card.dims.find((d) => d.key === k)?.score ?? -1;
+
+    const winStrengths = win.card.dims.filter((d) => d.score >= 65).sort((a, b) => b.score - a.score).map((d) => dimLabel(d.key));
+    const runnerEdges = runner.card.dims
+      .filter((d) => runScore(d.key) > winScore(d.key) + 4)
+      .sort((a, b) => b.score - a.score)
+      .map((d) => dimLabel(d.key));
+
+    const tie = win.card.overall - runner.card.overall <= 3;
+    let line: string;
+    if (tie) {
+      line = `${win.ticker} and ${runner.ticker} are neck-and-neck (${win.card.overall} vs ${runner.card.overall}).`;
+    } else {
+      line = `${win.ticker} edges out ${runner.ticker} (${win.card.overall} vs ${runner.card.overall})`;
+      if (winStrengths.length) line += `, led by ${winStrengths.slice(0, 2).join(" and ")}`;
+      line += ".";
+    }
+    if (runnerEdges.length) line += ` ${runner.ticker} still wins on ${runnerEdges.slice(0, 2).join(" and ")}.`;
+    return { entries, line, winner: win.ticker };
+  }, [availableQuotes]);
+
   return (
     <section className="findec-minimal-page">
       <div className="findec-minimal-shell cmp-shell">
@@ -320,6 +354,26 @@ export default function Compare() {
                 ))}
               </svg>
             </div>
+          </div>
+        )}
+
+        {verdict && (
+          <div className="findec-panel cmp-verdict">
+            <div className="cmp-verdict-head">
+              <span className="home-feature-badge">Findec Verdict</span>
+              <span className="cmp-verdict-sub">Data-grounded head-to-head from the Scorecard</span>
+            </div>
+            <p className="cmp-verdict-line">{verdict.line}</p>
+            <div className="cmp-verdict-scores">
+              {verdict.entries.map((e, i) => (
+                <Link key={e.ticker} href={`/stock/${encodeURIComponent(e.ticker)}`} className={`cmp-verdict-chip${e.ticker === verdict.winner ? " cmp-verdict-win" : ""}`}>
+                  <span style={{ color: PALETTE[tickers.indexOf(e.ticker) % PALETTE.length] }}>{e.ticker}</span>
+                  <strong>{e.card.overall}<em>/100</em></strong>
+                  {e.ticker === verdict.winner && <span className="cmp-verdict-tag">Top score</span>}
+                </Link>
+              ))}
+            </div>
+            <p className="cmp-verdict-foot">Computed from valuation, momentum, stability &amp; income — not a recommendation.</p>
           </div>
         )}
 

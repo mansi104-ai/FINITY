@@ -6317,3 +6317,27 @@ html[data-theme="dark"] .single-note-card-accent {
 .ins-fg-marker { position: absolute; top: 50%; width: 4px; height: 20px; background: #fff; border-radius: 2px;
   transform: translate(-50%, -50%); box-shadow: 0 0 0 2px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.6); }
 .ins-fg-scale { display: flex; justify-content: space-between; margin-top: 0.35rem; font-size: 0.68rem; color: #7e8aa0; }
+
+/* ─── Natural-language screener ─────────────────────────────────────────────── */
+.scr-nl { padding: 0.85rem 1rem; margin-bottom: 0.7rem; border: 1px solid #243; border-color: rgba(58,215,255,0.22); background: var(--fd-brand-grad-soft); }
+.scr-nl-row { display: flex; gap: 0.5rem; align-items: center; }
+.scr-nl-spark { font-size: 1.1rem; }
+.scr-nl-input { flex: 1; min-width: 0; padding: 0.7rem 0.85rem; border: 1px solid #2a2a2a; border-radius: 10px; background: #131417; color: #f2efe8; font: inherit; }
+.scr-nl-input:focus { outline: none; border-color: var(--fd-brand-1); }
+.scr-nl-btn { border: none; border-radius: 10px; background: var(--fd-brand-grad); color: #fff; font-weight: 700; padding: 0 1.1rem; cursor: pointer; white-space: nowrap; }
+.scr-nl-btn:disabled { opacity: 0.55; cursor: default; }
+.scr-nl-result { margin: 0.6rem 0 0; font-size: 0.82rem; color: #9aa3b5; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+.scr-nl-chip { background: #1a1d24; border: 1px solid #2c3b56; color: #cfe0ff; padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.74rem; }
+
+/* ─── Compare verdict ───────────────────────────────────────────────────────── */
+.cmp-verdict { padding: 1.1rem 1.25rem; margin-bottom: 0.75rem; border-color: rgba(58,215,255,0.25); background: linear-gradient(180deg, rgba(43,140,255,0.07), rgba(12,12,13,0)); }
+.cmp-verdict-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+.cmp-verdict-sub { color: #7e8aa0; font-size: 0.76rem; }
+.cmp-verdict-line { color: #eef2f8; font-size: 1.02rem; line-height: 1.5; margin: 0 0 0.8rem; }
+.cmp-verdict-scores { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.cmp-verdict-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; min-width: 96px; padding: 0.6rem 0.8rem; border: 1px solid #1e1e1e; border-radius: 11px; background: #111214; text-decoration: none; }
+.cmp-verdict-chip strong { color: #f4efe6; font-size: 1.3rem; font-weight: 700; }
+.cmp-verdict-chip strong em { font-style: normal; font-size: 0.72rem; color: #7e8aa0; font-weight: 500; }
+.cmp-verdict-win { border-color: rgba(58,215,255,0.5); box-shadow: var(--fd-brand-glow); }
+.cmp-verdict-tag { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: #5ef0ff; }
+.cmp-verdict-foot { margin-top: 0.8rem; font-size: 0.72rem; color: #6f7378; }
