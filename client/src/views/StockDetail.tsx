@@ -7,6 +7,7 @@ import type { AnalystRecommendation, MarketHistory, NewsArticle, StockQuote } fr
 import AdvancedChart from "../components/AdvancedChart";
 import InfoTip from "../components/InfoTip";
 import { buildScorecard, scoreBand } from "../lib/scorecard";
+import { SkelLine, SkelCards } from "../components/Skeleton";
 
 function toChartPoints(points: MarketHistory["points"], w: number, h: number): string {
   if (!points.length) return "";
@@ -222,7 +223,14 @@ export default function StockDetail({ ticker }: { ticker: string }) {
           <div className="findec-panel finity-error-panel stk-error">{error}</div>
         )}
         {!stock && !error && (
-          <p className="findec-kicker stk-loading">Loading {ticker}…</p>
+          <div className="stk-loading-skel" aria-busy="true" aria-label={`Loading ${ticker}`}>
+            <article className="findec-panel" style={{ padding: "1.25rem 1.4rem", marginBottom: "0.75rem" }}>
+              <SkelLine w="90px" h="0.6rem" />
+              <SkelLine w="45%" h="1.6rem" />
+              <SkelLine w="120px" />
+            </article>
+            <SkelCards count={4} height="80px" />
+          </div>
         )}
 
         {stock && (

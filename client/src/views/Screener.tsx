@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getStocks } from "../services/api";
 import type { StockQuote } from "../types";
+import { SkelTable } from "../components/Skeleton";
 
 function fmtNum(v: number, d = 2): string {
   return new Intl.NumberFormat("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
@@ -302,7 +303,7 @@ export default function Screener() {
         </div>
 
         {error && <div className="findec-panel scr-error">{error}</div>}
-        {loading && <p className="findec-kicker scr-loading">Loading stocks…</p>}
+        {loading && <SkelTable rows={10} cols={6} />}
 
         {noResults && activeFilters && (
           <div className="findec-panel scr-no-results">

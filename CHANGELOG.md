@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.30.0] — 2026-06-11
+
+### Changed — MVP polish
+- **Loading skeletons** replace plain "Loading…" text — shimmer table rows on the Screener and a shimmer hero + metric cards on the stock detail page (reusable `Skeleton` primitives).
+- **First-run onboarding** — a dismissible welcome banner on the home page ("New to Findec? Start with an AI Brief") that points first-time visitors to the core action; remembered in `localStorage`.
+- **Mobile sweep** — refinements for small screens: stacked hero CTAs, full-width search/NL-screener inputs, single-column dashboard/two-col sections, tighter top bar, and right-sized scorecard/verdict type.
+
+---
+
 ## [v1.29.0] — 2026-06-11
 
 ### Changed — Redesign phase 2 (brand system applied app-wide)

@@ -6371,3 +6371,47 @@ html[data-theme="dark"] .single-note-card-accent {
 /* Panel hover lift for interactive cards */
 a.findec-panel { transition: border-color 0.15s ease, transform 0.1s ease; }
 a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
+
+/* ═══ v1.30.0 — Polish: skeletons, onboarding, mobile ══════════════════════════ */
+@keyframes fd-shimmer { 0% { background-position: -480px 0; } 100% { background-position: 480px 0; } }
+.fd-skel {
+  position: relative; border-radius: 8px;
+  background: linear-gradient(90deg, #15161a 25%, #1d1f26 37%, #15161a 63%);
+  background-size: 480px 100%; animation: fd-shimmer 1.4s ease-in-out infinite;
+}
+.fd-skel-line { height: 0.8rem; margin: 0.4rem 0; }
+.fd-skel-row { display: flex; gap: 0.75rem; align-items: center; padding: 0.7rem 0.25rem; border-bottom: 1px solid #16171b; }
+.fd-skel-stack { display: flex; flex-direction: column; gap: 0.5rem; }
+.fd-skel-grid { display: grid; gap: 0.7rem; }
+
+/* Onboarding welcome banner */
+.home-onboard {
+  position: relative; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: 0.9rem 1.1rem; margin-bottom: 1rem; border-radius: 14px;
+  border: 1px solid rgba(58,215,255,0.28); background: var(--fd-brand-grad-soft);
+}
+.home-onboard-text { flex: 1; min-width: 220px; }
+.home-onboard-text strong { color: #eaf4ff; display: block; }
+.home-onboard-text span { color: #9aa3b5; font-size: 0.85rem; }
+.home-onboard-cta { display: inline-flex; gap: 0.5rem; }
+.home-onboard-x { background: none; border: none; color: #7e8aa0; font-size: 1.1rem; cursor: pointer; line-height: 1; }
+.home-onboard-x:hover { color: #fff; }
+
+/* ── Mobile sweep ── */
+@media (max-width: 640px) {
+  .findec-minimal-shell { font-size: 0.95rem; }
+  .home-hero2 { padding: 1.4rem 1.1rem; }
+  .home-hero2-title { font-size: 2rem; }
+  .home-hero2-cta { flex-direction: column; align-items: stretch; }
+  .home-btn-brand, .home-btn-ghost { justify-content: center; }
+  .findec-search-row { grid-template-columns: 1fr; }
+  .findec-search-button { width: 100%; padding: 0.8rem; }
+  .scr-nl-row { flex-wrap: wrap; }
+  .scr-nl-input { flex-basis: 100%; }
+  .scr-nl-btn { width: 100%; padding: 0.7rem; }
+  .stk-sc-overall strong { font-size: 1.7rem; }
+  .stk-two-col { grid-template-columns: 1fr; }
+  .home-row, .home-movers { grid-template-columns: 1fr; }
+  .cmp-verdict-line { font-size: 0.95rem; }
+  .ash-topbar { gap: 0.4rem; padding: 0 0.7rem; }
+}

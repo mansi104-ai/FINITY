@@ -39,18 +39,27 @@ function FIcon({ k }: { k: string }) {
   }
 }
 
+const ONBOARD_KEY = "findec-onboarded";
+
 export default function HomeDashboard() {
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
   const [stocks, setStocks] = useState<StocksResponse | null>(null);
   const [regime, setRegime] = useState<MarketRegime | null>(null);
   const [user, setUser] = useState<string | null>(null);
+  const [showOnboard, setShowOnboard] = useState(false);
 
   useEffect(() => {
     setUser(getSessionUser()?.email?.split("@")[0] ?? null);
+    if (typeof window !== "undefined") setShowOnboard(window.localStorage.getItem(ONBOARD_KEY) !== "1");
     void getMarketSnapshot().then(setSnapshot).catch(() => setSnapshot(null));
     void getStocks().then(setStocks).catch(() => setStocks(null));
     void getMarketRegime().then(setRegime).catch(() => setRegime(null));
   }, []);
+
+  const dismissOnboard = () => {
+    setShowOnboard(false);
+    if (typeof window !== "undefined") window.localStorage.setItem(ONBOARD_KEY, "1");
+  };
 
   const indices = stocks?.indices ?? [];
   const movers = useMemo(() => {
@@ -65,6 +74,20 @@ export default function HomeDashboard() {
   return (
     <section className="findec-minimal-page">
       <div className="findec-minimal-shell home-shell">
+        {showOnboard && (
+          <div className="home-onboard">
+            <span aria-hidden="true" style={{ fontSize: "1.3rem" }}>👋</span>
+            <div className="home-onboard-text">
+              <strong>New to Findec? Start with an AI Brief.</strong>
+              <span>Search any stock and get a researcher, analyst &amp; risk verdict in seconds — free.</span>
+            </div>
+            <div className="home-onboard-cta">
+              <Link href="/brief" className="home-btn-brand" onClick={dismissOnboard}>Try it →</Link>
+              <button className="home-onboard-x" onClick={dismissOnboard} aria-label="Dismiss">×</button>
+            </div>
+          </div>
+        )}
+
         {/* ── Bold branded hero ── */}
         <section className="home-hero2">
           <div className="home-hero2-glow" aria-hidden="true" />
