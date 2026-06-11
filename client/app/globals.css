@@ -6439,3 +6439,18 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   .ash-content { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
   .ash-footer { display: none; }
 }
+
+/* ═══ v1.32.0 — Responsive tables on mobile ════════════════════════════════════ */
+@media (max-width: 560px) {
+  .scr-table, .earn-table, .cmp-table { font-size: 0.8rem; }
+  .scr-td, .scr-th, .earn-td, .earn-th { padding-left: 0.5rem; padding-right: 0.5rem; }
+  /* screener: collapse the multi-button action cell into compact links */
+  .scr-td-actions { flex-wrap: wrap; gap: 0.25rem; }
+  .scr-action { padding: 0.2rem 0.4rem; font-size: 0.72rem; }
+  .scr-name { max-width: 52vw; }
+  /* tables that must scroll get a visible, thin scrollbar + momentum scroll */
+  .scr-table-wrap, .earn-table-wrap, .cmp-table-scroll { -webkit-overflow-scrolling: touch; }
+  /* compare: keep the metric label column readable, let values scroll */
+  .cmp-th-metric, .cmp-td-metric { position: sticky; left: 0; background: #0f0f12; z-index: 1; }
+  .scr-count { font-size: 0.72rem; }
+}
