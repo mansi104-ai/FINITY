@@ -6454,3 +6454,21 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   .cmp-th-metric, .cmp-td-metric { position: sticky; left: 0; background: #0f0f12; z-index: 1; }
   .scr-count { font-size: 0.72rem; }
 }
+
+/* ═══ v1.33.0 — Stock detail on mobile ═════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .stk-nav-row { flex-wrap: wrap; gap: 0.5rem; }
+  .stk-nav-actions { width: 100%; }
+  .stk-nav-actions .stk-nav-btn { flex: 1; text-align: center; }
+  .stk-hero-main { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+  .stk-hero-right { text-align: left; align-items: flex-start; }
+  .stk-hero-name { font-size: 1.35rem; line-height: 1.2; }
+  .stk-hero-price { font-size: 1.7rem; }
+  .stk-hero-vol { flex-wrap: wrap; gap: 0.5rem 0.9rem; }
+  .stk-links-grid { grid-template-columns: 1fr 1fr; }
+  .stk-cta-row { flex-direction: column; }
+  .stk-cta-row a { width: 100%; text-align: center; }
+  .stk-news-row { gap: 0.6rem; }
+  .stk-news-img-wrap { width: 64px; height: 64px; flex: none; }
+  .stk-chart-kpis { gap: 0.7rem; flex-wrap: wrap; }
+}
