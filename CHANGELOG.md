@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.26.0] — 2026-06-11
+
+### Added / Changed
+- **Bold branded redesign — phase 1 (home/landing).** A marketing-grade landing built around Findec's electric cyan→blue brand: a gradient hero ("Stop guessing. Get an AI verdict."), a feature-highlight grid (AI Brief, Findec Scorecard, AI Track Record, Smart Alerts, Paper Trading, India + Global) with "Unique" badges on differentiators, the live-market section, and a "Why investors pick Findec" value strip. New brand design tokens (`--fd-brand-*`, gradient, glow) and brand-gradient primary buttons.
+
+---
+
+## [v1.25.0] — 2026-06-11
+
+### Added
+- **Free India + global fundamentals via Yahoo's crumb flow.** Yahoo's `v10/quoteSummary` (full fundamentals: P/E, market cap, EPS, dividend, beta, P/B, 52w, MA50/200) is auth-gated by a crumb — not IP-blocked like `v7/quote` — so it works on Vercel and covers **every market incl. India/NSE for free**. New `yahooFundamentals` service (cookie+crumb cached ~50 min) is now the primary fundamentals enricher for stock detail + the Screener list (Finnhub/FMP as fallback). This unblocks India fundamentals, the Dividend tracker, and the Findec Scorecard for Indian stocks with **no paid data tier**. Verified live: RELIANCE.NS cap ₹17.09T, P/E 21.17; India screener 24/24 with P/E + market cap.
+
+### Fixed
+- **v1.24.1** — fundamentals-less cached quotes/lists no longer short-circuit enrichment (detail + screener repopulate when a fundamentals provider is available).
+
+---
+
 ## [v1.24.0] — 2026-06-11
 
 ### Added

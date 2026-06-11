@@ -11,16 +11,33 @@ import type { MarketSnapshot, StockQuote, StocksResponse } from "../types";
 function fmtPct(v: number) { return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`; }
 function pctClass(v: number) { return v > 0 ? "findec-subline-up" : v < 0 ? "findec-subline-down" : ""; }
 
-const TILES = [
-  { href: "/markets", label: "Markets", desc: "Live quotes & indices" },
-  { href: "/screener", label: "Screener", desc: "Filter by fundamentals" },
-  { href: "/research", label: "Research", desc: "Sectors & dividends" },
-  { href: "/insights", label: "Insights", desc: "Regime & portfolio" },
-  { href: "/watchlist", label: "Watchlist", desc: "Track your names" },
-  { href: "/paper", label: "Paper Trading", desc: "Practice risk-free" },
-  { href: "/calendar", label: "Calendar", desc: "Earnings & ledger" },
-  { href: "/earnings", label: "Earnings", desc: "Upcoming & IPOs" },
+const FEATURES = [
+  { icon: "bolt", title: "AI Brief", desc: "A researcher, analyst & risk-manager verdict on any stock — in plain English.", badge: "Unique" },
+  { icon: "gauge", title: "Findec Scorecard", desc: "A 0–100 read on valuation, momentum, stability & income for every stock.", badge: "" },
+  { icon: "target", title: "AI Track Record", desc: "We grade our own past calls against what the stock actually did. No one else does.", badge: "Unique" },
+  { icon: "bell", title: "Smart Alerts", desc: "Price alerts that actually fire — once, or a daily reminder while it holds.", badge: "" },
+  { icon: "flask", title: "Paper Trading", desc: "Practice the trade with virtual money before you risk real capital.", badge: "" },
+  { icon: "globe", title: "India + Global", desc: "Live NSE, US, UK, Japan & China data, fundamentals and news — one app.", badge: "" },
 ];
+
+const WHY = [
+  { k: "AI that takes a stance", v: "Competitors hand you raw data. Findec gives a clear verdict and shows its track record." },
+  { k: "Free where others charge", v: "Scorecards, AI briefs, screening and paper trading — free. Pro only lifts limits." },
+  { k: "Built for India", v: "NSE-first with accurate fundamentals, sectors and dividends, plus global coverage." },
+];
+
+function FIcon({ k }: { k: string }) {
+  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (k) {
+    case "bolt": return <svg width="22" height="22" viewBox="0 0 24 24" {...p}><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>;
+    case "gauge": return <svg width="22" height="22" viewBox="0 0 24 24" {...p}><path d="M12 14l4-4M5 18a9 9 0 1 1 14 0" /><circle cx="12" cy="14" r="1.4" fill="currentColor" stroke="none" /></svg>;
+    case "target": return <svg width="22" height="22" viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.4" /></svg>;
+    case "bell": return <svg width="22" height="22" viewBox="0 0 24 24" {...p}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" /></svg>;
+    case "flask": return <svg width="22" height="22" viewBox="0 0 24 24" {...p}><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /></svg>;
+    case "globe": return <svg width="22" height="22" viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>;
+    default: return null;
+  }
+}
 
 export default function HomeDashboard() {
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
@@ -48,29 +65,49 @@ export default function HomeDashboard() {
   return (
     <section className="findec-minimal-page">
       <div className="findec-minimal-shell home-shell">
-        {/* Hero */}
-        <section className="findec-panel home-hero">
-          <div className="home-hero-text">
-            <p className="findec-kicker">{user ? `Welcome back, ${user}` : "Welcome to Findec"}</p>
-            <h1 className="home-hero-title">Your market, decoded.</h1>
-            <p className="home-hero-sub">Live data, AI briefs, screening, paper trading and research — in one workspace.</p>
-            <div className="home-hero-cta">
-              <Link href="/brief" className="home-cta-primary">▶ Run an AI Brief</Link>
-              <Link href="/markets" className="home-cta-ghost">Explore Markets →</Link>
+        {/* ── Bold branded hero ── */}
+        <section className="home-hero2">
+          <div className="home-hero2-glow" aria-hidden="true" />
+          <div className="home-hero2-inner">
+            <span className="home-badge">AI-powered · India + Global markets</span>
+            <h1 className="home-hero2-title">
+              Stop guessing.<br /><span className="home-grad-text">Get an AI verdict.</span>
+            </h1>
+            <p className="home-hero2-sub">
+              {user ? `Welcome back, ${user}. ` : ""}Findec reads the data, scores the stock, and tells you what it
+              means — then grades its own calls so you know it&apos;s honest.
+            </p>
+            <div className="home-hero2-cta">
+              <Link href="/brief" className="home-btn-brand">⚡ Run a free AI Brief</Link>
+              <Link href="/markets" className="home-btn-ghost">Explore markets →</Link>
             </div>
+            <p className="home-hero2-trust">
+              {snapshot ? (
+                <><span className={`findec-market-dot findec-market-dot-${snapshot.market.phase}`} /> {snapshot.market.label} · {snapshot.geoLocation.country}</>
+              ) : "Live market data"}
+              <span className="home-trust-sep">·</span> Decision support, not advice
+            </p>
           </div>
-          {snapshot && (
-            <div className="home-hero-status">
-              <span className={`findec-market-dot findec-market-dot-${snapshot.market.phase}`} />
-              <div>
-                <strong>{snapshot.market.label}</strong>
-                <span className="home-hero-status-sub">{snapshot.geoLocation.country} · {snapshot.market.sessionHours}</span>
-              </div>
-            </div>
-          )}
         </section>
 
-        {/* Indices + regime */}
+        {/* ── Feature highlights ── */}
+        <section className="home-features">
+          {FEATURES.map((f) => (
+            <article key={f.title} className="home-feature">
+              <span className="home-feature-ico"><FIcon k={f.icon} /></span>
+              <div className="home-feature-body">
+                <div className="home-feature-head">
+                  <strong>{f.title}</strong>
+                  {f.badge && <span className="home-feature-badge">{f.badge}</span>}
+                </div>
+                <span className="home-feature-desc">{f.desc}</span>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        {/* ── Live market ── */}
+        <div className="home-section-label">Live market</div>
         <div className="home-row">
           {indices.length > 0 && (
             <div className="home-indices">
@@ -92,7 +129,6 @@ export default function HomeDashboard() {
           )}
         </div>
 
-        {/* Movers */}
         {(movers.gainers.length > 0) && (
           <div className="home-movers">
             <MoverCard title="Top Gainers" rows={movers.gainers} />
@@ -100,14 +136,17 @@ export default function HomeDashboard() {
           </div>
         )}
 
-        {/* Quick access */}
-        <section className="home-tiles">
-          {TILES.map((t) => (
-            <Link key={t.href} href={t.href} className="findec-panel home-tile">
-              <strong>{t.label}</strong>
-              <span>{t.desc}</span>
-            </Link>
-          ))}
+        {/* ── Why Findec ── */}
+        <section className="home-why">
+          <h2 className="home-why-title">Why investors pick <span className="home-grad-text">Findec</span></h2>
+          <div className="home-why-grid">
+            {WHY.map((w) => (
+              <div key={w.k} className="home-why-card">
+                <strong>{w.k}</strong>
+                <span>{w.v}</span>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
     </section>

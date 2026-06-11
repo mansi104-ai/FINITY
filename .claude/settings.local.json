@@ -66,7 +66,8 @@
       "Bash(sed -i 's/v1.23.0/v1.24.0/' client/src/components/AppFooter.tsx)",
       "Bash(sed -i 's/\\\\*\\\\*Current version: v1.23.0\\\\*\\\\*/**Current version: v1.24.0**/' README.md)",
       "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\({k:d.get\\(k\\) for k in ['price','marketCap','peRatio','eps','dividendYield','beta']}\\)\")",
-      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('upcoming',len\\(d.get\\('upcoming',[]\\)\\),'recent',len\\(d.get\\('recent',[]\\)\\)\\); u=d.get\\('upcoming',[]\\); print\\('sample:', u[0] if u else 'none'\\)\")"
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('upcoming',len\\(d.get\\('upcoming',[]\\)\\),'recent',len\\(d.get\\('recent',[]\\)\\)\\); u=d.get\\('upcoming',[]\\); print\\('sample:', u[0] if u else 'none'\\)\")",
+      "Bash(node node_modules/next/dist/bin/next build)"
     ],
     "additionalDirectories": [
       "C:\\Users\\mansi\\FINITY\\.git",
