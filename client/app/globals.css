@@ -6508,3 +6508,22 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   .findec-ticker-chip { min-height: 2.1rem; font-size: 0.76rem; padding: 0 0.7rem; gap: 0.45rem; }
   .findec-strip-topline { font-size: 0.72rem; }
 }
+
+/* ═══ v1.36.0 — Touch ergonomics: tap targets, iOS-safe inputs, fluid type ═════ */
+@media (max-width: 860px) {
+  /* iOS zooms any input with font-size < 16px on focus — force >=16px */
+  input, select, textarea { font-size: 16px; }
+  /* Comfortable tap targets (Apple/Material ~44px) on interactive chrome */
+  .ash-bn-item, .ash-nav-link, .earn-nav-btn, .scr-nav-btn, .cmp-nav-btn,
+  .findec-search-button, .home-btn-brand, .home-btn-ghost, .adv-chip,
+  .scr-action, .cmp-add-btn, .alert-submit, .notif-bell-btn, .ash-hamburger {
+    min-height: 40px;
+  }
+  .adv-chip { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  /* Fluid headings so titles never overflow tiny screens */
+  .home-hero2-title { font-size: clamp(1.8rem, 8vw, 2.6rem); }
+  .pr-title, .home-why-title { font-size: clamp(1.4rem, 6vw, 2rem); }
+  .earn-title, .scr-title, .cmp-title, .legal-title, .mkt-page-title { font-size: clamp(1.35rem, 5.5vw, 1.8rem); }
+  /* Avoid accidental text-size inflation on orientation change */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+}
