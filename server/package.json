@@ -1,6 +1,6 @@
 {
   "name": "findec-server",
-  "version": "1.24.1",
+  "version": "1.25.0",
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",

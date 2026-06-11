@@ -37,6 +37,7 @@ import {
   fmpRatiosTtm,
   fmpEarningsCalendar,
 } from "../services/fmp";
+import { getYahooFundamentals, type YahooFundamentals } from "../services/yahooFundamentals";
 
 const NEW_YORK_TIMEZONE = "America/New_York";
 const STOCK_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -927,14 +928,47 @@ async function enrichFinnhubUsStocks(stocks: StockQuoteResponse[]): Promise<Stoc
 // dividend yield, beta) so the Screener filters and Dividend tracker work.
 // US → Finnhub (free). Other markets keep price+52w; India/global fundamentals
 // are layered in by the FMP integration when TWELVEDATA/ FMP keys are present.
-// Whether we have a way to fill fundamentals for this market.
-function fundamentalsProviderAvailable(countryCode: string): boolean {
-  return (countryCode === "US" && Boolean(env.finnhubKey)) || (countryCode !== "US" && fmpEnabled());
+// We can always fill fundamentals via the Yahoo crumb flow (free, all markets),
+// so a fundamentals-less cache should always be refreshed.
+function fundamentalsProviderAvailable(_countryCode: string): boolean {
+  return true;
 }
 
+// Merge a fundamentals bundle into a quote, only filling gaps.
+function applyFundamentals(s: StockQuoteResponse, f: YahooFundamentals): void {
+  if (s.marketCap == null && f.marketCap != null) s.marketCap = Math.round(f.marketCap);
+  if (s.peRatio == null && f.peRatio != null) s.peRatio = +f.peRatio.toFixed(2);
+  if (s.forwardPE == null && f.forwardPE != null) s.forwardPE = +f.forwardPE.toFixed(2);
+  if (s.eps == null && f.eps != null) s.eps = +f.eps.toFixed(2);
+  if (s.dividendYield == null && f.dividendYield != null) s.dividendYield = f.dividendYield;
+  if (s.beta == null && f.beta != null) s.beta = +f.beta.toFixed(2);
+  if (s.priceToBook == null && f.priceToBook != null) s.priceToBook = +f.priceToBook.toFixed(2);
+  if (s.high52w == null && f.high52w != null) s.high52w = +f.high52w.toFixed(2);
+  if (s.low52w == null && f.low52w != null) s.low52w = +f.low52w.toFixed(2);
+  if (s.ma50 == null && f.ma50 != null) s.ma50 = +f.ma50.toFixed(2);
+  if (s.ma200 == null && f.ma200 != null) s.ma200 = +f.ma200.toFixed(2);
+  if (s.volume == null && f.volume != null) s.volume = f.volume;
+  if (s.avgVolume == null && f.avgVolume != null) s.avgVolume = f.avgVolume;
+}
+
+// Enrich a list with fundamentals. PRIMARY: Yahoo crumb flow (free, every market,
+// gives P/E, cap, EPS, div, beta, P/B, 52w, MA50/200). Fallback: Finnhub (US) / FMP.
 async function enrichListFundamentals(all: StockQuoteResponse[], countryCode: string): Promise<StockQuoteResponse[]> {
+  const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
+  const needing = all.filter((s) => !indexSymbols.has(s.symbol) && (s.peRatio == null || s.marketCap == null)).slice(0, 24);
+
+  // Yahoo crumb fundamentals (bounded concurrency to avoid bursts).
+  if (needing.length) {
+    const CHUNK = 6;
+    for (let i = 0; i < needing.length; i += CHUNK) {
+      const chunk = needing.slice(i, i + CHUNK);
+      const settled = await Promise.allSettled(chunk.map((s) => getYahooFundamentals(s.symbol)));
+      settled.forEach((r, j) => { if (r.status === "fulfilled" && r.value) applyFundamentals(chunk[j], r.value); });
+    }
+  }
+
+  // US fallback via Finnhub for anything Yahoo missed.
   if (countryCode === "US" && env.finnhubKey) {
-    const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
     const equities = all.filter((s) => !indexSymbols.has(s.symbol));
     const indices = all.filter((s) => indexSymbols.has(s.symbol));
     if (equities.some((s) => s.peRatio == null || s.marketCap == null)) {
@@ -943,12 +977,11 @@ async function enrichListFundamentals(all: StockQuoteResponse[], countryCode: st
     }
   }
 
-  // Non-US (India/global): FMP fills P/E, market cap, EPS, 52w, MA50/200, volume
-  // in a single batched call (same .NS/.BO symbols we track). No-ops without key.
+  // Non-US fallback via FMP (if a key is set) for anything still missing.
   if (countryCode !== "US" && fmpEnabled()) {
-    const needing = all.filter((s) => !s.isIndex && (s.peRatio == null || s.marketCap == null));
-    if (needing.length) {
-      const map = await fmpQuoteBatch(needing.map((s) => s.symbol).slice(0, 40));
+    const stillNeeding = all.filter((s) => !indexSymbols.has(s.symbol) && (s.peRatio == null || s.marketCap == null));
+    if (stillNeeding.length) {
+      const map = await fmpQuoteBatch(stillNeeding.map((s) => s.symbol).slice(0, 40));
       for (const s of all) {
         const q = map.get(s.symbol);
         if (!q) continue;
@@ -957,44 +990,39 @@ async function enrichListFundamentals(all: StockQuoteResponse[], countryCode: st
         if (s.eps == null && q.eps != null) s.eps = +Number(q.eps).toFixed(2);
         if (s.high52w == null && q.yearHigh != null) s.high52w = +Number(q.yearHigh).toFixed(2);
         if (s.low52w == null && q.yearLow != null) s.low52w = +Number(q.yearLow).toFixed(2);
-        if (s.ma50 == null && q.priceAvg50 != null) s.ma50 = +Number(q.priceAvg50).toFixed(2);
-        if (s.ma200 == null && q.priceAvg200 != null) s.ma200 = +Number(q.priceAvg200).toFixed(2);
-        if (s.avgVolume == null && q.avgVolume != null) s.avgVolume = Number(q.avgVolume);
       }
     }
   }
   return all;
 }
 
-// Fill a single quote's fundamentals from FMP (quote + profile + ratios) — used
-// by the stock detail page for India/global tickers that lack them.
-async function enrichDetailFromFmp(quote: StockQuoteResponse): Promise<void> {
-  if (!fmpEnabled()) return;
-  const [q, profile, ratios] = await Promise.all([
-    fmpQuoteSingle(quote.symbol),
-    fmpProfile(quote.symbol),
-    fmpRatiosTtm(quote.symbol),
-  ]);
-  if (q) {
-    if (quote.marketCap == null && q.marketCap != null) quote.marketCap = Math.round(Number(q.marketCap));
-    if (quote.peRatio == null && q.pe != null) quote.peRatio = +Number(q.pe).toFixed(2);
-    if (quote.eps == null && q.eps != null) quote.eps = +Number(q.eps).toFixed(2);
-    if (quote.high52w == null && q.yearHigh != null) quote.high52w = +Number(q.yearHigh).toFixed(2);
-    if (quote.low52w == null && q.yearLow != null) quote.low52w = +Number(q.yearLow).toFixed(2);
-    if (quote.ma50 == null && q.priceAvg50 != null) quote.ma50 = +Number(q.priceAvg50).toFixed(2);
-    if (quote.ma200 == null && q.priceAvg200 != null) quote.ma200 = +Number(q.priceAvg200).toFixed(2);
-    if (quote.volume == null && q.volume != null) quote.volume = Number(q.volume);
-    if (quote.avgVolume == null && q.avgVolume != null) quote.avgVolume = Number(q.avgVolume);
-  }
-  if (profile) {
-    if (quote.beta == null && profile.beta != null) quote.beta = +Number(profile.beta).toFixed(2);
-    if (quote.marketCap == null && profile.mktCap != null) quote.marketCap = Math.round(Number(profile.mktCap));
-  }
-  if (ratios) {
-    const dy = ratios.dividendYieldTTM ?? ratios.dividendYielTTM;
-    if (quote.dividendYield == null && dy != null) quote.dividendYield = +(Number(dy) * 100).toFixed(2);
-    if (quote.priceToBook == null && ratios.priceToBookRatioTTM != null) quote.priceToBook = +Number(ratios.priceToBookRatioTTM).toFixed(2);
-    if (quote.peRatio == null && ratios.peRatioTTM != null) quote.peRatio = +Number(ratios.peRatioTTM).toFixed(2);
+// Fill a single quote's fundamentals. PRIMARY: Yahoo crumb flow (free, all
+// markets). Fallback: FMP (if configured) for anything still missing.
+async function enrichDetailFundamentals(quote: StockQuoteResponse): Promise<void> {
+  try {
+    const f = await getYahooFundamentals(quote.symbol);
+    if (f) applyFundamentals(quote, f);
+  } catch { /* try FMP */ }
+
+  if ((quote.marketCap == null || quote.peRatio == null) && fmpEnabled()) {
+    const [q, profile, ratios] = await Promise.all([
+      fmpQuoteSingle(quote.symbol),
+      fmpProfile(quote.symbol),
+      fmpRatiosTtm(quote.symbol),
+    ]);
+    if (q) {
+      if (quote.marketCap == null && q.marketCap != null) quote.marketCap = Math.round(Number(q.marketCap));
+      if (quote.peRatio == null && q.pe != null) quote.peRatio = +Number(q.pe).toFixed(2);
+      if (quote.eps == null && q.eps != null) quote.eps = +Number(q.eps).toFixed(2);
+      if (quote.high52w == null && q.yearHigh != null) quote.high52w = +Number(q.yearHigh).toFixed(2);
+      if (quote.low52w == null && q.yearLow != null) quote.low52w = +Number(q.yearLow).toFixed(2);
+    }
+    if (profile && quote.beta == null && profile.beta != null) quote.beta = +Number(profile.beta).toFixed(2);
+    if (ratios) {
+      const dy = ratios.dividendYieldTTM ?? ratios.dividendYielTTM;
+      if (quote.dividendYield == null && dy != null) quote.dividendYield = +(Number(dy) * 100).toFixed(2);
+      if (quote.priceToBook == null && ratios.priceToBookRatioTTM != null) quote.priceToBook = +Number(ratios.priceToBookRatioTTM).toFixed(2);
+    }
   }
 }
 
@@ -1504,10 +1532,10 @@ export async function getStockDetailController(req: Request, res: Response) {
     }
   }
 
-  // FMP fundamentals enrichment — fills P/E, market cap, EPS, dividend, beta for
-  // India/global tickers that Yahoo-quote/Finnhub couldn't (no-op without key).
+  // Fundamentals enrichment (Yahoo crumb flow → FMP fallback) — fills P/E, market
+  // cap, EPS, dividend, beta, P/B for India/global tickers (and US gaps like MAs).
   if (quote && quote.price > 0 && (quote.marketCap == null || quote.peRatio == null)) {
-    try { await enrichDetailFromFmp(quote); } catch { /* best-effort */ }
+    try { await enrichDetailFundamentals(quote); } catch { /* best-effort */ }
   }
 
   if (quote && quote.price > 0) {
