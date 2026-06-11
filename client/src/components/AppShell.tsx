@@ -116,6 +116,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
+        <Link href="/pricing" className="ash-pro-cta" title="Upgrade to Pro">
+          <span className="ash-nav-ico" aria-hidden="true">★</span>
+          <span className="ash-nav-label">Upgrade to Pro</span>
+        </Link>
         <button className="ash-collapse-btn" onClick={toggleCollapse} title={collapsed ? "Expand" : "Collapse"}>
           <span className="ash-nav-ico">{collapsed ? "»" : "«"}</span>
           <span className="ash-nav-label">Collapse</span>

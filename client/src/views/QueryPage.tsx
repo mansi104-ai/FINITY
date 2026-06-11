@@ -357,6 +357,9 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
           <section className="findec-panel findec-empty-brief">
             <p className="findec-kicker">AI Brief</p>
             <p className="text-muted">{signedIn ? "Search a company or ticker above to generate a live AI brief." : "Sign in, then search a company to generate a live AI brief."}</p>
+            <p className="text-muted" style={{ fontSize: "0.8rem", marginTop: "0.4rem" }}>
+              Free plan: 10 AI briefs/day · <Link href="/pricing" className="legal-inline-link">Pro</Link> unlocks unlimited.
+            </p>
           </section>
         )}
         {running && !result && <section className="findec-panel"><p className="findec-kicker">Building your brief for {displaySymbol}…</p></section>}

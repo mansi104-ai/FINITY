@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.23.0] — 2026-06-11
+
+### Added
+- **SEO + social metadata** — the root layout now exports proper Next.js `metadata` (title template, description, keywords, Open Graph, Twitter card, robots, favicon). Previously the layout was a client component so search engines and link unfurls saw nothing — this is foundational for organic growth and shareability. (Set `NEXT_PUBLIC_SITE_URL` to your domain.)
+- **Conversion surfaces** — an "Upgrade to Pro" CTA in the sidebar and a "Free: 10 AI briefs/day · Pro unlocks unlimited" hint on the AI Brief, both linking to `/pricing`.
+
+---
+
 ## [v1.22.0] — 2026-06-11
 
 ### Added
