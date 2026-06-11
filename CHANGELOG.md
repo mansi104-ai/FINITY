@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.21.0] — 2026-06-11
+
+### Added
+- **Financial Modeling Prep (FMP) integration** — adds the fundamentals and earnings that Finnhub-free (US-only) and Twelve-Data-free can't provide:
+  - **India/global fundamentals** — P/E, market cap, EPS, 52-week range, MA50/200, dividend yield, beta now fill in on the **stock detail page** and the **Screener list** for `.NS`/`.BO` and other non-US tickers (one batched call, cached).
+  - **Earnings calendar (#8)** — FMP's calendar is now the primary source (best free coverage, US + global), ahead of Twelve Data and Finnhub.
+  - Uses the same Yahoo-style symbols we already track, so no conversion. Activates when `FMP_API_KEY` is set; no-ops gracefully otherwise.
+
+---
+
 ## [v1.20.0] — 2026-06-11
 
 ### Fixed

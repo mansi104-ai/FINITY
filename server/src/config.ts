@@ -67,8 +67,9 @@ export const env = {
   newsApiKey: readString(process.env.NEWSAPI_KEY ?? process.env.NEWS_API_KEY),
   finnhubKey: readString(process.env.FINNHUB_API_KEY),
   twelvedataKey: readString(process.env.TWELVEDATA_API_KEY ?? process.env.TWELVE_DATA_API_KEY ?? process.env.TWELVEDATA_KEY),
+  fmpKey: readString(process.env.FMP_API_KEY ?? process.env.FINANCIALMODELINGPREP_API_KEY),
   emailWebhookUrl: readString(process.env.EMAIL_WEBHOOK_URL),
   cronSecret: readString(process.env.CRON_SECRET),
   errorWebhookUrl: readString(process.env.ERROR_WEBHOOK_URL ?? process.env.SENTRY_DSN),
-  appVersion: readString(process.env.APP_VERSION, "1.20.0")
+  appVersion: readString(process.env.APP_VERSION, "1.21.0")
 };

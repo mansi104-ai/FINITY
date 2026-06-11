@@ -2,7 +2,7 @@
 
 A financial decision platform — real-time market data, AI-powered stock briefs, screener, watchlist, compare, and more.
 
-**Current version: v1.20.0**
+**Current version: v1.21.0**
 
 ---
 
@@ -77,6 +77,7 @@ npm run dev                  # Next.js dev on port 3000
 | `CLIENT_ORIGIN` | No | CORS allowed origin (default `http://localhost:3000`) |
 | `FINNHUB_API_KEY` | No | Finnhub key — live fallback when Yahoo blocks cloud IPs, plus earnings/IPO/recs |
 | `TWELVEDATA_API_KEY` | Recommended | Twelve Data key — primary live source for India/NSE + global quotes, search, candles, and earnings (Yahoo is IP-blocked on cloud hosts). Also accepts `TWELVE_DATA_API_KEY`/`TWELVEDATA_KEY`. |
+| `FMP_API_KEY` | Recommended | Financial Modeling Prep key — fundamentals (P/E, market cap, EPS, dividend) for India/global stock detail + screener list, and the earnings calendar. Uses the same `.NS`/`.BO` symbols. No-ops if unset. Also accepts `FINANCIALMODELINGPREP_API_KEY`. |
 | `EMAIL_WEBHOOK_URL` | No | Endpoint accepting `{ to, subject, text }` for digest/alert emails. Unset = emails are logged and skipped. |
 | `ENFORCE_SECRETS` | No | `true` makes the server refuse to boot in production if JWT secrets are dev fallbacks (default: warn only). |
 | `CRON_SECRET` | No | Shared secret gating the `/api/alerts/cron` sweep. Vercel Cron is allowed automatically via its `x-vercel-cron` header; external callers must pass `?key=<secret>`. |

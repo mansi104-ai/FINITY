@@ -29,6 +29,14 @@ import {
   toYahooSymbol,
   type TdQuote,
 } from "../services/twelvedata";
+import {
+  fmpEnabled,
+  fmpQuoteBatch,
+  fmpQuoteSingle,
+  fmpProfile,
+  fmpRatiosTtm,
+  fmpEarningsCalendar,
+} from "../services/fmp";
 
 const NEW_YORK_TIMEZONE = "America/New_York";
 const STOCK_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -929,7 +937,60 @@ async function enrichListFundamentals(all: StockQuoteResponse[], countryCode: st
       return [...enriched, ...indices];
     }
   }
+
+  // Non-US (India/global): FMP fills P/E, market cap, EPS, 52w, MA50/200, volume
+  // in a single batched call (same .NS/.BO symbols we track). No-ops without key.
+  if (countryCode !== "US" && fmpEnabled()) {
+    const needing = all.filter((s) => !s.isIndex && (s.peRatio == null || s.marketCap == null));
+    if (needing.length) {
+      const map = await fmpQuoteBatch(needing.map((s) => s.symbol).slice(0, 40));
+      for (const s of all) {
+        const q = map.get(s.symbol);
+        if (!q) continue;
+        if (s.marketCap == null && q.marketCap != null) s.marketCap = Math.round(Number(q.marketCap));
+        if (s.peRatio == null && q.pe != null) s.peRatio = +Number(q.pe).toFixed(2);
+        if (s.eps == null && q.eps != null) s.eps = +Number(q.eps).toFixed(2);
+        if (s.high52w == null && q.yearHigh != null) s.high52w = +Number(q.yearHigh).toFixed(2);
+        if (s.low52w == null && q.yearLow != null) s.low52w = +Number(q.yearLow).toFixed(2);
+        if (s.ma50 == null && q.priceAvg50 != null) s.ma50 = +Number(q.priceAvg50).toFixed(2);
+        if (s.ma200 == null && q.priceAvg200 != null) s.ma200 = +Number(q.priceAvg200).toFixed(2);
+        if (s.avgVolume == null && q.avgVolume != null) s.avgVolume = Number(q.avgVolume);
+      }
+    }
+  }
   return all;
+}
+
+// Fill a single quote's fundamentals from FMP (quote + profile + ratios) — used
+// by the stock detail page for India/global tickers that lack them.
+async function enrichDetailFromFmp(quote: StockQuoteResponse): Promise<void> {
+  if (!fmpEnabled()) return;
+  const [q, profile, ratios] = await Promise.all([
+    fmpQuoteSingle(quote.symbol),
+    fmpProfile(quote.symbol),
+    fmpRatiosTtm(quote.symbol),
+  ]);
+  if (q) {
+    if (quote.marketCap == null && q.marketCap != null) quote.marketCap = Math.round(Number(q.marketCap));
+    if (quote.peRatio == null && q.pe != null) quote.peRatio = +Number(q.pe).toFixed(2);
+    if (quote.eps == null && q.eps != null) quote.eps = +Number(q.eps).toFixed(2);
+    if (quote.high52w == null && q.yearHigh != null) quote.high52w = +Number(q.yearHigh).toFixed(2);
+    if (quote.low52w == null && q.yearLow != null) quote.low52w = +Number(q.yearLow).toFixed(2);
+    if (quote.ma50 == null && q.priceAvg50 != null) quote.ma50 = +Number(q.priceAvg50).toFixed(2);
+    if (quote.ma200 == null && q.priceAvg200 != null) quote.ma200 = +Number(q.priceAvg200).toFixed(2);
+    if (quote.volume == null && q.volume != null) quote.volume = Number(q.volume);
+    if (quote.avgVolume == null && q.avgVolume != null) quote.avgVolume = Number(q.avgVolume);
+  }
+  if (profile) {
+    if (quote.beta == null && profile.beta != null) quote.beta = +Number(profile.beta).toFixed(2);
+    if (quote.marketCap == null && profile.mktCap != null) quote.marketCap = Math.round(Number(profile.mktCap));
+  }
+  if (ratios) {
+    const dy = ratios.dividendYieldTTM ?? ratios.dividendYielTTM;
+    if (quote.dividendYield == null && dy != null) quote.dividendYield = +(Number(dy) * 100).toFixed(2);
+    if (quote.priceToBook == null && ratios.priceToBookRatioTTM != null) quote.priceToBook = +Number(ratios.priceToBookRatioTTM).toFixed(2);
+    if (quote.peRatio == null && ratios.peRatioTTM != null) quote.peRatio = +Number(ratios.peRatioTTM).toFixed(2);
+  }
 }
 
 // ─── Sector map for tracked symbols (powers v0.5 sector heatmap) ───────────────
@@ -1431,6 +1492,12 @@ export async function getStockDetailController(req: Request, res: Response) {
     }
   }
 
+  // FMP fundamentals enrichment — fills P/E, market cap, EPS, dividend, beta for
+  // India/global tickers that Yahoo-quote/Finnhub couldn't (no-op without key).
+  if (quote && quote.price > 0 && (quote.marketCap == null || quote.peRatio == null)) {
+    try { await enrichDetailFromFmp(quote); } catch { /* best-effort */ }
+  }
+
   if (quote && quote.price > 0) {
     void writeQuoteCache(ticker, quote);
     return res.status(200).json(quote);
@@ -1573,6 +1640,42 @@ export async function getEarningsController(_req: Request, res: Response) {
   const todayStr = isoDate(now);
   const futureStr = isoDate(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000));
   const pastStr = isoDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
+
+  // 0. FMP earnings calendar — best free coverage (US + global incl. India).
+  if (fmpEnabled()) {
+    try {
+      const items = await fmpEarningsCalendar(pastStr, futureStr);
+      if (items.length > 0) {
+        const rows: EarningsRow[] = items
+          .filter((e) => e.symbol && e.date)
+          .map((e) => ({
+            date: e.date,
+            symbol: e.symbol,
+            company: e.symbol,
+            epsEstimate: e.epsEstimated ?? null,
+            epsActual: e.eps ?? null,
+            revenueEstimate: e.revenueEstimated ?? null,
+            revenueActual: e.revenue ?? null,
+            hour: e.time || "",
+            quarter: 0,
+            year: new Date(e.date).getFullYear(),
+          }));
+        const upcoming = rows
+          .filter((r) => r.date >= todayStr)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .slice(0, 100);
+        const recent = rows
+          .filter((r) => r.date < todayStr && (r.epsActual != null || r.epsEstimate != null))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 50);
+        if (upcoming.length > 0 || recent.length > 0) {
+          return res.status(200).json({ upcoming, recent });
+        }
+      }
+    } catch (e) {
+      console.warn("FMP earnings failed:", e instanceof Error ? e.message : e);
+    }
+  }
 
   // 1. Twelve Data calendar — covers India + global, where Finnhub free is empty.
   if (tdEnabled()) {
