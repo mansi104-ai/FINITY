@@ -927,6 +927,11 @@ async function enrichFinnhubUsStocks(stocks: StockQuoteResponse[]): Promise<Stoc
 // dividend yield, beta) so the Screener filters and Dividend tracker work.
 // US → Finnhub (free). Other markets keep price+52w; India/global fundamentals
 // are layered in by the FMP integration when TWELVEDATA/ FMP keys are present.
+// Whether we have a way to fill fundamentals for this market.
+function fundamentalsProviderAvailable(countryCode: string): boolean {
+  return (countryCode === "US" && Boolean(env.finnhubKey)) || (countryCode !== "US" && fmpEnabled());
+}
+
 async function enrichListFundamentals(all: StockQuoteResponse[], countryCode: string): Promise<StockQuoteResponse[]> {
   if (countryCode === "US" && env.finnhubKey) {
     const indexSymbols = new Set(getIndexSymbolsForCountry(countryCode));
@@ -1129,9 +1134,10 @@ export async function loadDetailedStocks(countryCode: string): Promise<StockQuot
   const freshCache = await getStocksCache(countryCode);
   if (freshCache && (freshCache.stocks.length > 0 || freshCache.indices.length > 0)
     && cacheMatchesCountry(freshCache.stocks, freshCache.indices, countryCode)
-    // For US we expect fundamentals (P/E, cap) — bypass a cache that predates the
-    // Finnhub list-enrichment so the Screener/Dividend tracker repopulate.
-    && !(countryCode === "US" && !freshCache.stocks.some((s) => s.peRatio != null || s.marketCap != null))) {
+    // Bypass a fundamentals-less cache when a fundamentals provider is available
+    // (Finnhub for US, FMP for India/global) so the Screener/Dividend tracker
+    // repopulate instead of being stuck on price-only cached data.
+    && !(fundamentalsProviderAvailable(countryCode) && !freshCache.stocks.some((s) => s.peRatio != null || s.marketCap != null))) {
     return [...freshCache.stocks, ...freshCache.indices];
   }
 
@@ -1419,7 +1425,13 @@ export async function getStockDetailController(req: Request, res: Response) {
   try {
     const cached = await readQuoteCache(ticker);
     if (cached && Date.now() - new Date(cached.cachedAt).getTime() < QUOTE_CACHE_FRESH_MS) {
-      return res.status(200).json(cached.data);
+      // Don't serve a fundamentals-less cached quote when a fundamentals provider
+      // is available — fall through so FMP (non-US) / Finnhub (US) can enrich it.
+      const lacksFund = cached.data.marketCap == null && cached.data.peRatio == null;
+      const canEnrich = (countryCode === "US" && Boolean(env.finnhubKey)) || (countryCode !== "US" && fmpEnabled());
+      if (!(lacksFund && canEnrich)) {
+        return res.status(200).json(cached.data);
+      }
     }
   } catch { /* cache optional */ }
 
