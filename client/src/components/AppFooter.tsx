@@ -33,6 +33,15 @@ const COLS: Array<{ title: string; links: Array<{ href: string; label: string }>
       { href: "/history", label: "Report history" },
     ],
   },
+  {
+    title: "Company",
+    links: [
+      { href: "/pricing", label: "Pricing" },
+      { href: "/disclaimer", label: "Disclaimer" },
+      { href: "/privacy", label: "Privacy" },
+      { href: "/terms", label: "Terms" },
+    ],
+  },
 ];
 
 export default function AppFooter() {
@@ -56,7 +65,7 @@ export default function AppFooter() {
         </div>
       </div>
       <div className="ash-footer-bottom">
-        <span>© {year} Findec · v1.21.0</span>
+        <span>© {year} Findec · v1.22.0</span>
         <span className="ash-footer-disc">Decision support only — not financial advice.</span>
       </div>
     </footer>

@@ -16,6 +16,7 @@ import insightsRoutes from "./routes/insights.routes";
 import paperRoutes from "./routes/paper.routes";
 import ledgerRoutes from "./routes/ledger.routes";
 import publicRoutes from "./routes/public.routes";
+import waitlistRoutes from "./routes/waitlist.routes";
 import { startMorningDigestJobs } from "./jobs/morningDigest";
 import { apiWriteRateLimiter } from "./middleware/rateLimiter";
 import { openapiSpec, swaggerHtml } from "./openapi";
@@ -73,6 +74,7 @@ app.use("/api/insights", insightsRoutes);
 app.use("/api/paper", apiWriteRateLimiter, paperRoutes);
 app.use("/api/ledger", apiWriteRateLimiter, ledgerRoutes);
 app.use("/api/public", publicRoutes);
+app.use("/api/waitlist", apiWriteRateLimiter, waitlistRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });

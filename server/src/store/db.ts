@@ -26,6 +26,7 @@ const memoryLedgers = new Map<string, LedgerRecord>();
 const memoryStocksCache = new Map<string, { stocks: StockQuoteResponse[]; indices: StockQuoteResponse[]; cachedAt: string }>();
 const memorySnapshotCache = new Map<string, { tickers: unknown[]; cachedAt: string }>();
 const memoryQuoteCache = new Map<string, { data: StockQuoteResponse; cachedAt: string }>();
+const memoryWaitlist = new Map<string, { email: string; plan: string; createdAt: string; meta?: unknown }>();
 
 // ─── Neon Postgres (serverless) ────────────────────────────────────────────────
 type Sql = NeonQueryFunction<false, false>;
@@ -46,6 +47,7 @@ async function ensureSchema(client: Sql): Promise<void> {
   await client`CREATE TABLE IF NOT EXISTS stocks_cache (country_code text PRIMARY KEY, stocks jsonb NOT NULL, indices jsonb NOT NULL, cached_at timestamptz NOT NULL)`;
   await client`CREATE TABLE IF NOT EXISTS snapshot_cache (country_code text PRIMARY KEY, tickers jsonb NOT NULL, cached_at timestamptz NOT NULL)`;
   await client`CREATE TABLE IF NOT EXISTS quotes_cache (symbol text PRIMARY KEY, data jsonb NOT NULL, cached_at timestamptz NOT NULL)`;
+  await client`CREATE TABLE IF NOT EXISTS waitlist (email text PRIMARY KEY, plan text, created_at timestamptz NOT NULL, data jsonb NOT NULL)`;
   await client`CREATE INDEX IF NOT EXISTS idx_reports_user ON reports (user_id, created_at DESC)`;
   await client`CREATE INDEX IF NOT EXISTS idx_reports_slug ON reports (public_slug)`;
   await client`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, created_at DESC)`;
@@ -398,4 +400,28 @@ export async function writeSnapshotCache(countryCode: string, tickers: unknown[]
   await q`INSERT INTO snapshot_cache (country_code, tickers, cached_at)
           VALUES (${countryCode}, ${J(tickers)}::jsonb, ${cachedAt})
           ON CONFLICT (country_code) DO UPDATE SET tickers = EXCLUDED.tickers, cached_at = EXCLUDED.cached_at`;
+}
+
+// ─── Pro waitlist (monetization intent capture) ───────────────────────────────
+export async function saveWaitlistEntry(email: string, plan: string, meta?: unknown): Promise<{ alreadyOn: boolean }> {
+  const normalized = email.trim().toLowerCase();
+  const createdAt = new Date().toISOString();
+  const q = await db();
+  if (!q) {
+    const exists = memoryWaitlist.has(normalized);
+    memoryWaitlist.set(normalized, { email: normalized, plan, createdAt, meta });
+    return { alreadyOn: exists };
+  }
+  const rows = await q`INSERT INTO waitlist (email, plan, created_at, data)
+          VALUES (${normalized}, ${plan}, ${createdAt}, ${J({ email: normalized, plan, meta, createdAt })}::jsonb)
+          ON CONFLICT (email) DO NOTHING
+          RETURNING email`;
+  return { alreadyOn: rows.length === 0 };
+}
+
+export async function countWaitlistEntries(): Promise<number> {
+  const q = await db();
+  if (!q) return memoryWaitlist.size;
+  const rows = await q`SELECT COUNT(*)::int AS n FROM waitlist`;
+  return Number((rows[0] as { n?: number })?.n ?? 0);
 }

@@ -630,6 +630,18 @@ export function checkAlerts(): Promise<{ fired: number; alerts: PriceAlert[] }> 
   return request<{ fired: number; alerts: PriceAlert[] }>("/api/alerts/check", { method: "POST" });
 }
 
+// ─── Pro waitlist (monetization) ──────────────────────────────────────────────
+export function joinWaitlist(email: string, plan = "pro"): Promise<{ ok: boolean; alreadyOn: boolean }> {
+  return request<{ ok: boolean; alreadyOn: boolean }>("/api/waitlist", {
+    method: "POST",
+    body: JSON.stringify({ email, plan }),
+  });
+}
+
+export function getWaitlistCount(): Promise<{ count: number }> {
+  return request<{ count: number }>("/api/waitlist/count");
+}
+
 // ─── Notifications API ────────────────────────────────────────────────────────
 
 export interface AppNotification {

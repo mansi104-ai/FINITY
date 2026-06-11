@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.22.0] — 2026-06-11
+
+### Added
+- **Legal & trust pages** — `/disclaimer`, `/privacy`, `/terms` (India-aware: "not a SEBI-registered adviser", data-accuracy, paper-trading simulation notes), linked from a new **Company** column in the footer. Required groundwork for going to market and monetizing.
+- **Pricing page (`/pricing`) + Pro waitlist** — Free vs Pro tier comparison with a real email **waitlist** that persists to a new `waitlist` table (public `POST /api/waitlist`, `GET /api/waitlist/count` for social proof). This captures monetization intent now, before paid features ship. Pro is positioned at ₹299/mo with unlimited AI briefs, real-time alerts, advanced screener, and tax-ready exports.
+
+---
+
 ## [v1.21.0] — 2026-06-11
 
 ### Added
