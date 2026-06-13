@@ -6545,3 +6545,21 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   .cmp-cta-row { flex-direction: column; }
   .cmp-cta-btn { width: 100%; text-align: center; }
 }
+
+/* ═══ v1.38.0 — Forms / auth / alerts on mobile ════════════════════════════════ */
+@media (max-width: 560px) {
+  /* Auth cards full-bleed-ish with comfortable padding */
+  .auth-card { width: 100%; max-width: none; padding: 1.4rem 1.15rem; border-radius: 14px; }
+  .auth-title { font-size: 1.4rem; }
+  .auth-btn { min-height: 46px; }
+  /* Alert create form: stack each control full width */
+  .alert-create { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  .alert-create .alert-input, .alert-create .alert-ticker, .alert-create .alert-price { width: 100%; }
+  .alert-dir-toggle, .alert-cadence-toggle { width: 100%; }
+  .alert-dir-toggle .adv-chip, .alert-cadence-toggle .adv-chip { flex: 1; text-align: center; }
+  .alert-submit { width: 100%; }
+  /* Pricing waitlist input + button stack cleanly */
+  .pr-wl-form { flex-direction: column; }
+  .pr-wl-btn { width: 100%; min-height: 46px; }
+  .pr-price strong { font-size: 1.7rem; }
+}
