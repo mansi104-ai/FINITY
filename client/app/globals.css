@@ -6563,3 +6563,24 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   .pr-wl-btn { width: 100%; min-height: 46px; }
   .pr-price strong { font-size: 1.7rem; }
 }
+
+/* ═══ v1.39.0 — Short / landscape screens + safe-area (notch) ═══════════════════ */
+/* Respect device notches/cutouts on the sticky chrome */
+.ash-topbar { padding-left: max(1.1rem, env(safe-area-inset-left)); padding-right: max(1.1rem, env(safe-area-inset-right)); }
+@media (max-width: 860px) {
+  .ash-bottombar { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+}
+/* Short viewports (landscape phones): reclaim vertical space */
+@media (max-height: 520px) and (max-width: 960px) {
+  .home-hero2 { padding: 1rem 1.1rem; }
+  .home-hero2-title { font-size: 1.6rem; margin: 0.4rem 0; }
+  .home-hero2-sub { font-size: 0.9rem; }
+  .ash-content { padding-top: 0.7rem; padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .findec-minimal-page { padding-top: 0.25rem; }
+  .ash-strip { display: none; } /* drop the ticker tape to save height in landscape */
+}
+/* Very short: let a long sticky topbar shrink */
+@media (max-height: 440px) {
+  .ash-topbar { height: 48px; }
+  .ash-bottombar .ash-bn-item { min-height: 46px; }
+}
