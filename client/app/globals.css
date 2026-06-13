@@ -6527,3 +6527,21 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   /* Avoid accidental text-size inflation on orientation change */
   html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 }
+
+/* ═══ v1.37.0 — Compare page on mobile ═════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .cmp-header-row { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .cmp-chips-row { flex-wrap: wrap; }
+  .cmp-add-row { width: 100%; }
+  .cmp-input { flex: 1; min-width: 0; }
+  .cmp-pairs-row { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 0.25rem; }
+  .cmp-pairs-row::-webkit-scrollbar { display: none; }
+  .cmp-pair-btn { white-space: nowrap; }
+  .cmp-empty-pairs { grid-template-columns: 1fr; }
+  .cmp-legend { flex-wrap: wrap; gap: 0.5rem 0.9rem; }
+  .cmp-chart-svg-wrap svg { min-height: 150px; }
+  .cmp-verdict-scores { gap: 0.45rem; }
+  .cmp-verdict-chip { flex: 1; min-width: 84px; }
+  .cmp-cta-row { flex-direction: column; }
+  .cmp-cta-btn { width: 100%; text-align: center; }
+}
