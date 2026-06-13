@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import AppShell from "../src/components/AppShell";
 import "./globals.css";
@@ -32,7 +32,17 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
   },
   robots: { index: true, follow: true },
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Findec" },
+};
+
+// Installable PWA + notch-safe (viewport-fit: cover enables env(safe-area-inset-*)).
+export const viewport: Viewport = {
+  themeColor: "#0c0c0d",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

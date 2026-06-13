@@ -65,7 +65,7 @@ export default function AppFooter() {
         </div>
       </div>
       <div className="ash-footer-bottom">
-        <span>© {year} Findec · v1.39.0</span>
+        <span>© {year} Findec · v1.40.0</span>
         <span className="ash-footer-disc">Decision support only — not financial advice.</span>
       </div>
     </footer>

@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.31.0 – v1.40.0] — 2026-06-13 — Mobile & small-screen compatibility
+
+A 10-release pass making Findec genuinely mobile-first:
+- **v1.31.0** — Mobile **bottom navigation bar** (Home/Markets/Brief/Screener/More) with safe-area inset; long footer hidden on phones.
+- **v1.32.0** — Responsive **tables** (density, sticky compare-metric label, no horizontal overflow).
+- **v1.33.0** — **Stock detail** mobile layout (hero stack, nav/CTA wrap, links & news tuned).
+- **v1.34.0** — **AI Brief** mobile (results/market/fundamentals grids reflow, profile/risk controls stack).
+- **v1.35.0** — **Markets/Home/ticker** mobile (grids reflow, scrollable tabs, compact ticker tape).
+- **v1.36.0** — Touch ergonomics: **≥40–44px tap targets**, **16px iOS-safe inputs** (no focus zoom), fluid `clamp()` headings.
+- **v1.37.0** — **Compare** mobile (chips/pairs wrap+scroll, chart/legend, verdict + CTA stack).
+- **v1.38.0** — **Forms/auth/alerts/pricing** mobile (stacked controls, full-width inputs, 46px buttons).
+- **v1.39.0** — **Short/landscape** screens + **safe-area insets** (notch-aware chrome; drops ticker tape in landscape to reclaim height).
+- **v1.40.0** — **PWA**: web manifest, `theme-color`, standalone display, apple-web-app meta, `viewport-fit: cover` — installable to the home screen.
+
+---
+
 ## [v1.30.0] — 2026-06-11
 
 ### Changed — MVP polish
