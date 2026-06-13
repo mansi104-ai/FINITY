@@ -6605,3 +6605,30 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
   /* Long unbreakable strings (tickers, URLs) shouldn't widen the layout. */
   .stk-hero-name, .mkt-mover-name, .scr-name, .cmp-col-name, .home-mover-name { overflow-wrap: anywhere; }
 }
+
+/* ═══ v1.43.0 — Definitive mobile layout fix (grid overflow + topbar) ══════════ */
+@media (max-width: 640px) {
+  /* ROOT CAUSE: many two-pane grids use a fixed minmax(260-360px, …) column that
+     can't shrink below the phone width → horizontal overflow → shrink-to-fit.
+     Collapse every content grid to a single column, except the few compact
+     equal-width grids we intentionally keep at 2-up (they use minmax(0,1fr) and
+     shrink safely). */
+  .ash-content-inner :is(section, article, div)[class*="grid"]:not(.stk-sc-dims):not(.findec-fund-grid):not(.findec-market-grid):not(.home-features):not(.home-why-grid):not(.pr-grid) {
+    grid-template-columns: 1fr !important;
+  }
+  .ash-content-inner :is(.home-row, .findec-results-grid, .findec-risk-grid, .stk-two-col, .cmp-empty-pairs, .ins-totals) {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Topbar declutter: the bottom-nav "More" now opens the drawer, and search
+     lives on the pages — so drop the topbar hamburger + global search on phones
+     and keep brand + region + bell + a compact account. */
+  .ash-hamburger { display: none !important; }
+  .ash-topbar .gsearch { display: none !important; }
+  .ash-topbar { gap: 0.4rem; padding: 0 0.7rem; }
+  .ash-topbar-actions { gap: 0.35rem; }
+  .findec-account-email { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (max-width: 420px) {
+  .findec-account-email { display: none; } /* keep just the Out/Login control */
+}
