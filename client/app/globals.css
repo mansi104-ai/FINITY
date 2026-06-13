@@ -76,7 +76,17 @@
 html {
   scroll-behavior: smooth;
   font-size: 16px;
+  /* Never let the page render wider than the device (which makes mobile browsers
+     shrink-to-fit → tiny text the user must pinch-zoom). Clip stray horizontal
+     overflow without breaking position:sticky. */
+  overflow-x: hidden;
+  /* Stop iOS/Android from auto-inflating or shrinking text on rotate. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
+body { overflow-x: hidden; max-width: 100%; }
+/* Media never forces the page wider than the viewport. */
+img, svg, video, canvas { max-width: 100%; }
 
 /* 4K / large-display scaling: bump the root font-size so rem-based sizing and
    spacing scale up instead of leaving tiny UI on huge screens. No effect ≤1599px. */
@@ -6583,4 +6593,15 @@ a.findec-panel:hover { border-color: #2c3b56; transform: translateY(-1px); }
 @media (max-height: 440px) {
   .ash-topbar { height: 48px; }
   .ash-bottombar .ash-bn-item { min-height: 46px; }
+}
+
+/* ═══ v1.42.0 — Mobile viewport / no-shrink-to-fit guard ═══════════════════════ */
+.ash-content, .ash-content-inner, .findec-minimal-shell, .findec-minimal-page { max-width: 100%; }
+@media (max-width: 640px) {
+  /* Flex items with hard min-widths can exceed a narrow screen and force the
+     whole page wide (→ shrink-to-fit). Let them shrink on phones. */
+  .region-controls, .pr-wl-form, .home-onboard-text, .gsearch,
+  .cmp-add-row, .scr-nl-row, .findec-search-wrap { min-width: 0 !important; }
+  /* Long unbreakable strings (tickers, URLs) shouldn't widen the layout. */
+  .stk-hero-name, .mkt-mover-name, .scr-name, .cmp-col-name, .home-mover-name { overflow-wrap: anywhere; }
 }

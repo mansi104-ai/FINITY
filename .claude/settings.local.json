@@ -80,7 +80,8 @@
       "Bash(sed -i 's/\"1.28.0\"/\"1.29.0\"/' server/package.json client/package.json)",
       "Bash(sed -i 's/APP_VERSION, \"1.28.0\"/APP_VERSION, \"1.29.0\"/' server/src/config.ts)",
       "Bash(sed -i 's/v1.28.0/v1.29.0/' client/src/components/AppFooter.tsx)",
-      "Bash(sed -i 's/\\\\*\\\\*Current version: v1.28.0\\\\*\\\\*/**Current version: v1.29.0**/' README.md)"
+      "Bash(sed -i 's/\\\\*\\\\*Current version: v1.28.0\\\\*\\\\*/**Current version: v1.29.0**/' README.md)",
+      "Bash(grep -n \"100vw\\\\|min-width: [0-9]\\\\{3,\\\\}\\\\|width: [0-9]\\\\{4,\\\\}px\" globals.css)"
     ],
     "additionalDirectories": [
       "C:\\Users\\mansi\\FINITY\\.git",
