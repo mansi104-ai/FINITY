@@ -8,14 +8,17 @@ import type { AgentReport } from "../models/Report.model";
 import type { RiskProfile } from "../models/User.model";
 
 const querySchema = z.object({
-  query: z.string().min(4),
+  query: z.string().trim().min(1),
   ticker: z
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z][A-Z0-9.-]{0,14}$/, "Ticker must look like AAPL or RELIANCE.NS")
+    // Allow leading digits (3MINDIA.NS, 5PAISA.NS, 7203.T, 600519.SS) and longer symbols.
+    .regex(/^[A-Z0-9][A-Z0-9.\-^]{0,19}$/, "Ticker must look like AAPL, RELIANCE.NS or 3MINDIA.NS")
     .optional(),
-  budget: z.number().min(100).max(10_000_000).optional(),
+  // Tolerant: accept any non-negative number (0 / cleared field is clamped to the
+  // default later) so a blank budget never blocks a brief.
+  budget: z.number().min(0).max(10_000_000).optional(),
   riskProfile: z.enum(["low", "medium", "high"]).optional(),
   version: z.number().int().min(1).max(4).default(4)
 });
@@ -362,7 +365,8 @@ export async function runQueryController(req: Request, res: Response) {
 
   const now = new Date().toISOString();
   const ticker = parsed.data.ticker ?? inferTicker(parsed.data.query);
-  const budget = parsed.data.budget ?? 10_000;
+  // A blank/zero budget falls back to the default rather than erroring.
+  const budget = parsed.data.budget && parsed.data.budget >= 100 ? parsed.data.budget : 10_000;
   const riskProfile = (parsed.data.riskProfile ?? "medium") as RiskProfile;
 
   if (!ticker) {

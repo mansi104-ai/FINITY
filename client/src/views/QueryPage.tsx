@@ -138,7 +138,8 @@ export default function QueryPage({ initialTicker = "", initialQuery = "" }: { i
     lastRunRef.current = runKey;
     setRunning(true); setError("");
     try {
-      const response = await sendQuery({ query: q || `What is the outlook for ${tk} today?`, ticker: tk || undefined, budget, riskProfile, version: 4 });
+      const safeBudget = budget && budget >= 100 ? budget : 10000;
+      const response = await sendQuery({ query: q || `What is the outlook for ${tk} today?`, ticker: tk || undefined, budget: safeBudget, riskProfile, version: 4 });
       setResult(response);
       setLatestReportId(response.reportId);
     } catch (err) {
