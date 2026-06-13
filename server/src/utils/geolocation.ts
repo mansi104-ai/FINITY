@@ -3,6 +3,7 @@
  * Detects user location from IP and determines appropriate stock market
  */
 
+
 export interface GeoLocation {
   country: string;
   countryCode: string;
