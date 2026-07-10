@@ -140,20 +140,25 @@ class MarketForecaster:
         context = self._context_profile(ticker=ticker, query=query, sentiment_score=sentiment_score)
         normalized_history = history.copy()
         normalized_history["Close"] = pd.to_numeric(normalized_history["Close"], errors="coerce")
+        if "Volume" in normalized_history.columns:
+            normalized_history["Volume"] = pd.to_numeric(normalized_history["Volume"], errors="coerce")
+        else:
+            normalized_history["Volume"] = np.nan
         normalized_history = normalized_history.dropna(subset=["Close"]).reset_index(drop=True)
         closes = normalized_history["Close"].astype(float).to_numpy()
+        volumes = normalized_history["Volume"].astype(float).to_numpy()
         recent_dates = normalized_history["Date"] if "Date" in normalized_history else None
         if closes.size < 90:
             raise ValueError("Insufficient historical data for forecasting")
 
-        features, targets = self._build_training_set(closes=closes, horizon_days=context["horizon_days"])
+        features, targets = self._build_training_set(closes=closes, volumes=volumes, horizon_days=context["horizon_days"])
         backtest = self._walk_forward_backtest(features=features, targets=targets, config=context["config"])
         weights = self._fit_ridge(
             X=features[-context["config"].train_window :],
             y=targets[-context["config"].train_window :],
             alpha=context["config"].ridge_alpha,
         )
-        latest_features = self._latest_features(closes=closes)
+        latest_features = self._latest_features(closes=closes, volumes=volumes)
         model_return_pct = float(self._predict_with_weights(weights, latest_features) * 100)
         query_adjustment_pct = self._query_adjustment_pct(context=context)
         sentiment_adjustment_pct = (sentiment_score - 0.5) * context["sentiment_scale_pct"]
@@ -221,6 +226,7 @@ class MarketForecaster:
                 "maePct": round(backtest["mae_pct"], 2),
                 "rmsePct": round(backtest["rmse_pct"], 2),
                 "directionalAccuracyPct": round(backtest["directional_accuracy_pct"], 2),
+                "directionalAccuracyEnsemblePct": round(backtest.get("directional_accuracy_ensemble_pct", backtest["directional_accuracy_pct"]), 2),
             },
             "analystSummary": self._summary(
                 predicted_return_pct=predicted_return_pct,
@@ -319,20 +325,21 @@ class MarketForecaster:
             "risk_off": "risk-off" in text,
         }
 
-    def _build_training_set(self, *, closes: np.ndarray, horizon_days: int) -> tuple[np.ndarray, np.ndarray]:
+    def _build_training_set(self, *, closes: np.ndarray, volumes: np.ndarray, horizon_days: int) -> tuple[np.ndarray, np.ndarray]:
         rows: list[np.ndarray] = []
         targets: list[float] = []
         for idx in range(30, len(closes) - horizon_days):
             history = closes[: idx + 1]
-            rows.append(self._feature_vector(history))
+            vol_history = volumes[: idx + 1]
+            rows.append(self._feature_vector(history, vol_history))
             future_return = closes[idx + horizon_days] / max(closes[idx], 1e-9) - 1
             targets.append(float(future_return))
         return np.vstack(rows), np.array(targets)
 
-    def _latest_features(self, *, closes: np.ndarray) -> np.ndarray:
-        return self._feature_vector(closes)
+    def _latest_features(self, *, closes: np.ndarray, volumes: np.ndarray) -> np.ndarray:
+        return self._feature_vector(closes, volumes)
 
-    def _feature_vector(self, closes: np.ndarray) -> np.ndarray:
+    def _feature_vector(self, closes: np.ndarray, volumes: np.ndarray | None = None) -> np.ndarray:
         daily_returns = np.diff(closes[-21:]) / np.maximum(closes[-21:-1], 1e-9)
         gains = np.clip(daily_returns, 0, None)
         losses = -np.clip(daily_returns, None, 0)
@@ -344,6 +351,20 @@ class MarketForecaster:
         last_price = float(closes[-1])
         max20 = float(np.max(closes[-20:]))
         min20 = float(np.min(closes[-20:]))
+
+        # Volume feature (paper Eq. 3: V_t / V-bar). Falls back to neutral (0.0)
+        # if volume data wasn't available for this source (e.g. some CSV
+        # exports or synthetic fallback data lack it) -- keeps the feature
+        # vector length constant either way so old and new callers both work.
+        volume_feature = 0.0
+        if volumes is not None and len(volumes) >= 20:
+            recent_vol = volumes[-20:]
+            if not np.any(np.isnan(recent_vol)) and np.mean(recent_vol) > 0:
+                vol_ratio = float(recent_vol[-1] / max(float(np.mean(recent_vol)), 1e-9))
+                # log-scale and center so typical ratios (~0.5x-2x average) map
+                # to a roughly [-1, 1] range like the other features
+                volume_feature = float(np.clip(np.log(max(vol_ratio, 1e-6)), -1.5, 1.5))
+
         return np.array(
             [
                 1.0,
@@ -358,6 +379,7 @@ class MarketForecaster:
                 last_price / max(max20, 1e-9) - 1,
                 (last_price - min20) / max(max20 - min20, 1e-9) - 0.5,
                 (rsi - 50) / 50,
+                volume_feature,
             ],
             dtype=float,
         )
@@ -367,6 +389,38 @@ class MarketForecaster:
         regularizer = np.eye(xtx.shape[0]) * alpha
         regularizer[0, 0] = 0.0
         return np.linalg.pinv(xtx + regularizer) @ X.T @ y
+
+    def _fit_logistic(self, *, X: np.ndarray, y: np.ndarray, l2: float = 1.0, lr: float = 0.15, epochs: int = 300) -> np.ndarray:
+        """
+        Lightweight numpy-only logistic regression trained directly on
+        direction (up/down), rather than on return magnitude. A regressor
+        minimizing squared error on magnitude is optimizing a different
+        objective than "get the sign right" -- this gives the walk-forward
+        backtest a second, purpose-built signal for the directional-accuracy
+        metric specifically.
+        """
+        n, d = X.shape
+        weights = np.zeros(d)
+        y_binary = (y > 0).astype(float)
+        # standardize features (excluding the bias column) for stable gradient descent
+        std = np.std(X[:, 1:], axis=0)
+        std[std < 1e-9] = 1.0
+        X_scaled = X.copy()
+        X_scaled[:, 1:] = X[:, 1:] / std
+        for _ in range(epochs):
+            z = np.clip(X_scaled @ weights, -30, 30)
+            p = 1.0 / (1.0 + np.exp(-z))
+            grad = X_scaled.T @ (p - y_binary) / n
+            grad[1:] += l2 * weights[1:] / n
+            weights -= lr * grad
+        # fold the feature scaling back into the weight vector so callers can
+        # apply it to raw (unscaled) features directly
+        weights[1:] = weights[1:] / std
+        return weights
+
+    def _logistic_prob(self, weights: np.ndarray, features: np.ndarray) -> float:
+        z = float(np.clip(features @ weights, -30, 30))
+        return 1.0 / (1.0 + math.exp(-z))
 
     def _realized_vol_pct(self, *, closes: np.ndarray, horizon_days: int) -> float:
         returns = np.diff(closes[-40:]) / np.maximum(closes[-40:-1], 1e-9)
@@ -381,6 +435,7 @@ class MarketForecaster:
     def _walk_forward_backtest(self, *, features: np.ndarray, targets: np.ndarray, config: AssetConfig) -> dict[str, float]:
         preds: list[float] = []
         actuals: list[float] = []
+        ensemble_hits: list[bool] = []
         start = max(config.min_train_size, len(features) - 120)
         for idx in range(start, len(features)):
             train_start = max(0, idx - config.train_window)
@@ -389,22 +444,45 @@ class MarketForecaster:
             if len(X_train) < config.min_train_size:
                 continue
             weights = self._fit_ridge(X=X_train, y=y_train, alpha=config.ridge_alpha)
-            preds.append(self._predict_with_weights(weights, features[idx]))
+            ridge_pred = self._predict_with_weights(weights, features[idx])
+            preds.append(ridge_pred)
             actuals.append(float(targets[idx]))
 
+            # Ensemble direction: classifier trained on the same rolling
+            # window, purpose-built for sign prediction. If it disagrees
+            # with the Ridge model's sign, we go with the classifier's
+            # confident call; if it's unsure (~50/50), we defer to Ridge.
+            clf_weights = self._fit_logistic(X=X_train, y=y_train, l2=1.0)
+            prob_up = self._logistic_prob(clf_weights, features[idx])
+            ridge_sign = 1 if ridge_pred >= 0 else -1
+            if prob_up >= 0.55:
+                ensemble_sign = 1
+            elif prob_up <= 0.45:
+                ensemble_sign = -1
+            else:
+                ensemble_sign = ridge_sign
+            actual_sign = 1 if targets[idx] >= 0 else -1
+            ensemble_hits.append(ensemble_sign == actual_sign)
+
         if not preds:
-            return {"samples": 0, "mae_pct": 2.5, "rmse_pct": 3.2, "directional_accuracy_pct": 50.0}
+            return {
+                "samples": 0, "mae_pct": 2.5, "rmse_pct": 3.2,
+                "directional_accuracy_pct": 50.0,
+                "directional_accuracy_ensemble_pct": 50.0,
+            }
 
         pred_arr = np.array(preds)
         actual_arr = np.array(actuals)
         abs_errors = np.abs(pred_arr - actual_arr) * 100
         sq_errors = np.square(pred_arr - actual_arr) * 10000
         directional_hits = np.mean(np.sign(pred_arr) == np.sign(actual_arr)) * 100
+        ensemble_accuracy = float(np.mean(ensemble_hits) * 100) if ensemble_hits else directional_hits
         return {
             "samples": float(len(preds)),
             "mae_pct": float(np.mean(abs_errors)),
             "rmse_pct": float(np.sqrt(np.mean(sq_errors))),
             "directional_accuracy_pct": float(directional_hits),
+            "directional_accuracy_ensemble_pct": ensemble_accuracy,
         }
 
     def _query_adjustment_pct(self, *, context: dict) -> float:

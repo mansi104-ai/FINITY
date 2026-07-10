@@ -71,7 +71,11 @@ class MarketDataService:
             else:
                 normalized["Date"] = pd.to_datetime(normalized[date_column], errors="coerce")
             normalized["Close"] = normalized["Close"].astype(float)
-            normalized = normalized[["Date", "Close"]].dropna(subset=["Close"]).reset_index(drop=True)
+            if "Volume" in normalized.columns:
+                normalized["Volume"] = pd.to_numeric(normalized["Volume"], errors="coerce")
+            else:
+                normalized["Volume"] = np.nan
+            normalized = normalized[["Date", "Close", "Volume"]].dropna(subset=["Close"]).reset_index(drop=True)
             if len(normalized) < 80:
                 return None
             ohlcv_cache[cache_key] = normalized.copy()
@@ -92,4 +96,13 @@ class MarketDataService:
             prices.append(max(5.0, prices[-1] * (1 + move)))
 
         dates = pd.bdate_range(end=pd.Timestamp.utcnow().normalize(), periods=len(prices))
-        return pd.DataFrame({"Date": dates, "Close": prices})
+        # Synthetic volume: mean-reverting around a per-seed baseline, with
+        # a mild tendency to spike on bigger absolute daily moves -- keeps
+        # the volume feature meaningful even in the no-live-data fallback
+        # path instead of leaving it NaN/neutral.
+        price_arr = np.array(prices)
+        daily_moves = np.abs(np.diff(price_arr, prepend=price_arr[0])) / np.maximum(price_arr, 1e-9)
+        vol_baseline = 1_000_000 + (seed_value % 4_000_000)
+        volume_noise = rng.normal(1.0, 0.15, size=len(prices))
+        volumes = vol_baseline * (1 + daily_moves * 8) * np.clip(volume_noise, 0.4, 2.0)
+        return pd.DataFrame({"Date": dates, "Close": prices, "Volume": volumes.astype(float)})

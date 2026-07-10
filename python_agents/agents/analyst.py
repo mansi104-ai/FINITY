@@ -49,6 +49,8 @@ class AnalystAgent:
                 f"Analyst constants: history_days={HISTORY_DAYS}, train_window={TRAIN_WINDOW}, RSI={RSI_PERIOD}, MA={MA_SHORT}/{MA_LONG}, vol_window={VOL_WINDOW}.",
                 f"Decision thresholds: buy if predicted return >= {BUY_THRESHOLD:.3f}, sell if <= {SELL_THRESHOLD:.3f}.",
                 f"GBM fallback params: mu={GBM_MU}, sigma={GBM_SIGMA}.",
+                "Feature set includes normalized 20-day volume ratio (V_t/V-bar) alongside price/RSI features.",
+                "Directional accuracy is reported both for the raw Ridge regressor and for a Ridge+logistic-classifier ensemble.",
             ]
         )
         return result
