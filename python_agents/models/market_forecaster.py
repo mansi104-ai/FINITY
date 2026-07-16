@@ -136,6 +136,7 @@ class MarketForecaster:
         sentiment_score: float,
         sentiment_level: str,
         data_source: str,
+        market_history: pd.DataFrame | None = None,
     ) -> dict:
         context = self._context_profile(ticker=ticker, query=query, sentiment_score=sentiment_score)
         normalized_history = history.copy()
@@ -151,15 +152,34 @@ class MarketForecaster:
         if closes.size < 90:
             raise ValueError("Insufficient historical data for forecasting")
 
-        features, targets = self._build_training_set(closes=closes, volumes=volumes, horizon_days=context["horizon_days"])
+        # Cross-sectional market feature (Phase B step 8) -- only used if the
+        # caller supplies an aligned market series (e.g. SPY) with a Date
+        # column matching `history`'s. Left-joining on Date (rather than
+        # assuming both frames are already the same length/order) protects
+        # against silently misaligning two price series that have different
+        # trading-holiday calendars or missing days -- a raw positional
+        # zip would be a real lookahead/correctness bug here.
+        market_closes = None
+        if market_history is not None and "Date" in normalized_history.columns and "Close" in market_history.columns and "Date" in market_history.columns:
+            market_norm = market_history[["Date", "Close"]].rename(columns={"Close": "MarketClose"}).copy()
+            market_norm["MarketClose"] = pd.to_numeric(market_norm["MarketClose"], errors="coerce")
+            merged = normalized_history[["Date"]].merge(market_norm, on="Date", how="left")
+            merged["MarketClose"] = merged["MarketClose"].ffill()
+            if not merged["MarketClose"].isna().all():
+                market_closes = merged["MarketClose"].to_numpy()
+
+        features, targets = self._build_training_set(closes=closes, volumes=volumes, horizon_days=context["horizon_days"], market_closes=market_closes)
         backtest = self._walk_forward_backtest(features=features, targets=targets, config=context["config"])
+        train_window_features = features[-context["config"].train_window :]
+        live_mean, live_std = self._standardize_fit(train_window_features)
         weights = self._fit_ridge(
-            X=features[-context["config"].train_window :],
+            X=self._standardize_apply(train_window_features, live_mean, live_std),
             y=targets[-context["config"].train_window :],
             alpha=context["config"].ridge_alpha,
         )
-        latest_features = self._latest_features(closes=closes, volumes=volumes)
-        model_return_pct = float(self._predict_with_weights(weights, latest_features) * 100)
+        latest_features = self._latest_features(closes=closes, volumes=volumes, market_closes=market_closes)
+        latest_features_scaled = self._standardize_apply(latest_features, live_mean, live_std)
+        model_return_pct = float(self._predict_with_weights(weights, latest_features_scaled) * 100)
         query_adjustment_pct = self._query_adjustment_pct(context=context)
         sentiment_adjustment_pct = (sentiment_score - 0.5) * context["sentiment_scale_pct"]
         raw_return_pct = model_return_pct + query_adjustment_pct + sentiment_adjustment_pct
@@ -325,21 +345,97 @@ class MarketForecaster:
             "risk_off": "risk-off" in text,
         }
 
-    def _build_training_set(self, *, closes: np.ndarray, volumes: np.ndarray, horizon_days: int) -> tuple[np.ndarray, np.ndarray]:
+    def _build_training_set(self, *, closes: np.ndarray, volumes: np.ndarray, horizon_days: int, market_closes: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
         rows: list[np.ndarray] = []
         targets: list[float] = []
         for idx in range(30, len(closes) - horizon_days):
             history = closes[: idx + 1]
             vol_history = volumes[: idx + 1]
-            rows.append(self._feature_vector(history, vol_history))
+            market_history = market_closes[: idx + 1] if market_closes is not None else None
+            rows.append(self._feature_vector(history, vol_history, market_history))
             future_return = closes[idx + horizon_days] / max(closes[idx], 1e-9) - 1
             targets.append(float(future_return))
         return np.vstack(rows), np.array(targets)
 
-    def _latest_features(self, *, closes: np.ndarray, volumes: np.ndarray) -> np.ndarray:
-        return self._feature_vector(closes, volumes)
+    def _latest_features(self, *, closes: np.ndarray, volumes: np.ndarray, market_closes: np.ndarray | None = None) -> np.ndarray:
+        return self._feature_vector(closes, volumes, market_closes)
 
-    def _feature_vector(self, closes: np.ndarray, volumes: np.ndarray | None = None) -> np.ndarray:
+    @staticmethod
+    def _ema(values: np.ndarray, span: int) -> np.ndarray:
+        """Standard exponential moving average, seeded with a simple mean
+        of the first `span` values (common convention; avoids the EMA
+        being dominated by whatever the first single price happened to be)."""
+        alpha = 2.0 / (span + 1.0)
+        ema = np.empty_like(values, dtype=float)
+        seed_n = min(span, len(values))
+        ema[: seed_n] = np.mean(values[:seed_n])
+        for i in range(seed_n, len(values)):
+            ema[i] = alpha * values[i] + (1 - alpha) * ema[i - 1]
+        return ema
+
+    def _macd_histogram_feature(self, closes: np.ndarray) -> float:
+        """
+        MACD (12/26 EMA) minus its 9-day signal line, i.e. the MACD
+        histogram -- positive means bullish momentum accelerating,
+        negative means it's decelerating/turning. Normalized by price so
+        it's comparable in scale to the return-based features rather than
+        being in raw dollars.
+        Needs >= 26 closes to be meaningful; returns 0.0 (neutral) below
+        that, same convention as the other features' warm-up guards.
+        """
+        window = closes[-100:]  # cap history fed into EMA for speed; 100 days is plenty for 12/26/9 to converge
+        if window.size < 26:
+            return 0.0
+        ema12 = self._ema(window, 12)
+        ema26 = self._ema(window, 26)
+        macd_line = ema12 - ema26
+        signal_line = self._ema(macd_line, 9)
+        histogram = macd_line[-1] - signal_line[-1]
+        return float(np.clip(histogram / max(float(window[-1]), 1e-9), -0.1, 0.1)) * 10  # scale to roughly [-1, 1]
+
+    def _bollinger_position_feature(self, closes: np.ndarray, window: int = 20, n_std: float = 2.0) -> float:
+        """
+        %B: where the current price sits relative to its Bollinger Bands,
+        rescaled to roughly [-1, 1] (0 = at the middle/moving-average
+        band, +1 = at the upper band, -1 = at the lower band, and it can
+        exceed +-1 when price is outside the bands entirely). Standard
+        mean-reversion signal that complements RSI rather than duplicating
+        it -- RSI here is a 14-day gain/loss ratio, this is a
+        volatility-scaled distance from a 20-day mean.
+        """
+        recent = closes[-window:]
+        if recent.size < window:
+            return 0.0
+        mid = float(np.mean(recent))
+        std = float(np.std(recent))
+        if std < 1e-9:
+            return 0.0
+        upper = mid + n_std * std
+        lower = mid - n_std * std
+        pct_b = (float(closes[-1]) - mid) / max((upper - lower) / 2.0, 1e-9)
+        return float(np.clip(pct_b, -2.0, 2.0))
+
+    def _market_momentum_feature(self, closes: np.ndarray, market_closes: np.ndarray | None) -> float:
+        """
+        Cross-sectional feature (Phase A step 3 / Phase B step 8): this
+        ticker's 5-day return MINUS the market's (e.g. SPY) 5-day return
+        over the same window -- i.e. relative strength vs. the market,
+        not just the ticker's own momentum (which features 1-4 already
+        capture). Requires market_closes aligned index-for-index with
+        `closes` (same trading days, same array length as of `closes`'
+        current cutoff) -- callers are responsible for that alignment
+        (see eval_analyst.py's date-merge against SPY.csv for the
+        reference implementation). Returns 0.0 (neutral) if no market
+        series was supplied, so this feature is fully backward-compatible
+        for any caller that doesn't have market data available.
+        """
+        if market_closes is None or len(market_closes) != len(closes) or len(closes) < 6:
+            return 0.0
+        ticker_ret5 = float(closes[-1] / max(float(closes[-6]), 1e-9) - 1)
+        market_ret5 = float(market_closes[-1] / max(float(market_closes[-6]), 1e-9) - 1)
+        return float(np.clip(ticker_ret5 - market_ret5, -0.5, 0.5))
+
+    def _feature_vector(self, closes: np.ndarray, volumes: np.ndarray | None = None, market_closes: np.ndarray | None = None) -> np.ndarray:
         daily_returns = np.diff(closes[-21:]) / np.maximum(closes[-21:-1], 1e-9)
         gains = np.clip(daily_returns, 0, None)
         losses = -np.clip(daily_returns, None, 0)
@@ -380,9 +476,51 @@ class MarketForecaster:
                 (last_price - min20) / max(max20 - min20, 1e-9) - 0.5,
                 (rsi - 50) / 50,
                 volume_feature,
+                self._macd_histogram_feature(closes),
+                self._bollinger_position_feature(closes),
+                self._market_momentum_feature(closes, market_closes),
             ],
             dtype=float,
         )
+
+    def _standardize_fit(self, X: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Computes per-feature mean/std from a training window, EXCLUDING
+        the bias column (col 0, always 1.0 -- standardizing it would
+        divide by zero and destroy the intercept). Returns (mean, std)
+        with a std floor so a constant/near-constant feature in a given
+        window doesn't blow up. Fit once per training window and reused
+        for both the Ridge fit and the classifier fit on that same
+        window (Phase B step 11) -- previously the classifier silently
+        did its own separate ad hoc scaling internally while Ridge used
+        raw features, so the two models were never regularized on a
+        comparable footing even though they trained on the same data.
+        """
+        mean = np.zeros(X.shape[1])
+        std = np.ones(X.shape[1])
+        mean[1:] = np.mean(X[:, 1:], axis=0)
+        col_std = np.std(X[:, 1:], axis=0)
+        col_std[col_std < 1e-9] = 1.0
+        std[1:] = col_std
+        return mean, std
+
+    def _standardize_apply(self, X: np.ndarray, mean: np.ndarray, std: np.ndarray, clip_z: float = 4.0) -> np.ndarray:
+        """
+        Standardizes, then winsorizes to +-clip_z standard deviations
+        (Phase B step 10). Clipping happens AFTER scaling and uses only
+        `mean`/`std` computed from the training window passed to
+        _standardize_fit -- never a global/full-history statistic -- so
+        an outlier day (e.g. a large earnings-gap move) occurring inside
+        one rolling window can't be dampened using information from
+        outside that window, which would be a lookahead leak. +-4 std is
+        deliberately loose: it's meant to blunt the single most extreme
+        days per window (e.g. the earnings-gap dates data_audit.py
+        flagged for NVDA/TSLA in Phase A), not to compress normal
+        day-to-day variation.
+        """
+        out = X.copy()
+        out[..., 1:] = np.clip((X[..., 1:] - mean[1:]) / std[1:], -clip_z, clip_z)
+        return out
 
     def _fit_ridge(self, *, X: np.ndarray, y: np.ndarray, alpha: float) -> np.ndarray:
         xtx = X.T @ X
@@ -398,24 +536,23 @@ class MarketForecaster:
         objective than "get the sign right" -- this gives the walk-forward
         backtest a second, purpose-built signal for the directional-accuracy
         metric specifically.
+
+        NOTE (Phase B step 11): this function now assumes X arrives
+        ALREADY standardized by the caller via _standardize_fit /
+        _standardize_apply, using the same per-window stats given to
+        _fit_ridge -- it no longer does its own separate internal scaling.
+        Callers must standardize both X_train and the point they'll later
+        score with these weights using the identical (mean, std).
         """
         n, d = X.shape
         weights = np.zeros(d)
         y_binary = (y > 0).astype(float)
-        # standardize features (excluding the bias column) for stable gradient descent
-        std = np.std(X[:, 1:], axis=0)
-        std[std < 1e-9] = 1.0
-        X_scaled = X.copy()
-        X_scaled[:, 1:] = X[:, 1:] / std
         for _ in range(epochs):
-            z = np.clip(X_scaled @ weights, -30, 30)
+            z = np.clip(X @ weights, -30, 30)
             p = 1.0 / (1.0 + np.exp(-z))
-            grad = X_scaled.T @ (p - y_binary) / n
+            grad = X.T @ (p - y_binary) / n
             grad[1:] += l2 * weights[1:] / n
             weights -= lr * grad
-        # fold the feature scaling back into the weight vector so callers can
-        # apply it to raw (unscaled) features directly
-        weights[1:] = weights[1:] / std
         return weights
 
     def _logistic_prob(self, weights: np.ndarray, features: np.ndarray) -> float:
@@ -443,17 +580,22 @@ class MarketForecaster:
             y_train = targets[train_start:idx]
             if len(X_train) < config.min_train_size:
                 continue
-            weights = self._fit_ridge(X=X_train, y=y_train, alpha=config.ridge_alpha)
-            ridge_pred = self._predict_with_weights(weights, features[idx])
+            mean, std = self._standardize_fit(X_train)
+            X_train_scaled = self._standardize_apply(X_train, mean, std)
+            point_scaled = self._standardize_apply(features[idx], mean, std)
+
+            weights = self._fit_ridge(X=X_train_scaled, y=y_train, alpha=config.ridge_alpha)
+            ridge_pred = self._predict_with_weights(weights, point_scaled)
             preds.append(ridge_pred)
             actuals.append(float(targets[idx]))
 
             # Ensemble direction: classifier trained on the same rolling
-            # window, purpose-built for sign prediction. If it disagrees
-            # with the Ridge model's sign, we go with the classifier's
-            # confident call; if it's unsure (~50/50), we defer to Ridge.
-            clf_weights = self._fit_logistic(X=X_train, y=y_train, l2=1.0)
-            prob_up = self._logistic_prob(clf_weights, features[idx])
+            # window (same standardization stats as Ridge -- step 11), and
+            # purpose-built for sign prediction. If it disagrees with the
+            # Ridge model's sign, we go with the classifier's confident
+            # call; if it's unsure (~50/50), we defer to Ridge.
+            clf_weights = self._fit_logistic(X=X_train_scaled, y=y_train, l2=1.0)
+            prob_up = self._logistic_prob(clf_weights, point_scaled)
             ridge_sign = 1 if ridge_pred >= 0 else -1
             if prob_up >= 0.55:
                 ensemble_sign = 1
