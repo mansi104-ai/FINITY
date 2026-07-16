@@ -103,7 +103,46 @@ DEMO_FIXTURE = [
 ]
 
 
+def _looks_like_phrasebank(path: str) -> bool:
+    """
+    Detects the standard Financial PhraseBank `all-data.csv` layout (Malo
+    et al. 2014, Kaggle/HF mirror): no header row, two columns as
+    `label,sentence`, Latin-1 encoded, rows separated by a bare `\r`
+    (classic Mac line endings) rather than `\n`/`\r\n`. Different enough
+    from the headline/label CSV-with-header format this script was
+    originally built for that it needs its own loader.
+    """
+    try:
+        with open(path, "rb") as f:
+            head = f.read(200)
+        first_field = head.split(b",", 1)[0].strip().strip(b'"').lower()
+        return first_field in (b"positive", b"negative", b"neutral")
+    except OSError:
+        return False
+
+
+def load_phrasebank_csv(path: str):
+    """
+    Loads the real Financial PhraseBank corpus. Encoding is Latin-1, not
+    UTF-8 -- the source file has non-ASCII bytes (e.g. in company names)
+    that raise UnicodeDecodeError under utf-8. Row separator is a bare
+    `\r`, so the file is read whole and split on `\r` manually rather than
+    relying on csv.reader's newline handling, since `newline=""` disables
+    Python's universal-newline translation and there's no `\n` at all to
+    split on otherwise.
+    """
+    with open(path, "r", encoding="latin-1", newline="") as f:
+        raw = f.read()
+    lines = [ln for ln in raw.split("\r") if ln.strip()]
+    rows = []
+    for label, sentence in csv.reader(lines):
+        rows.append((sentence, label))
+    return rows
+
+
 def load_csv(path: str, text_col: str, label_col: str):
+    if _looks_like_phrasebank(path):
+        return load_phrasebank_csv(path)
     rows = []
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)

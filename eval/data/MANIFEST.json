@@ -1,0 +1,71 @@
+{
+  "generated_utc": "2026-07-16T06:52:58+00:00",
+  "jump_threshold_used": 0.15,
+  "files": {
+    "AAPL.csv": {
+      "sha256": "d3bd82885bb9ad6fc051a26639d2f5aeb56a6fff49bfdc1c8e45f319fdf78fa9",
+      "rows": 1254,
+      "date_min": "2021-07-16",
+      "date_max": "2026-07-15",
+      "close_col_used": "Close/Last",
+      "had_adj_close_col": false,
+      "n_suspected_unadjusted_jumps": 1,
+      "n_adj_vs_raw_mismatches": 0
+    },
+    "AMZN.csv": {
+      "sha256": "f45bf6cda8070a9f18e76320c967068edacbee8027f3da74c11807bd43091f00",
+      "rows": 1254,
+      "date_min": "2021-07-16",
+      "date_max": "2026-07-15",
+      "close_col_used": "Close/Last",
+      "had_adj_close_col": false,
+      "n_suspected_unadjusted_jumps": 0,
+      "n_adj_vs_raw_mismatches": 0
+    },
+    "MSFT.csv": {
+      "sha256": "be5dfd80636fd8370eb90f0d4324396f0f8aa8c131172c854e96f68665f4e5d9",
+      "rows": 1254,
+      "date_min": "2021-07-16",
+      "date_max": "2026-07-15",
+      "close_col_used": "Close/Last",
+      "had_adj_close_col": false,
+      "n_suspected_unadjusted_jumps": 0,
+      "n_adj_vs_raw_mismatches": 0
+    },
+    "NVDA.csv": {
+      "sha256": "a241e19d898a174672ccc63cfcf9b4c84900a03b74081d270c5f3db9878bdc09",
+      "rows": 1254,
+      "date_min": "2021-07-16",
+      "date_max": "2026-07-15",
+      "close_col_used": "Close/Last",
+      "had_adj_close_col": false,
+      "n_suspected_unadjusted_jumps": 4,
+      "n_adj_vs_raw_mismatches": 0
+    },
+    "SPY.csv": {
+      "sha256": "8fda5fbbb37021cfca74e3be2b8f80bfcd0073c182799bbf47571daea97ab9bc",
+      "rows": 1254,
+      "date_min": "2021-07-16",
+      "date_max": "2026-07-15",
+      "close_col_used": "Close/Last",
+      "had_adj_close_col": false,
+      "n_suspected_unadjusted_jumps": 0,
+      "n_adj_vs_raw_mismatches": 0
+    },
+    "TSLA.csv": {
+      "sha256": "8aeed66359cfdc6e6baf0bd61fdb881fd842c48c1cb4a8aaca5e6eb16e73f132",
+      "rows": 1254,
+      "date_min": "2021-07-16",
+      "date_max": "2026-07-15",
+      "close_col_used": "Close/Last",
+      "had_adj_close_col": false,
+      "n_suspected_unadjusted_jumps": 4,
+      "n_adj_vs_raw_mismatches": 0
+    },
+    "all-data.csv": {
+      "sha256": "cadf7575d2cee573f77d7293337d0bc989c67ab976753f70322d0fae5e8b507d",
+      "rows_or_raw_lines": 1,
+      "kind": "non_price_reference_dataset"
+    }
+  }
+}

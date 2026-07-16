@@ -83,13 +83,28 @@ from data_fetch import fetch_history  # noqa: E402
 
 
 
-def evaluate_ticker(ticker: str, period: str, forecaster: MarketForecaster) -> dict:
+def evaluate_ticker(ticker: str, period: str, forecaster: MarketForecaster, market_df=None) -> dict:
     history = fetch_history(ticker, period)
     closes = history["Close"].to_numpy()
     volumes = history["Volume"].to_numpy() if "Volume" in history.columns else np.full(len(closes), np.nan)
 
+    market_closes = None
+    if market_df is not None and "Date" in history.columns:
+        # Left-join on Date rather than assume positional alignment -- SPY
+        # and a given ticker can have slightly different rows if either
+        # source is missing a trading day, and a raw zip would silently
+        # misalign the two series (a real correctness bug, not cosmetic).
+        merged = history[["Date"]].merge(
+            market_df[["Date", "Close"]].rename(columns={"Close": "MarketClose"}), on="Date", how="left"
+        )
+        merged["MarketClose"] = merged["MarketClose"].ffill()
+        if not merged["MarketClose"].isna().all():
+            market_closes = merged["MarketClose"].to_numpy()
+
     context = forecaster._context_profile(ticker=ticker, query="", sentiment_score=0.5)
-    features, targets = forecaster._build_training_set(closes=closes, volumes=volumes, horizon_days=context["horizon_days"])
+    features, targets = forecaster._build_training_set(
+        closes=closes, volumes=volumes, horizon_days=context["horizon_days"], market_closes=market_closes
+    )
     backtest = forecaster._walk_forward_backtest(features=features, targets=targets, config=context["config"])
 
     return {
@@ -100,6 +115,7 @@ def evaluate_ticker(ticker: str, period: str, forecaster: MarketForecaster) -> d
         "mae_pct": round(backtest["mae_pct"], 2),
         "rmse_pct": round(backtest["rmse_pct"], 2),
         "train_window_used": context["config"].train_window,
+        "used_market_feature": market_closes is not None,
     }
 
 
@@ -113,17 +129,26 @@ def main():
     args = parser.parse_args()
 
     forecaster = MarketForecaster()
+
+    market_df = None
+    try:
+        market_df = fetch_history("SPY", args.period)
+        print(f"Loaded SPY as market-context series ({len(market_df)} rows) for the cross-sectional momentum feature.\n")
+    except Exception as e:
+        print(f"Could not load SPY market-context series ({e}); continuing without the cross-sectional feature.\n")
+
     results = []
     for i, ticker in enumerate(args.tickers):
         if i > 0:
             time.sleep(args.delay)
         try:
-            result = evaluate_ticker(ticker, args.period, forecaster)
+            result = evaluate_ticker(ticker, args.period, forecaster, market_df=market_df)
             results.append(result)
             print(f"{ticker}: DA(ridge)={result['directional_accuracy_pct']}%  "
                   f"DA(ensemble)={result['directional_accuracy_ensemble_pct']}%  "
                   f"nMAE={result['mae_pct']}%  RMSE={result['rmse_pct']}%  "
-                  f"n={result['samples']}  (train_window={result['train_window_used']})")
+                  f"n={result['samples']}  (train_window={result['train_window_used']}, "
+                  f"market_feature={'on' if result['used_market_feature'] else 'off'})")
         except Exception as e:
             print(f"{ticker}: FAILED - {e}")
 
