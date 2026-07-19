@@ -47,7 +47,7 @@ def max_drawdown(equity_curve: np.ndarray) -> float:
     return float(drawdowns.min() * 100)
 
 
-def simple_momentum_signal(closes: np.ndarray, idx: int) -> str:
+def simple_momentum_signal(closes: np.ndarray, idx: int) -> tuple[str, float]:
     """
     Stand-in decision signal for backtesting when you don't want to wire up
     the full FastAPI agent stack day-by-day (that requires live news APIs
@@ -55,36 +55,84 @@ def simple_momentum_signal(closes: np.ndarray, idx: int) -> str:
     momentum crossover as an honest, simple, clearly-labeled proxy.
     Replace this with a real call into FinanceCrew.run() if you build a
     historical-data-only mode for it (no live news dependency).
+
+    Returns (signal, confidence) where confidence in [0, 1] is the
+    crossover's relative magnitude, clipped -- used for step 16's
+    confidence-scaled position sizing. A signal with confidence near 0
+    means the 5/20-day MAs are barely separated (weak/noisy signal); a
+    signal near the clip ceiling means a large, more decisive crossover.
     """
     if idx < 20:
-        return "hold"
+        return "hold", 0.0
     ma5 = closes[idx - 5:idx].mean()
     ma20 = closes[idx - 20:idx].mean()
-    if ma5 > ma20 * 1.01:
-        return "buy"
-    if ma5 < ma20 * 0.99:
-        return "sell"
-    return "hold"
+    spread = (ma5 - ma20) / ma20
+    confidence = float(np.clip(abs(spread) / 0.03, 0.0, 1.0))  # 3% spread -> full confidence
+    if spread > 0.01:
+        return "buy", confidence
+    if spread < -0.01:
+        return "sell", confidence
+    return "hold", 0.0
 
 
 RISK_POSITION_PCT = {"low": 0.06, "medium": 0.10, "high": 0.16}
 
 
-def backtest(closes: np.ndarray, risk_profile: str) -> dict:
-    position_pct = RISK_POSITION_PCT[risk_profile]
+def backtest(
+    closes: np.ndarray,
+    risk_profile: str,
+    cost_bps: float = 0.0,
+    slippage_bps: float = 0.0,
+    confidence_scaled: bool = False,
+) -> dict:
+    """
+    cost_bps / slippage_bps (step 15): round-trip-style friction applied
+    proportional to TURNOVER (the change in exposure day over day), not
+    proportional to the position size itself -- holding a position costs
+    nothing further once you're in it; only *changing* exposure does.
+    Both default to 0.0 so the old zero-cost behavior is still reachable
+    for direct before/after comparison.
+
+    confidence_scaled (step 16): when True, target exposure is scaled by
+    the momentum signal's confidence (see simple_momentum_signal) rather
+    than always using the full risk-profile position cap. A weak/noisy
+    crossover now takes a smaller position than a strong one, at the same
+    risk profile.
+    """
+    position_cap = RISK_POSITION_PCT[risk_profile]
     equity = [1.0]
+    prev_exposure = 0.0
+    trade_returns = []  # per-day P&L contribution, for win-rate/avg-trade (step 24 prep)
+    turnovers = []
     for idx in range(1, len(closes)):
-        signal = simple_momentum_signal(closes, idx - 1)
+        signal, confidence = simple_momentum_signal(closes, idx - 1)
         daily_return = (closes[idx] - closes[idx - 1]) / closes[idx - 1]
-        exposure = position_pct if signal == "buy" else (-position_pct if signal == "sell" else 0.0)
-        equity.append(equity[-1] * (1 + daily_return * exposure))
+        base = confidence if confidence_scaled else 1.0
+        exposure = position_cap * base if signal == "buy" else (-position_cap * base if signal == "sell" else 0.0)
+
+        turnover = abs(exposure - prev_exposure)
+        turnovers.append(turnover)
+        cost = turnover * (cost_bps + slippage_bps) / 10_000
+        day_pnl = daily_return * exposure - cost
+        if exposure != 0.0:
+            trade_returns.append(day_pnl)
+        equity.append(equity[-1] * (1 + day_pnl))
+        prev_exposure = exposure
+
     equity = np.array(equity)
     daily_returns = np.diff(equity) / equity[:-1]
     ann_return_pct = (equity[-1] ** (252 / len(equity)) - 1) * 100
+    trade_arr = np.array(trade_returns)
+    win_rate_pct = float(np.mean(trade_arr > 0) * 100) if len(trade_arr) else 0.0
+    avg_trade_pct = float(np.mean(trade_arr) * 100) if len(trade_arr) else 0.0
     return {
         "annualized_return_pct": round(float(ann_return_pct), 2),
         "sharpe": round(sharpe_ratio(daily_returns), 2),
         "max_drawdown_pct": round(max_drawdown(equity), 2),
+        "win_rate_pct": round(win_rate_pct, 1),
+        "avg_trade_pct": round(avg_trade_pct, 3),
+        "avg_daily_turnover": round(float(np.mean(turnovers)), 4),
+        "n_position_days": int(len(trade_returns)),
     }
 
 
@@ -103,6 +151,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ticker", default="AAPL")
     parser.add_argument("--period", default="2y")
+    parser.add_argument("--cost-bps", type=float, default=2.0, help="Commission-style cost per unit turnover, in bps")
+    parser.add_argument("--slippage-bps", type=float, default=3.0, help="Slippage per unit turnover, in bps")
     args = parser.parse_args()
 
     history = fetch_history(args.ticker, args.period)
@@ -111,13 +161,31 @@ def main():
     print(f"Backtesting {args.ticker} over {len(closes)} trading days\n")
     print("NOTE: this uses a simple momentum proxy signal, not the full live-news")
     print("FinanceCrew pipeline (real news sentiment isn't reproducible historically).\n")
+
+    print("--- Original: fixed position size per risk profile, zero costs (Phase A/B behavior) ---")
     for profile in ["low", "medium", "high"]:
-        result = backtest(closes, profile)
-        print(f"{profile.capitalize():8s}  Return={result['annualized_return_pct']:>7.2f}%  "
-              f"Sharpe={result['sharpe']:>5.2f}  MaxDD={result['max_drawdown_pct']:>7.2f}%")
+        r = backtest(closes, profile, cost_bps=0.0, slippage_bps=0.0, confidence_scaled=False)
+        print(f"{profile.capitalize():8s}  Return={r['annualized_return_pct']:>7.2f}%  "
+              f"Sharpe={r['sharpe']:>5.2f}  MaxDD={r['max_drawdown_pct']:>7.2f}%")
+
+    print(f"\n--- Step 15: same fixed sizing, WITH costs (cost={args.cost_bps}bps + slippage={args.slippage_bps}bps per unit turnover) ---")
+    for profile in ["low", "medium", "high"]:
+        r = backtest(closes, profile, cost_bps=args.cost_bps, slippage_bps=args.slippage_bps, confidence_scaled=False)
+        print(f"{profile.capitalize():8s}  Return={r['annualized_return_pct']:>7.2f}%  "
+              f"Sharpe={r['sharpe']:>5.2f}  MaxDD={r['max_drawdown_pct']:>7.2f}%  "
+              f"WinRate={r['win_rate_pct']:>5.1f}%  AvgTrade={r['avg_trade_pct']:>7.3f}%  "
+              f"Turnover={r['avg_daily_turnover']:.4f}")
+
+    print(f"\n--- Step 16: confidence-scaled sizing, WITH costs ---")
+    for profile in ["low", "medium", "high"]:
+        r = backtest(closes, profile, cost_bps=args.cost_bps, slippage_bps=args.slippage_bps, confidence_scaled=True)
+        print(f"{profile.capitalize():8s}  Return={r['annualized_return_pct']:>7.2f}%  "
+              f"Sharpe={r['sharpe']:>5.2f}  MaxDD={r['max_drawdown_pct']:>7.2f}%  "
+              f"WinRate={r['win_rate_pct']:>5.1f}%  AvgTrade={r['avg_trade_pct']:>7.3f}%  "
+              f"Turnover={r['avg_daily_turnover']:.4f}")
 
     bh = buy_and_hold(closes)
-    print(f"{'Buy&Hold':8s}  Return={bh['annualized_return_pct']:>7.2f}%  "
+    print(f"\n{'Buy&Hold':8s}  Return={bh['annualized_return_pct']:>7.2f}%  "
           f"Sharpe={bh['sharpe']:>5.2f}  MaxDD={bh['max_drawdown_pct']:>7.2f}%")
 
 
