@@ -569,13 +569,45 @@ class MarketForecaster:
     def _predict_with_weights(self, weights: np.ndarray, features: np.ndarray) -> float:
         return float(features @ weights)
 
-    def _walk_forward_backtest(self, *, features: np.ndarray, targets: np.ndarray, config: AssetConfig) -> dict[str, float]:
+    def _walk_forward_backtest(
+        self,
+        *,
+        features: np.ndarray,
+        targets: np.ndarray,
+        config: AssetConfig,
+        window_mode: str = "rolling",
+        ridge_alpha_override: float | None = None,
+        classifier_l2_override: float | None = None,
+        vol_filter_std_mult: float | None = None,
+    ) -> dict[str, float]:
+        """
+        window_mode: "rolling" (default, unchanged behavior) trains on the
+            trailing `config.train_window` samples. "expanding" (step 19)
+            trains on everything seen so far from the start of the series,
+            growing every step -- more data per fit, but training-set
+            "recency" to the current regime is lost as the window grows.
+        ridge_alpha_override / classifier_l2_override (steps 13/14): lets
+            a grid-search caller sweep hyperparameters without needing to
+            mutate the shared AssetConfig objects other code reads from.
+        vol_filter_std_mult (step 18): if set, a day is treated as
+            "extreme-vol" and excluded from the *_after_vol_filter metrics
+            when its 10-day realized vol (feature index 6) exceeds
+            `mean + vol_filter_std_mult * std` of that SAME quantity
+            computed ONLY from the current training window -- never from
+            future data, so this can't leak. The unfiltered metrics are
+            always still returned too, so filtering-on vs filtering-off
+            can be compared directly.
+        """
+        alpha = ridge_alpha_override if ridge_alpha_override is not None else config.ridge_alpha
+        clf_l2 = classifier_l2_override if classifier_l2_override is not None else 1.0
+
         preds: list[float] = []
         actuals: list[float] = []
         ensemble_hits: list[bool] = []
+        is_high_vol: list[bool] = []
         start = max(config.min_train_size, len(features) - 120)
         for idx in range(start, len(features)):
-            train_start = max(0, idx - config.train_window)
+            train_start = 0 if window_mode == "expanding" else max(0, idx - config.train_window)
             X_train = features[train_start:idx]
             y_train = targets[train_start:idx]
             if len(X_train) < config.min_train_size:
@@ -584,17 +616,26 @@ class MarketForecaster:
             X_train_scaled = self._standardize_apply(X_train, mean, std)
             point_scaled = self._standardize_apply(features[idx], mean, std)
 
-            weights = self._fit_ridge(X=X_train_scaled, y=y_train, alpha=config.ridge_alpha)
+            weights = self._fit_ridge(X=X_train_scaled, y=y_train, alpha=alpha)
             ridge_pred = self._predict_with_weights(weights, point_scaled)
             preds.append(ridge_pred)
             actuals.append(float(targets[idx]))
+
+            vol_col = X_train[:, 6]  # std_ret_10d, raw (unstandardized) units
+            vol_mean, vol_std = float(np.mean(vol_col)), float(np.std(vol_col))
+            current_vol = float(features[idx, 6])
+            high_vol = (
+                vol_filter_std_mult is not None and vol_std > 1e-9
+                and current_vol > vol_mean + vol_filter_std_mult * vol_std
+            )
+            is_high_vol.append(high_vol)
 
             # Ensemble direction: classifier trained on the same rolling
             # window (same standardization stats as Ridge -- step 11), and
             # purpose-built for sign prediction. If it disagrees with the
             # Ridge model's sign, we go with the classifier's confident
             # call; if it's unsure (~50/50), we defer to Ridge.
-            clf_weights = self._fit_logistic(X=X_train_scaled, y=y_train, l2=1.0)
+            clf_weights = self._fit_logistic(X=X_train_scaled, y=y_train, l2=clf_l2)
             prob_up = self._logistic_prob(clf_weights, point_scaled)
             ridge_sign = 1 if ridge_pred >= 0 else -1
             if prob_up >= 0.55:
@@ -611,21 +652,94 @@ class MarketForecaster:
                 "samples": 0, "mae_pct": 2.5, "rmse_pct": 3.2,
                 "directional_accuracy_pct": 50.0,
                 "directional_accuracy_ensemble_pct": 50.0,
+                "samples_after_vol_filter": 0,
+                "directional_accuracy_pct_after_vol_filter": 50.0,
             }
 
         pred_arr = np.array(preds)
         actual_arr = np.array(actuals)
+        vol_mask = ~np.array(is_high_vol)  # True = keep (normal-vol day)
         abs_errors = np.abs(pred_arr - actual_arr) * 100
         sq_errors = np.square(pred_arr - actual_arr) * 10000
         directional_hits = np.mean(np.sign(pred_arr) == np.sign(actual_arr)) * 100
         ensemble_accuracy = float(np.mean(ensemble_hits) * 100) if ensemble_hits else directional_hits
+
+        if vol_filter_std_mult is not None and vol_mask.sum() > 0:
+            da_filtered = float(np.mean(np.sign(pred_arr[vol_mask]) == np.sign(actual_arr[vol_mask])) * 100)
+            n_filtered = int(vol_mask.sum())
+        else:
+            da_filtered = directional_hits
+            n_filtered = len(preds)
         return {
             "samples": float(len(preds)),
             "mae_pct": float(np.mean(abs_errors)),
             "rmse_pct": float(np.sqrt(np.mean(sq_errors))),
             "directional_accuracy_pct": float(directional_hits),
             "directional_accuracy_ensemble_pct": ensemble_accuracy,
+            "samples_after_vol_filter": n_filtered,
+            "directional_accuracy_pct_after_vol_filter": da_filtered,
         }
+
+    def _pooled_walk_forward_backtest(
+        self,
+        *,
+        features_by_ticker: dict[str, np.ndarray],
+        targets_by_ticker: dict[str, np.ndarray],
+        config: AssetConfig,
+        window_mode: str = "rolling",
+        ridge_alpha_override: float | None = None,
+        classifier_l2_override: float | None = None,
+    ) -> dict[str, dict]:
+        """
+        Step 17: at each walk-forward step, fits ONE Ridge + ONE classifier
+        on the pooled training rows from ALL tickers in the same date
+        window (more effective samples per fit than any single ticker's
+        own history alone), then scores every ticker's held-out point for
+        that date using that shared fit. Requires every ticker's feature
+        array to be the same length and index-aligned by trading day
+        (true for tickers pulled over the same period/date range here) --
+        if lengths differ this raises rather than silently truncating,
+        since silent misalignment would make "pooled" mean something
+        different per ticker without anyone noticing.
+        """
+        lengths = {t: len(f) for t, f in features_by_ticker.items()}
+        if len(set(lengths.values())) > 1:
+            raise ValueError(f"Pooled training requires aligned feature arrays; got different lengths: {lengths}")
+        n = next(iter(lengths.values()))
+        tickers = list(features_by_ticker.keys())
+
+        preds_by_ticker = {t: [] for t in tickers}
+        actuals_by_ticker = {t: [] for t in tickers}
+        alpha = ridge_alpha_override if ridge_alpha_override is not None else config.ridge_alpha
+        clf_l2 = classifier_l2_override if classifier_l2_override is not None else 1.0
+
+        start = max(config.min_train_size, n - 120)
+        for idx in range(start, n):
+            train_start = 0 if window_mode == "expanding" else max(0, idx - config.train_window)
+            X_train_pool = np.vstack([features_by_ticker[t][train_start:idx] for t in tickers])
+            y_train_pool = np.concatenate([targets_by_ticker[t][train_start:idx] for t in tickers])
+            if len(X_train_pool) < config.min_train_size:
+                continue
+            mean, std = self._standardize_fit(X_train_pool)
+            X_train_scaled = self._standardize_apply(X_train_pool, mean, std)
+            weights = self._fit_ridge(X=X_train_scaled, y=y_train_pool, alpha=alpha)
+
+            for t in tickers:
+                point_scaled = self._standardize_apply(features_by_ticker[t][idx], mean, std)
+                pred = self._predict_with_weights(weights, point_scaled)
+                preds_by_ticker[t].append(pred)
+                actuals_by_ticker[t].append(float(targets_by_ticker[t][idx]))
+
+        results = {}
+        for t in tickers:
+            p, a = np.array(preds_by_ticker[t]), np.array(actuals_by_ticker[t])
+            if len(p) == 0:
+                results[t] = {"samples": 0, "directional_accuracy_pct": 50.0, "mae_pct": 2.5}
+                continue
+            da = float(np.mean(np.sign(p) == np.sign(a)) * 100)
+            mae = float(np.mean(np.abs(p - a)) * 100)
+            results[t] = {"samples": len(p), "directional_accuracy_pct": da, "mae_pct": mae}
+        return results
 
     def _query_adjustment_pct(self, *, context: dict) -> float:
         adjustment = context["query_bias_pct"]
