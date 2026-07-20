@@ -33,6 +33,19 @@ class AnalystAgent:
         sentiment = sentiment or {}
         market_history = self.data_service.get_history(ticker=ticker, period="3y", interval="1d")
 
+        if not market_history.available or market_history.frame.empty:
+            return {
+                "dataAvailable": False,
+                "predictedReturnPct": None,
+                "confidence": None,
+                "queryAlignment": None,
+                "backtest": None,
+                "methodFactors": [],
+                "message": f"No usable price history for {ticker.upper()}; prediction skipped rather than fabricated.",
+                "warnings": market_history.warnings,
+                "durationMs": int((time.perf_counter() - start) * 1000),
+            }
+
         # Cross-sectional market-context feature (Phase B step 8). Best-effort:
         # if SPY can't be fetched (rate limit, network hiccup, etc.) the
         # underlying feature vector already falls back to a neutral 0.0 for

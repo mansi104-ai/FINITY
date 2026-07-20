@@ -32,8 +32,21 @@ def _classify_sentiment(text: str) -> str:
 
 
 class ResearcherAgent:
+    """Real multi-provider research pipeline, NO synthetic fallback:
+
+        NewsAPI (primary) -> Finnhub company-news (secondary)
+            -> explicit "unavailable" result
+
+    If both live providers fail or return nothing usable, this returns a
+    degraded, clearly-labeled result (dataAvailable=False, confidence=0.0,
+    empty resources) instead of fabricating articles. Downstream agents
+    (crew.py) must treat dataAvailable=False as "no evidence", not as a
+    neutral HOLD signal to quietly average in.
+    """
+
     def __init__(self) -> None:
         self.news_api_key = os.getenv("NEWS_API_KEY", os.getenv("NEWSAPI_KEY", ""))
+        self.finnhub_api_key = os.getenv("FINNHUB_API_KEY", "")
 
     def analyze(self, ticker: str, query: str) -> dict:
         start_perf = time.perf_counter()
@@ -45,7 +58,25 @@ class ResearcherAgent:
         attempts: List[Dict] = []
         resources: List[Dict] = []
 
-        if not self.news_api_key:
+        if self.news_api_key:
+            for idx, search_query in enumerate(search_queries):
+                phase = "from_scratch" if idx == 0 else "reiteration"
+                search_started = self._now_utc()
+                items, error_note = self._search_news(search_query, horizon_context=horizon_context)
+                resources.extend(items)
+                attempts.append(
+                    {
+                        "query": search_query,
+                        "phase": phase,
+                        "source": "newsapi",
+                        "status": "success" if not error_note else "failed",
+                        "resultCount": len(items),
+                        "startedAt": self._iso(search_started),
+                        "endedAt": self._iso(self._now_utc()),
+                        "note": error_note if error_note else "Search completed.",
+                    }
+                )
+        else:
             attempts.append(
                 {
                     "query": search_queries[0],
@@ -55,75 +86,67 @@ class ResearcherAgent:
                     "resultCount": 0,
                     "startedAt": self._iso(run_started),
                     "endedAt": self._iso(self._now_utc()),
-                    "note": "NEWSAPI_KEY missing; skipped live research and used synthetic fallback.",
-                }
-            )
-            resources = self._synthetic_resources(ticker=ticker, user_query=query)
-            labels = []
-            weights = []
-            for resource in resources:
-                label = _classify_sentiment(resource["title"])
-                relevance = self._resource_relevance(resource=resource, ticker=ticker, query=query)
-                influence, recency_weight, age_hours = self._resource_influence(
-                    resource=resource,
-                    relevance=relevance,
-                    horizon_context=horizon_context,
-                )
-                resource["sentimentLevel"] = label
-                resource["relevanceScore"] = round(relevance, 3)
-                resource["influenceWeight"] = round(influence, 3)
-                resource["recencyWeight"] = round(recency_weight, 3)
-                resource["ageHours"] = round(age_hours, 1)
-                labels.append(label)
-                weights.append(influence)
-
-            score, level, confidence, synthesis = aggregate_sentiment(labels, weights)
-            timeline = self._timeline(resources=resources, generated_at=run_started)
-            search_stats = self._search_stats(attempts)
-            reasoning = [
-                f"Live news research unavailable, so fallback synthetic research was generated for {ticker}.",
-                f"Forecast context used the query topic: {query.strip() or ticker}.",
-                f"Each resource was weighted by exact timestamp recency, relevance, and source quality.",
-                f"For this {horizon_context['label']} query, fresher articles were prioritized with an hourly decay curve.",
-                f"Final researcher sentiment={level} (weighted score={score}, confidence={confidence}).",
-            ]
-            return {
-                "level": level,
-                "score": score,
-                "confidence": confidence,
-                "resources": resources,
-                "timeline": timeline,
-                "searchStats": search_stats,
-                "searchAttempts": attempts,
-                "reasoning": reasoning,
-                "synthesis": synthesis,
-                "durationMs": int((time.perf_counter() - start_perf) * 1000),
-                "message": f"Generated {len(resources)} fallback research resources",
-            }
-
-        for idx, search_query in enumerate(search_queries):
-            phase = "from_scratch" if idx == 0 else "reiteration"
-            search_started = self._now_utc()
-
-            items, error_note = self._search_news(search_query, horizon_context=horizon_context)
-            resources.extend(items)
-            attempts.append(
-                {
-                    "query": search_query,
-                    "phase": phase,
-                    "source": "newsapi",
-                    "status": "success" if not error_note else "failed",
-                    "resultCount": len(items),
-                    "startedAt": self._iso(search_started),
-                    "endedAt": self._iso(self._now_utc()),
-                    "note": error_note if error_note else "Search completed.",
+                    "note": "NEWSAPI_KEY not set; skipped.",
                 }
             )
 
         resources = self._dedupe_resources(resources)
 
+        # Secondary provider: only queried if NewsAPI produced nothing
+        # usable (missing key, rate-limited, or genuinely no results).
         if not resources:
-            resources = self._synthetic_resources(ticker=ticker, user_query=query)
+            if self.finnhub_api_key:
+                search_started = self._now_utc()
+                items, error_note = self._search_news_finnhub(ticker=ticker, horizon_context=horizon_context)
+                resources.extend(items)
+                attempts.append(
+                    {
+                        "query": f"finnhub:{ticker}",
+                        "phase": "reiteration",
+                        "source": "finnhub",
+                        "status": "success" if not error_note else "failed",
+                        "resultCount": len(items),
+                        "startedAt": self._iso(search_started),
+                        "endedAt": self._iso(self._now_utc()),
+                        "note": error_note if error_note else "Search completed.",
+                    }
+                )
+                resources = self._dedupe_resources(resources)
+            else:
+                attempts.append(
+                    {
+                        "query": f"finnhub:{ticker}",
+                        "phase": "reiteration",
+                        "source": "finnhub",
+                        "status": "skipped",
+                        "resultCount": 0,
+                        "startedAt": self._iso(self._now_utc()),
+                        "endedAt": self._iso(self._now_utc()),
+                        "note": "FINNHUB_API_KEY not set; skipped.",
+                    }
+                )
+
+        if not resources:
+            timeline = self._timeline(resources=[], generated_at=run_started)
+            search_stats = self._search_stats(attempts)
+            reasoning = [
+                f"No usable news was returned by NewsAPI or Finnhub for {ticker}; no synthetic research was generated.",
+                "Sentiment is reported as neutral with zero confidence -- this should be treated as missing evidence, not as a bullish/bearish signal.",
+            ]
+            return {
+                "level": "HOLD",
+                "score": 0.5,
+                "confidence": 0.0,
+                "dataAvailable": False,
+                "resources": [],
+                "timeline": timeline,
+                "searchStats": search_stats,
+                "searchAttempts": attempts,
+                "reasoning": reasoning,
+                "synthesis": None,
+                "durationMs": int((time.perf_counter() - start_perf) * 1000),
+                "message": f"No live news available for {ticker}; returned degraded result instead of fabricated data.",
+            }
 
         labels = []
         weights = []
@@ -191,6 +214,7 @@ class ResearcherAgent:
             "level": level,
             "score": score,
             "confidence": confidence,
+            "dataAvailable": True,
             "resources": resources,
             "timeline": timeline,
             "searchStats": search_stats,
@@ -308,101 +332,58 @@ class ResearcherAgent:
             f"{ticker} earnings financial performance guidance",
         ]
 
-    def _synthetic_resources(self, ticker: str, user_query: str) -> List[Dict]:
-        now = self._now_utc()
-        import random
-        
-        # Randomize between all 5 sentiment levels for more diversity
-        sentiment_tilt = random.choice(["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"])
-        
-        sentiment_data = {
-            "STRONG_BUY": {
-                "titles": [
-                    f"{ticker} shows exceptional growth with breakout potential",
-                    f"{ticker} achieves record performance, analysts upgrade aggressively",
-                    f"{ticker} dominates market with innovation and strategic advantage",
-                    f"{ticker} demonstrates accelerating momentum with strong catalysts",
-                ],
-                "snippets": [
-                    "Outstanding fundamentals and exceptional execution drive market leadership.",
-                    "Record profitability with momentum accelerating. Strong buy signals across metrics.",
-                    "Breakthrough innovation creates sustainable competitive advantage.",
-                    "Multiple positive catalysts converge for exceptional upside opportunity.",
-                ]
-            },
-            "BUY": {
-                "titles": [
-                    f"{ticker} shows attractive upside with positive outlook",
-                    f"{ticker} analysts upgrade on improving fundamentals",
-                    f"{ticker} offers compelling opportunity amid growth acceleration",
-                    f"{ticker} momentum strengthens with successful execution",
-                ],
-                "snippets": [
-                    "Growth trajectory improving with positive sentiment. Upgrade recommended.",
-                    "Strong operational improvements and market expansion underway.",
-                    "Attractively valued with upside potential from multiple drivers.",
-                    "Positive catalysts support outperformance in near term.",
-                ]
-            },
-            "HOLD": {
-                "titles": [
-                    f"{ticker} displays mixed signals amid market uncertainty",
-                    f"{ticker} remains balanced with opportunities and risks",
-                    f"{ticker} maintains steady outlook despite sector headwinds",
-                    f"{ticker} catalysts ahead could drive significant moves",
-                ],
-                "snippets": [
-                    "Balanced view with both upside and downside scenarios.",
-                    "Neutral positioning warranted pending catalyst resolution.",
-                    "Mixed signals from analysts suggest cautious approach.",
-                    "Uncertain near-term direction with multiple potential outcomes.",
-                ]
-            },
-            "SELL": {
-                "titles": [
-                    f"{ticker} faces headwinds amid deteriorating fundamentals",
-                    f"{ticker} analysts downgrade on growing concerns",
-                    f"{ticker} pressure persists despite management efforts",
-                    f"{ticker} weakness accelerates amid sector challenges",
-                ],
-                "snippets": [
-                    "Deteriorating fundamentals and negative momentum warrant downgrade.",
-                    "Multiple concerns emerging with challenging near-term outlook.",
-                    "Weakness spreading across key metrics. Downside risks rising.",
-                    "Underperformance likely as headwinds intensify.",
-                ]
-            },
-            "STRONG_SELL": {
-                "titles": [
-                    f"{ticker} faces existential crisis with severe challenges",
-                    f"{ticker} collapses amid fraud and governance scandal",
-                    f"{ticker} bankruptcy risk emerges from catastrophic failures",
-                    f"{ticker} devastated by recession impact and asset liquidation",
-                ],
-                "snippets": [
-                    "Catastrophic deterioration with existential threats to business model.",
-                    "Scandal and fraud allegations threaten company viability.",
-                    "Bankruptcy scenario increasingly likely given toxic fundamentals.",
-                    "Avoid at all costs - severe downside risk on horizon.",
-                ]
-            }
-        }
-        
-        data = sentiment_data[sentiment_tilt]
-        titles = data["titles"]
-        snippets = data["snippets"]
-        
-        resources = []
-        for i in range(4):
-            resources.append({
-                "title": f"{ticker} - {titles[i]}",
-                "source": "Synthetic Research Feed",
-                "url": "",
-                "publishedAt": self._iso(now - timedelta(days=5-i)),
-                "snippet": snippets[i] if i < len(snippets) else "Research analysis included.",
-            })
-        
-        return resources
+    def _search_news_finnhub(self, ticker: str, horizon_context: Dict | None = None) -> Tuple[List[Dict], str]:
+        """Finnhub's /company-news endpoint, used as the second real
+        provider when NewsAPI is missing/failed/empty. Requires
+        FINNHUB_API_KEY (free tier available)."""
+        try:
+            horizon_context = horizon_context or self._query_horizon_context("")
+            window_start = self._now_utc() - timedelta(days=horizon_context["search_window_days"])
+            response = requests.get(
+                "https://finnhub.io/api/v1/company-news",
+                params={
+                    "symbol": ticker.upper(),
+                    "from": window_start.date().isoformat(),
+                    "to": self._now_utc().date().isoformat(),
+                    "token": self.finnhub_api_key,
+                },
+                timeout=6,
+            )
+            response.raise_for_status()
+            articles = response.json()
+            if not isinstance(articles, list) or not articles:
+                return [], f"No Finnhub articles found for {ticker}"
+
+            normalized = []
+            for article in articles[:15]:
+                headline = article.get("headline")
+                if not headline:
+                    continue
+                published_ts = article.get("datetime")
+                published_at = (
+                    datetime.fromtimestamp(published_ts, tz=timezone.utc) if published_ts else self._now_utc()
+                )
+                normalized.append(
+                    {
+                        "title": headline,
+                        "source": article.get("source", "Finnhub"),
+                        "url": article.get("url", ""),
+                        "publishedAt": self._iso(published_at),
+                        "snippet": article.get("summary", ""),
+                    }
+                )
+            if not normalized:
+                return [], "Finnhub returned articles with no usable headline"
+            return normalized, ""
+        except requests.exceptions.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status == 401:
+                return [], "Invalid/expired Finnhub API key (401). Verify FINNHUB_API_KEY."
+            if status == 429:
+                return [], "Finnhub rate limit exceeded (429)."
+            return [], f"Finnhub HTTP error: {status}"
+        except Exception as exc:
+            return [], f"Finnhub search error: {str(exc)[:120]}"
 
     def _dedupe_resources(self, resources: List[Dict]) -> List[Dict]:
         seen = set()

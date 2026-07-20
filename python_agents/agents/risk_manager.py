@@ -28,6 +28,17 @@ class RiskManagerAgent:
 
     def evaluate(self, ticker: str, budget: float, risk_profile: str, prediction: dict) -> dict:
         start = time.perf_counter()
+
+        if not prediction or prediction.get("dataAvailable") is False:
+            return {
+                "dataAvailable": False,
+                "valueAtRiskPct": None,
+                "level": "unknown",
+                "recommendedPositionSizePct": 0.0,
+                "message": f"Skipped risk evaluation for {ticker}: no prediction available (missing market data).",
+                "durationMs": int((time.perf_counter() - start) * 1000),
+            }
+
         var = calculate_var(ticker=ticker, position_value=budget)
 
         max_position_pct = self.POSITION_MAP.get(risk_profile, 0.1) * 100
@@ -37,6 +48,7 @@ class RiskManagerAgent:
         recommended_pct = max(2.0, max_position_pct * (1 - var_penalty))
 
         return {
+            "dataAvailable": True,
             "valueAtRiskPct": round(var["var_pct"], 2),
             "level": risk_level,
             "recommendedPositionSizePct": round(recommended_pct, 2),
