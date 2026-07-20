@@ -7,3 +7,11 @@ yfinance==0.2.54
 requests==2.32.3
 cachetools==5.5.2
 dotenv
+
+# Optional -- all agents fall back to deterministic logic if these are
+# missing or ANTHROPIC_API_KEY is unset. Install them to enable the
+# LLM-assisted Planner/Risk Reasoning/Verification/Explanation agents and
+# local FinBERT sentiment.
+anthropic==0.40.0
+transformers==4.46.3
+torch==2.5.1

@@ -4,24 +4,44 @@ try:
     from ..agents.analyst import AnalystAgent
     from ..agents.researcher import ResearcherAgent
     from ..agents.risk_manager import RiskManagerAgent
+    from ..agents.planner import PlannerAgent
+    from ..agents.market_agent import MarketAgent
+    from ..agents.verification import VerificationAgent
+    from ..agents.explanation import ExplanationAgent
+    from ..agents.risk_reasoning import RiskReasoningAgent
 except Exception:
     try:
         from agents.analyst import AnalystAgent
         from agents.researcher import ResearcherAgent
         from agents.risk_manager import RiskManagerAgent
+        from agents.planner import PlannerAgent
+        from agents.market_agent import MarketAgent
+        from agents.verification import VerificationAgent
+        from agents.explanation import ExplanationAgent
+        from agents.risk_reasoning import RiskReasoningAgent
     except ModuleNotFoundError:
         from python_agents.agents.analyst import AnalystAgent
         from python_agents.agents.researcher import ResearcherAgent
         from python_agents.agents.risk_manager import RiskManagerAgent
+        from python_agents.agents.planner import PlannerAgent
+        from python_agents.agents.market_agent import MarketAgent
+        from python_agents.agents.verification import VerificationAgent
+        from python_agents.agents.explanation import ExplanationAgent
+        from python_agents.agents.risk_reasoning import RiskReasoningAgent
 
 
 class FinanceCrew:
     DISCLAIMER = "FINDEC is a decision support tool only and does not constitute financial advice."
 
     def __init__(self) -> None:
+        self.planner = PlannerAgent()
         self.researcher = ResearcherAgent()
+        self.market_agent = MarketAgent()
         self.analyst = AnalystAgent()
         self.risk_manager = RiskManagerAgent()
+        self.risk_reasoner = RiskReasoningAgent()
+        self.verifier = VerificationAgent()
+        self.explainer = ExplanationAgent()
 
     def run(self, query: dict) -> dict:
         ticker = query["ticker"].upper()
@@ -38,6 +58,21 @@ class FinanceCrew:
 
         agent_logs: List[Dict] = []
 
+        plan = self.planner.plan(
+            query=user_query,
+            ticker=ticker,
+            budget=budget,
+            risk_profile=risk_profile,
+        )
+        agent_logs.append(
+            {
+                "agent": "Planner",
+                "state": "completed",
+                "durationMs": plan.get("durationMs"),
+                "message": plan.get("message", "Planning completed"),
+            }
+        )
+
         sentiment = self.researcher.analyze(ticker=ticker, query=user_query)
         agent_logs.append(
             {
@@ -45,6 +80,16 @@ class FinanceCrew:
                 "state": "completed",
                 "durationMs": sentiment.get("durationMs"),
                 "message": sentiment.get("message", "Sentiment completed"),
+            }
+        )
+
+        market = self.market_agent.fetch(ticker=ticker)
+        agent_logs.append(
+            {
+                "agent": "Market Agent",
+                "state": "completed",
+                "durationMs": market.get("durationMs"),
+                "message": market.get("message", "Market data fetched"),
             }
         )
 
@@ -66,6 +111,8 @@ class FinanceCrew:
                 }
             )
 
+        risk_reasoning: Optional[dict] = None
+
         if version >= 4 and prediction is not None:
             risk = self.risk_manager.evaluate(
                 ticker=ticker,
@@ -82,6 +129,37 @@ class FinanceCrew:
                 }
             )
 
+            risk_reasoning = self.risk_reasoner.reason(
+                ticker=ticker,
+                prediction=prediction,
+                risk=risk,
+                market=market,
+                sentiment=sentiment,
+            )
+            agent_logs.append(
+                {
+                    "agent": "Risk Reasoning",
+                    "state": "completed",
+                    "durationMs": risk_reasoning.get("durationMs"),
+                    "message": risk_reasoning.get("message", "Risk reasoning completed"),
+                }
+            )
+
+        verification = self.verifier.verify(
+            sentiment=sentiment,
+            prediction=prediction,
+            risk=risk,
+            market=market,
+        )
+        agent_logs.append(
+            {
+                "agent": "Verification",
+                "state": "completed",
+                "durationMs": verification.get("durationMs"),
+                "message": verification.get("message", "Verification completed"),
+            }
+        )
+
         recommendation = self._build_recommendation(
             ticker=ticker,
             budget=budget,
@@ -92,11 +170,33 @@ class FinanceCrew:
             risk=risk,
         )
 
+        explanation = self.explainer.explain(
+            ticker=ticker,
+            recommendation=recommendation,
+            sentiment=sentiment,
+            market=market,
+            prediction=prediction,
+            risk=risk,
+            verification=verification,
+        )
+        agent_logs.append(
+            {
+                "agent": "Explanation",
+                "state": "completed",
+                "durationMs": explanation.get("durationMs"),
+                "message": explanation.get("message", "Explanation completed"),
+            }
+        )
+
         return {
             "query": user_query,
             "ticker": ticker,
             "version": version,
             "disclaimer": self.DISCLAIMER,
+            "plan": plan,
+            "market": market,
+            "verification": verification,
+            "riskReasoning": risk_reasoning,
             "sentiment": {
                 "level": sentiment["level"],
                 "score": sentiment["score"],
@@ -111,6 +211,7 @@ class FinanceCrew:
             "prediction": prediction,
             "risk": risk,
             "recommendation": recommendation,
+            "explanation": explanation,
             "agentLogs": agent_logs,
         }
 

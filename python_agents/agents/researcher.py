@@ -12,11 +12,23 @@ BEARISH_THRESHOLD = -0.2
 
 try:
     from ..models.sentiment_nlp import aggregate_sentiment, label_sentiment
+    from ..models import finbert_sentiment
 except Exception:
     try:
         from models.sentiment_nlp import aggregate_sentiment, label_sentiment
+        from models import finbert_sentiment
     except ModuleNotFoundError:
         from python_agents.models.sentiment_nlp import aggregate_sentiment, label_sentiment
+        from python_agents.models import finbert_sentiment
+
+
+def _classify_sentiment(text: str) -> str:
+    """FinBERT first (local model, no API key); lexicon fallback if the
+    model isn't available (not installed, couldn't download, etc.)."""
+    finbert_label = finbert_sentiment.classify(text)
+    if finbert_label is not None:
+        return finbert_label
+    return label_sentiment(text)
 
 
 class ResearcherAgent:
@@ -50,7 +62,7 @@ class ResearcherAgent:
             labels = []
             weights = []
             for resource in resources:
-                label = label_sentiment(resource["title"])
+                label = _classify_sentiment(resource["title"])
                 relevance = self._resource_relevance(resource=resource, ticker=ticker, query=query)
                 influence, recency_weight, age_hours = self._resource_influence(
                     resource=resource,
@@ -116,7 +128,7 @@ class ResearcherAgent:
         labels = []
         weights = []
         for resource in resources:
-            label = label_sentiment(f"{resource['title']} {resource.get('snippet', '')}")
+            label = _classify_sentiment(f"{resource['title']} {resource.get('snippet', '')}")
             relevance = self._resource_relevance(resource=resource, ticker=ticker, query=query)
             influence, recency_weight, age_hours = self._resource_influence(
                 resource=resource,
