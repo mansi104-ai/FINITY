@@ -1,0 +1,24 @@
+# Full local / evaluation environment. NOT for serverless deployment --
+# torch alone exceeds Vercel's 500 MB function limit several times over.
+#
+# Install the CPU wheel explicitly. The default index serves a CUDA build
+# that is multiple GB larger and buys nothing here: FinBERT is a ~110M
+# parameter encoder scoring a handful of headlines, which runs at ~189 ms per
+# article on CPU.
+#
+#   pip install -r requirements-full.txt \
+#       --extra-index-url https://download.pytorch.org/whl/cpu
+#
+# Verified on CPython 3.13 with torch 2.13.0+cpu and transformers 5.14.1.
+# The previously pinned torch==2.5.1 / transformers==4.46.3 do NOT install on
+# 3.13 -- torch added 3.13 support in 2.6.
+
+-r requirements.txt
+
+# FinBERT sentiment (Researcher agent). Without these the agent reports
+# UNAVAILABLE and the pipeline continues on the remaining evidence.
+torch>=2.6
+transformers>=5.0
+
+# Offline evaluation and the forward test only.
+scikit-learn>=1.6
