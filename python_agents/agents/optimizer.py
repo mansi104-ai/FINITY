@@ -69,9 +69,14 @@ class OptimizerVerdict:
 
 
 class OptimizerAgent:
-    def __init__(self, llm=None, max_iterations: int = 2) -> None:
+    def __init__(self, llm=None, max_iterations: int = 2, memory=None) -> None:
         self.llm = llm if llm is not None else get_llm()
         self.max_iterations = max_iterations
+        # Optional MemoryStore. Lessons are supplied to the LLM as *context
+        # for judging sufficiency*, never as an input to the numeric
+        # weighting: a free-text claim adjusting a weight would put an
+        # unauditable term into every downstream number.
+        self.memory = memory
 
     # ------------------------------------------------------------------
     def run(self, graph: TaskGraph, results: List[AgentResult],
@@ -91,7 +96,7 @@ class OptimizerAgent:
                 break
 
             # Genuine disagreement: now it is worth spending a call.
-            plan = self._ask_llm(graph, results)
+            plan = self._ask_llm(graph, results, as_of)
             if plan is None:
                 # No budget or upstream down. Proceed on what we have and say
                 # so, rather than blocking the pipeline on a nice-to-have.
@@ -157,7 +162,8 @@ class OptimizerAgent:
                        f"{len(usable)}/{len(results)} returned evidence")
 
     # ------------------------------------------------------------------
-    def _ask_llm(self, graph: TaskGraph, results: List[AgentResult]) -> Optional[Dict]:
+    def _ask_llm(self, graph: TaskGraph, results: List[AgentResult],
+                 as_of: Optional[str] = None) -> Optional[Dict]:
         lines = []
         for r in results:
             lines.append(
@@ -165,11 +171,31 @@ class OptimizerAgent:
                 f"confidence={r.confidence:.2f}\n"
                 f"  payload: {r.payload}\n"
                 f"  notes: {'; '.join(r.reasoning[:2])}")
+
+        # Point-in-time recall: `recall` returns only lessons learned strictly
+        # before `as_of`, so a decision can never be informed by a lesson
+        # derived from its own day's traces. With no as_of we are serving
+        # live, and everything already learned is legitimately available.
+        memo = ""
+        if self.memory is not None:
+            try:
+                scope = graph.tickers[0] if graph.tickers else None
+                lessons = self.memory.recall(as_of or "9999-12-31",
+                                             scope=scope, limit=5)
+                if lessons:
+                    memo = ("\n\nPrior lessons from audited past decisions "
+                            "(context only -- they do not override today's "
+                            "evidence):\n" + "\n".join(
+                                f"- [{x.scope}, seen {x.times_seen}x] {x.claim}"
+                                for x in lessons))
+            except Exception:
+                memo = ""
+
         user = (
             f"User intent: {graph.intent.value}\n"
             f"Securities: {', '.join(graph.tickers) or 'n/a'}\n"
             f"Horizon: {graph.horizon_days} days | risk posture: {graph.risk_posture.value}\n\n"
-            f"Agent results:\n" + "\n".join(lines))
+            f"Agent results:\n" + "\n".join(lines) + memo)
 
         res = self.llm.complete_json(
             system=OPTIMIZER_SYSTEM, user=user,

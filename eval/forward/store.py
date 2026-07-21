@@ -66,6 +66,13 @@ class Prediction:
     position_pct: float = 0.0  # fraction of capital, if the arm sizes
 
     ref_close: Optional[float] = None   # close on as_of; the comparison basis
+    # Compact per-agent payloads behind the call: predicted return, sentiment
+    # score, volatility, VaR. Recorded because a trace without them is not
+    # auditable -- the Auditor rejected early traces on exactly this ground,
+    # since the rationale quoted figures that appeared nowhere in the
+    # evidence it was shown. A decision record has to carry the numbers its
+    # own explanation refers to.
+    agent_evidence: Dict[str, Any] = field(default_factory=dict)
     intent: str = ""
     pipeline_version: str = "v2"
     planner_model: str = ""

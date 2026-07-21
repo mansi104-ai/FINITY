@@ -168,12 +168,18 @@ class AuditorAgent:
         batch = traces[:max_traces]
         lines = []
         for t in batch:
+            # `evidence` carries the per-agent figures the rationale quotes.
+            # Omitting it made every trace unauditable: the Auditor rejected
+            # them wholesale because the rationale cited returns and regimes
+            # that appeared nowhere in what it had been shown, and it was
+            # right to.
             lines.append(
                 f"- id={t.get('decision_id')} {t.get('ticker')} arm={t.get('arm')} "
                 f"as_of={t.get('as_of')}\n"
                 f"  call: {t.get('direction')} conf={t.get('confidence')} "
                 f"position={t.get('position_pct')}%\n"
                 f"  agents: {t.get('agents_used')}  weights: {t.get('fusion_weights')}\n"
+                f"  evidence: {t.get('agent_evidence') or 'NOT RECORDED'}\n"
                 f"  rationale: {t.get('rationale')}")
 
         res = self.llm.complete_json(

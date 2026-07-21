@@ -64,13 +64,26 @@ _CACHE_DIR = _STATE_DIR / "llm_cache"
 # matters: without it a chatty Optimizer on a volatile morning consumes the
 # whole allowance and the Auditor never runs.
 DAILY_BUDGET = int(os.getenv("FINDEC_LLM_DAILY_BUDGET", "45"))
+
+# Shares reflect measured day-1 demand, not an even split.
+#
+#   planner    ~1/day. Plans cache on query shape, so a 40-ticker run costs
+#              one call on the first day and zero after. Headroom is for
+#              cache misses and prompt-version bumps.
+#   optimizer  the real consumer: one screen per ticker per arm, of which the
+#              conflicted minority escalate to a call. Day 1 hit its 15-call
+#              ceiling partway through the universe, leaving later tickers
+#              unadjudicated.
+#   researcher 0/day. FinBERT scores sentiment locally.
+#   curator    0/day. Deterministic by design.
+#   auditor    ~1/day. The whole day batches into one request.
 CATEGORY_SHARE = {
-    "planner": 0.20,
-    "optimizer": 0.34,
-    "researcher": 0.22,
-    "auditor": 0.12,
-    "curator": 0.06,
-    "probe": 0.06,
+    "planner": 0.10,
+    "optimizer": 0.60,
+    "auditor": 0.15,
+    "researcher": 0.05,
+    "curator": 0.02,
+    "probe": 0.08,
 }
 
 

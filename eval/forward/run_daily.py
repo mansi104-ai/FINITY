@@ -36,6 +36,7 @@ arm-vs-arm difference with whatever the market did in between.
 from __future__ import annotations
 
 import argparse
+import random
 import sys
 import time
 import traceback
@@ -161,7 +162,11 @@ class ArmB:
 
         self.horizon = horizon
         self.router = Router(build_default_adapters(fetcher))
-        self.optimizer = OptimizerAgent(max_iterations=2)
+        from agents.auditor import MemoryStore
+        # Memory is read here and written by the Auditor at the end of the
+        # run, so lessons only ever reach the *next* day's decisions.
+        self.optimizer = OptimizerAgent(max_iterations=2,
+                                        memory=MemoryStore())
         # Planned once, at construction. Cached across days by query text, so
         # this costs one LLM call on the first run and zero thereafter.
         self.template = PlannerAgent().plan(ARM_B_QUERY.format(h=horizon))
@@ -236,6 +241,13 @@ class ArmB:
             "regime": regime,
             "fusion_weights": fw.weights,
             "agents_used": [r.agent.value for r in results if r.usable],
+            # The figures the rationale refers to, so the trace can be checked.
+            "agent_evidence": {
+                r.agent.value: {k: (round(v, 4) if isinstance(v, float) else v)
+                                for k, v in (r.payload or {}).items()
+                                if k not in ("ticker",)}
+                for r in results if r.usable
+            },
             "optimizer_iterations": verdict.iterations,
             "llm_calls": verdict.llm_calls,
             "rationale": (f"{decision['action']} score={decision['score']:+.2f} "
@@ -325,6 +337,17 @@ def main() -> int:
 
     man = U.load_manifest()
     syms = U.tickers()[: a.limit] if a.limit else U.tickers()
+
+    # Rotate the order each day, seeded on the date.
+    #
+    # The Optimizer's LLM allowance can run out partway through a 40-ticker
+    # universe, and whatever is processed after that point is adjudicated
+    # deterministically instead. Iterating alphabetically would hand the
+    # richer treatment to AAPL every single day and never to XOM, making
+    # arm B's quality a function of ticker name -- a confound that would
+    # survive into the results. A date-seeded shuffle spreads the shortfall
+    # evenly across the universe while staying exactly reproducible.
+    random.Random(today).shuffle(syms)
     print(f"forward-test {today} | universe {man['hash']} "
           f"({len(syms)}/{man['n_tickers']} tickers) | arms={arms} | h={a.horizon}d")
 
@@ -374,6 +397,10 @@ def main() -> int:
                 meta = dict(pipeline_version="v2-armA-numerical",
                             agents_used=["analyst"], position_pct=0.0,
                             fusion_weights={}, llm_calls=0, degraded=False,
+                            agent_evidence=({"analyst": {
+                                "predicted_return_pct":
+                                    round(r["predicted_return_pct"], 4)}}
+                                if r and "error" not in r else {}),
                             rationale=(f"predicted return "
                                        f"{r['predicted_return_pct']:+.2f}%")
                             if r and "error" not in r else "")
@@ -386,6 +413,7 @@ def main() -> int:
                                 fusion_weights=r["fusion_weights"],
                                 llm_calls=r["llm_calls"],
                                 degraded=r["degraded"],
+                                agent_evidence=r["agent_evidence"],
                                 rationale=r["rationale"])
                 except Exception as e:
                     r = {"error": f"{type(e).__name__}: {e}"}
@@ -417,6 +445,7 @@ def main() -> int:
                 fusion_weights=meta.get("fusion_weights", {}),
                 llm_calls=meta.get("llm_calls", 0),
                 degraded=meta.get("degraded", False),
+                agent_evidence=meta.get("agent_evidence", {}),
                 rationale=meta.get("rationale", ""),
                 duration_ms=r["duration_ms"],
             ))
