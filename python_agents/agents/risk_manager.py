@@ -20,6 +20,14 @@ except Exception:
 
 
 class RiskManagerAgent:
+    """Quantitative risk: Value-at-Risk + position sizing.
+
+    Reports `dataAvailable: False` (rather than a made-up VaR) whenever
+    either the upstream prediction or the VaR calculation itself lacked
+    enough real data. See risk/var_calculator.py for why the previous
+    synthetic-returns fallback was removed.
+    """
+
     POSITION_MAP = {
         "low": 0.06,
         "medium": 0.1,
@@ -41,6 +49,18 @@ class RiskManagerAgent:
 
         var = calculate_var(ticker=ticker, position_value=budget)
 
+        if not var.get("dataAvailable", False):
+            return {
+                "dataAvailable": False,
+                "valueAtRiskPct": None,
+                "level": "unknown",
+                "recommendedPositionSizePct": 0.0,
+                "message": (
+                    f"Skipped risk evaluation for {ticker}: {var.get('message', 'VaR could not be computed.')}"
+                ),
+                "durationMs": int((time.perf_counter() - start) * 1000),
+            }
+
         max_position_pct = self.POSITION_MAP.get(risk_profile, 0.1) * 100
         risk_level = self._risk_level(var_pct=var["var_pct"], base_limit=max_position_pct)
 
@@ -50,11 +70,14 @@ class RiskManagerAgent:
         return {
             "dataAvailable": True,
             "valueAtRiskPct": round(var["var_pct"], 2),
+            "valueAtRiskUsd": var.get("var_usd"),
+            "volatilityPct": var.get("volatility_pct"),
+            "varObservationCount": var.get("observationCount"),
             "level": risk_level,
             "recommendedPositionSizePct": round(recommended_pct, 2),
             "message": (
-                f"VaR computed with 90-day historical returns. Risk refs sigma={SIGMA_REF}, drawdown={DRAWDOWN_REF}, "
-                f"RSI band {RSI_OVERSOLD}-{RSI_OVERBOUGHT}."
+                f"VaR computed from {var.get('observationCount', 0)} historical daily returns. "
+                f"Risk refs sigma={SIGMA_REF}, drawdown={DRAWDOWN_REF}, RSI band {RSI_OVERSOLD}-{RSI_OVERBOUGHT}."
             ),
             "durationMs": int((time.perf_counter() - start) * 1000),
         }

@@ -630,17 +630,26 @@ class MarketForecaster:
             )
             is_high_vol.append(high_vol)
 
-            # Ensemble direction: classifier trained on the same rolling
-            # window (same standardization stats as Ridge -- step 11), and
-            # purpose-built for sign prediction. If it disagrees with the
-            # Ridge model's sign, we go with the classifier's confident
-            # call; if it's unsure (~50/50), we defer to Ridge.
+            # Ensemble direction: classifier trained on the same rolling window
+            # (same standardization stats as Ridge -- step 11), purpose-built for
+            # sign prediction. The classifier is a weaker learner than Ridge on
+            # its own (measured: it dragged average directional accuracy BELOW
+            # Ridge when allowed to override freely), so it is used ONLY as a
+            # tie-breaker: it may flip the call away from Ridge just when Ridge is
+            # near its OWN decision boundary (a small-magnitude prediction, i.e.
+            # low Ridge conviction) AND the classifier is genuinely confident.
+            # When Ridge predicts a sizeable move it is trusted outright. This
+            # confines the weak learner's influence to exactly the cases where
+            # Ridge has no conviction, so the ensemble can improve on Ridge in
+            # the coin-flip zone without degrading it where Ridge is decisive.
             clf_weights = self._fit_logistic(X=X_train_scaled, y=y_train, l2=clf_l2)
             prob_up = self._logistic_prob(clf_weights, point_scaled)
             ridge_sign = 1 if ridge_pred >= 0 else -1
-            if prob_up >= 0.55:
+            ridge_tie_threshold = 0.3 * float(np.median(np.abs(y_train))) if len(y_train) else 0.0
+            ridge_uncertain = abs(ridge_pred) < ridge_tie_threshold
+            if ridge_uncertain and prob_up >= 0.60:
                 ensemble_sign = 1
-            elif prob_up <= 0.45:
+            elif ridge_uncertain and prob_up <= 0.40:
                 ensemble_sign = -1
             else:
                 ensemble_sign = ridge_sign

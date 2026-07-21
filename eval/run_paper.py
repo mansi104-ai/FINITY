@@ -1,0 +1,142 @@
+"""
+run_paper.py -- regenerate EVERY number in the paper with one command.
+
+    python run_paper.py                 # full run (slow, publication settings)
+    python run_paper.py --quick         # smoke test
+    python run_paper.py --out results/paper_numbers.md
+
+Reproducibility is a reviewer requirement, not a nicety: the entire point of this
+project's contribution is that results in this literature are hard to reproduce
+and easy to get wrong. Every table in the paper must come from this script, and
+any number that cannot be regenerated here does not go in the paper.
+
+Order matters -- tests run FIRST. If the lookahead regression tests fail, no
+performance number produced afterwards is trustworthy, so the run aborts.
+"""
+
+from __future__ import annotations
+
+import argparse
+import io
+import subprocess
+import sys
+import time
+from contextlib import redirect_stdout
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+
+def _run_tests() -> bool:
+    print("=" * 80)
+    print("[0/5] CORRECTNESS GATE -- test suite")
+    print("=" * 80)
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "test_no_lookahead.py", "test_significance.py", "-q"],
+        cwd=HERE, capture_output=True, text=True)
+    print(proc.stdout[-2000:])
+    if proc.returncode != 0:
+        print(proc.stderr[-2000:])
+        print("\nABORTING: correctness tests failed. No number produced after a failed")
+        print("lookahead test can be trusted. Fix the tests before regenerating results.")
+        return False
+    return True
+
+
+def _capture(label: str, fn) -> str:
+    print(f"\n{'=' * 80}\n{label}\n{'=' * 80}")
+    buf = io.StringIO()
+    t0 = time.time()
+    try:
+        with redirect_stdout(buf):
+            fn()
+        out = buf.getvalue()
+    except Exception as e:  # keep going; a failed section is reported, not fatal
+        out = f"!! SECTION FAILED: {type(e).__name__}: {e}\n" + buf.getvalue()
+    print(out)
+    print(f"[{time.time() - t0:.0f}s]")
+    return out
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Regenerate all paper numbers.")
+    ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--out", default="results/paper_numbers.md")
+    ap.add_argument("--skip-tests", action="store_true",
+                    help="not recommended; the tests are the correctness gate")
+    args = ap.parse_args()
+
+    if not args.skip_tests and not _run_tests():
+        sys.exit(1)
+
+    n_boot = 500 if args.quick else 2000
+    sections: dict[str, str] = {}
+
+    sys.argv = ["x"]  # scripts below parse argv; give them defaults
+
+    # --- Table 1: the lookahead impact ------------------------------------
+    def _lookahead():
+        import numpy as np
+        import eval_recommendation as er
+        tickers = ["AAPL", "MSFT", "AMZN", "TSLA", "NVDA"]
+        print(f"{'configuration':<42s} {'Sharpe':>8s} {'B&H':>8s} {'beats':>7s}")
+        print("-" * 68)
+        for lag, rf, tag in ((0, 0.0, "lag=0, rf=0   (ORIGINAL, defective)"),
+                             (1, 0.0, "lag=1, rf=0   (lookahead removed)"),
+                             (1, 0.04, "lag=1, rf=4%  (fully corrected)")):
+            p = er.StrategyParams(execution_lag_days=lag, risk_free_annual=rf)
+            ss, bb = [], []
+            for t in tickers:
+                r = er.run_ticker(t, "3y", ["high"], p, 0.6, False)["results"]["high"]["holdout"]
+                ss.append(r["strategy"].sharpe)
+                bb.append(r["buyhold"].sharpe)
+            print(f"{tag:<42s} {np.mean(ss):>8.3f} {np.mean(bb):>8.3f} "
+                  f"{sum(a > b for a, b in zip(ss, bb)):>5d}/5")
+    sections["table1_lookahead"] = _capture("[1/5] TABLE 1 -- lookahead impact", _lookahead)
+
+    # --- Table 2: significance --------------------------------------------
+    sections["table2_significance"] = _capture(
+        "[2/5] TABLE 2 -- significance tests",
+        lambda: runpy_exec("significance.py", ["--n-boot", str(n_boot)]))
+
+    # --- Table 3: power ----------------------------------------------------
+    sections["table3_power"] = _capture(
+        "[3/5] TABLE 3 -- power analysis",
+        lambda: runpy_exec("power_analysis.py", ["--quick"] if args.quick else []))
+
+    # --- Table 4: ablation -------------------------------------------------
+    sections["table4_ablation"] = _capture(
+        "[4/5] TABLE 4 -- ablation",
+        lambda: runpy_exec("ablation.py", ["--n-boot", str(n_boot)]))
+
+    # --- Table 5: reliability ---------------------------------------------
+    sections["table5_reliability"] = _capture(
+        "[5/5] TABLE 5 -- reliability weighting on/off",
+        lambda: runpy_exec("reliability_replay.py", ["--n-boot", str(n_boot)]))
+
+    out_path = HERE / args.out
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", encoding="utf-8") as fh:
+        fh.write("# FINDEC -- generated paper numbers\n\n")
+        fh.write(f"Generated by `run_paper.py`{' --quick' if args.quick else ''} "
+                 f"on {time.strftime('%Y-%m-%d %H:%M:%S')}.\n\n")
+        fh.write("Every number in the paper must appear below. If it is not here, it\n"
+                 "is not reproducible and must not be published.\n\n")
+        for name, body in sections.items():
+            fh.write(f"\n## {name}\n\n```\n{body}\n```\n")
+    print(f"\nWrote {out_path}")
+
+
+def runpy_exec(script: str, extra_argv: list[str] | None = None) -> None:
+    """Execute a sibling script's main() with a controlled argv."""
+    import runpy
+    saved = sys.argv
+    sys.argv = [script] + (extra_argv or [])
+    try:
+        runpy.run_path(str(HERE / script), run_name="__main__")
+    finally:
+        sys.argv = saved
+
+
+if __name__ == "__main__":
+    main()

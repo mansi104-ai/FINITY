@@ -1,0 +1,502 @@
+%% ===========================================================================
+%% FINDEC v5 -- revised for statistical defensibility.
+%%
+%% CHANGES FROM v4 (all marked with %% [CHANGED] in place):
+%%   1. Abstract      -- 59.2% claim hedged (not significant); synthetic-data
+%%                       fallback reframed; grammar repaired throughout.
+%%   2. Introduction  -- synthetic-fallback sentence corrected; new contribution
+%%                       bullet for the power analysis.
+%%   3. Fig. 1 caption-- no longer describes synthetic fallback as the behaviour.
+%%   4. Sec IV-B-4    -- Fallback Regime rewritten as a cautionary finding.
+%%   5. Table II      -- 95% confidence interval column added.
+%%   6. Sec VI-B      -- rewritten with CIs and the TSLA/NVDA concentration caveat.
+%%   7. Sec VI-C      -- new TSLA figure; Table III framed as descriptive.
+%%   8. Sec VI-E      -- NEW subsection: Statistical Significance and Power.
+%%   9. Limitations   -- statistical limitations added.
+%%  10. Conclusion    -- claims aligned to what the statistics support.
+%%
+%% FIGURE REQUIRED: copy eval/results/tsla_equity_corrected.pdf next to this file.
+%% ===========================================================================
+
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{FINDEC: A Multi-Agent AI Framework for Intelligent Financial Decision Support}
+
+\author{
+\IEEEauthorblockN{Mansi, Sudesh Rani, and Kanu Goel}
+\IEEEauthorblockA{
+Department of Computer Science and Engineering\\
+Punjab Engineering College (Deemed to be University)\\
+Chandigarh, India\\
+\{mansi.bt22cse, sudeshrani, kanugoel\}@pec.edu.in
+}
+}
+
+\maketitle
+
+%% [CHANGED] Abstract: repaired grammar, hedged the gradient-boosting claim,
+%% corrected the synthetic-data description, added interval estimates.
+\begin{abstract}
+A sound investment decision seldom rests on a single input. It balances the tone of recent reporting, the behaviour of price, and the investor's own tolerance for loss, usually under time pressure. FINDEC automates that balancing act as an open-source multi-agent system: a Researcher Agent scores news sentiment, an Analyst Agent forecasts short-horizon price direction, and a Risk Manager Agent converts both into a recommendation matched to a stated risk appetite. The system is deployed as a Python FastAPI microservice behind a Node.js/Express backend and a Next.js frontend, released in versioned stages rather than as a single cut. Each agent performs one task: recency-weighted lexicon scoring over news articles, a Ridge and logistic ensemble over engineered technical, volatility, and cross-sectional features, and a risk-profile-aware composite score. When a news or market feed is unreachable, the pipeline marks that evidence explicitly unavailable and degrades the recommendation, rather than substituting values a user could not distinguish from genuine data. Measured on five years of real S\&P~500 price history under walk-forward validation, the Analyst Agent's Ridge model attains 55.7\% pooled directional accuracy, significantly above the 50\% baseline (95\% CI [51.7, 59.6], $p=0.006$), though the margin is concentrated in two of five tickers and no individual ticker is separable from chance. A gradient-boosted variant reached 59.2\% on a held-out split, but that 3.9-point margin does not survive correction for the four model variants compared ($p=0.22$), so we report it as a direction rather than a result. Position sizing from the Risk Manager reduces maximum drawdown substantially against buy-and-hold on every ticker, at a clear cost in absolute return. We also quantify what a study of this size can establish at all, and find that conventional significance thresholds are unreachable for risk-adjusted return differences of the magnitude typically claimed in this literature. Reporting that boundary, together with the techniques that failed to generalise, is what makes a baseline usable by whoever builds on it next.
+\end{abstract}
+
+\begin{IEEEkeywords}
+multi-agent systems, financial AI, sentiment analysis, market prediction, risk management, statistical power, decision support
+\end{IEEEkeywords}
+
+%% ============================================================
+\section{Introduction}
+%% ============================================================
+
+Professional investors rarely make a call alone -- an equity analyst, a quant, and a risk manager typically weigh in together, synthesizing market data, news, and macro signals before a decision gets made. Retail investors don't have that team, which is a large part of why the gap in decision quality between institutional and individual investing persists.
+
+AI is starting to close that gap. Large language models, retrieval-augmented pipelines, and finance-specific tooling are reshaping investment research and financial intermediation~\cite{aldasoro2025intelligent, khan2025bridging}. Give an LLM access to live news and tabular market data and it stops being limited to what it memorized during training~\cite{qin2024toolllm, sinha2026finbloom}. Systems such as FinRobot~\cite{yang2024finrobot}, TradingAgents~\cite{xiao2024tradingagents}, and FinGPT~\cite{yang2023fingpt} already demonstrate this, but most lean on paid LLM APIs, proprietary feeds, or GPU infrastructure that puts them out of reach without a serious budget.
+
+%% [CHANGED] corrected the fallback description
+FINDEC targets that constraint directly. It is a lightweight, open-source system splitting analysis across three agents, each handling a distinct data modality, none requiring a GPU or a paid LLM subscription. When a market or news source cannot be reached, the affected agent reports its evidence as unavailable and the orchestrator adjusts the recommendation accordingly, so a degraded answer is always distinguishable from a fully-informed one. It ships in stages (v1 through v4) rather than as one release, and exposes a conversational interface rather than a raw dashboard. This paper's contributions:
+
+\begin{itemize}
+\item A three-agent pipeline -- Researcher, Analyst, Risk Manager -- for LLM-free sentiment analysis, price prediction, and risk-adjusted recommendation synthesis.
+\item A lexicon-based, recency-weighted sentiment scorer and a Ridge/logistic-classifier ensemble over engineered technical, volatility, and cross-sectional features, both light enough for an ordinary CPU.
+\item A composite risk-aware scoring function blending sentiment, predicted return, volatility-adjusted risk, and RSI-based regime signals, validated through transaction-cost- and confidence-aware backtesting.
+\item A staged deployment architecture (v1--v4) built on a FastAPI agent service, a Node.js/Express backend, and a Next.js frontend.
+%% [CHANGED] new contribution bullet
+\item An explicit account of what a five-year, five-ticker evaluation can and cannot establish, with interval estimates attached to every accuracy figure and a power calculation bounding the risk-adjusted-return comparison.
+\item A five-year walk-forward evaluation across five S\&P 500 tickers with strict tuning/test separation, reporting negative results alongside positive ones for a trustworthy baseline.
+\end{itemize}
+
+Section~\ref{sec:related} surveys related systems, Section~\ref{sec:arch} lays out the architecture, Section~\ref{sec:agents} covers each agent's design, Section~\ref{sec:pipeline} covers orchestration, Section~\ref{sec:evaluation} presents results, Section~\ref{sec:discussion} discusses them, and Section~\ref{sec:conclusion} closes.
+
+%% ============================================================
+\section{Related Work}
+\label{sec:related}
+%% ============================================================
+
+\subsection{Multi-Agent Financial Systems}
+
+Splitting financial reasoning across specialized roles is not new -- TradingAgents~\cite{xiao2024tradingagents} assigns separate fundamental, sentiment, news, and technical analysts alongside dedicated researcher and risk-manager roles. Work on LLM-based multi-agent systems has largely focused on how agents specialize, stay diverse and autonomous, communicate, and what regulatory questions arise once financial agents make real decisions~\cite{lee2025large, liu2026large}. FINDEC borrows the decomposition idea but uses fewer agents, optimizing for ease of deployment over a full trading simulation.
+
+FinRobot~\cite{yang2024finrobot} pairs LLMs, reinforcement learning, and quant analysis via Fin-CoT prompting, but needs GPU infrastructure and proprietary data. FINDEC avoids that dependency, running on CPUs with live market data treated as optional. Recent benchmarking of open-source financial multi-agent systems makes a similar point: lightweight, reproducible setups are worth the trade-off even at some cost to peak predictive accuracy~\cite{zhang2026finworld}.
+
+%% [CHANGED] added evaluation-practice framing; this is what justifies Sec VI-E
+A separate strand of concern runs through this literature and motivates our evaluation section. Reported results are commonly established over windows spanning a few months to two years, on a handful of large-capitalisation equities whose returns are strongly correlated, and are presented as point estimates without interval bounds. Classical work on technical trading rules showed that apparent rule performance shrinks sharply once the breadth of the configuration search is priced into the inference~\cite{sullivan1999data}. The same caution transfers to searches over agent and model configurations, and Section~\ref{sec:evaluation} applies it to our own results rather than to anyone else's.
+
+\subsection{Sentiment Analysis in Finance}
+
+Financial sentiment analysis has improved through models incorporating domain dictionaries and more careful neutral-class feature extraction~\cite{sun2025financial}. The Researcher Agent takes a simpler route -- a CPU-friendly lexicon scorer -- leaving room to swap in a transformer model like FinBERT~\cite{araci2019finbert} later.
+
+\subsection{Market Forecasting}
+
+Combining engineered quantitative features with LLM-derived signals outperforms single-modality forecasting for short horizons, and pairing statistical smoothing with recurrent networks sharpens financial time-series prediction~\cite{gagneja2026lstm}. Retrieval-augmented, multimodal approaches push further, mixing text, tabular, and visual inputs~\cite{jiang2025multimodal}. The Analyst Agent takes a narrower path: regression over OHLCV data and a handful of market-context features from historical prices.
+
+\subsection{Risk Management Frameworks}
+
+Classical risk assessment leans on volatility and tail-risk measures -- VaR, CVaR, and relatives. Newer frameworks combine statistical estimation with language-derived signals to catch regime shifts earlier, pushing toward interpretability, uncertainty-awareness, and portfolio construction beyond raw return~\cite{chen2026smart}. Agentic portfolio frameworks go further, folding LLM-derived sentiment, regime-aware convex optimization, and constrained reinforcement learning together so objectives, risk budgets, and execution can adapt as conditions change~\cite{mantshimuli2026toward}, underscoring a shared emphasis on transparency and adaptivity under transaction costs, turnover limits, and shifting regimes. The Risk Manager Agent takes a scaled-down version: a three-tier risk profile (low, medium, high) inside a lightweight, transaction-cost-aware scoring rule.
+
+%% ============================================================
+\section{System Architecture}
+\label{sec:arch}
+%% ============================================================
+
+The proposed framework FINDEC is built as a three-tier microservices system, as shown in Figure~\ref{fig:arch}, keeping presentation, orchestration, and analysis deliberately separate so each can evolve independently. The frontend is a Next.js/TypeScript application using the App Router, organized around a conversational dashboard split between a main panel for charts/reports and a sidebar copilot for interaction.
+
+The Node.js/Express/TypeScript backend with REST is used for authentication, profile management, query routing, and report storage. Sessions run on JWT access tokens with refresh-token rotation, and reports are stored in MongoDB or in-memory storage depending on the configuration.
+
+The analysis itself happens in a Python FastAPI service behind a single \texttt{POST /run} endpoint, routing each query through the agent pipeline in Figure~\ref{fig:agents}. A \texttt{version} field controls pipeline depth: version 1 triggers only the Researcher Agent, version 2 adds the Analyst Agent, version 3 enables backend orchestration and report persistence, and version 4 runs the full pipeline including the Risk Manager Agent.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{FINDEC-Arch1.png}
+%% [CHANGED] caption no longer advertises synthetic fallback
+\caption{Three-tier deployment architecture of FINDEC. Solid arrows show primary request flow between tiers; the dashed arrow shows the agent service's outbound calls to external data providers, whose failure is surfaced as an explicit availability flag rather than masked.}
+\label{fig:arch}
+\end{figure}
+
+Everything ships via Docker Compose, with the frontend on port 3000, backend on 4000, and agent service on 8000. A single flag, \texttt{USE\_LIVE\_MARKET\_DATA}, selects the price source used at start-up.
+
+%% ============================================================
+\section{Agent Design and Algorithms}
+\label{sec:agents}
+%% ============================================================
+Each of the three agents in the proposed agentic framework plays a significant role in the stock decision. The Researcher Agent reads recent news for sentiment, the Analyst Agent looks at price history to forecast near-term movement, and the Risk Manager Agent combines both signals with market risk and the user's stated risk tolerance to generate the final decision. Figure~\ref{fig:agents} illustrates how the three agents function and interact with each other.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{FINDEC_agents.png}
+\caption{Internal functioning of the three FINDEC agents and the signals passed between them.}
+\label{fig:agents}
+\end{figure}
+
+\subsection{Researcher Agent: Sentiment Analysis}
+
+Active from Version 1 onward, the Researcher Agent gives the pipeline an early read on market mood, ahead of any price-based forecasting.
+
+\subsubsection{Data Ingestion}
+
+For a given ticker (e.g., \texttt{AAPL}), the agent builds search queries from the ticker and the user's own wording, falling back to broader macro terms (\emph{tariff}, \emph{inflation}) for economy-wide requests. Retrieved articles pass through a finance-keyword filter to strip off-topic noise and are deduplicated by source, since letting duplicates or irrelevant items through would dilute the sentiment signal. If retrieval returns nothing usable, the agent reports zero coverage and a null sentiment reading rather than inventing a corpus, and downstream weighting adjusts to the missing evidence.
+
+\subsubsection{Sentiment Scoring and Aggregation}
+
+Each article $d_i$ ($i=1,\dots,N$) is scored word by word against a signed lexicon, $\mathrm{lex}(w)\in\{-2,-1,0,1,2\}$. The raw score $\hat{s}_i$ averages lexicon weights over the $n_i$ words that carry sentiment:
+
+\begin{equation}
+\hat{s}_i = \frac{\sum_{w \in d_i}\mathrm{lex}(w)}{n_i}, \qquad n_i = \bigl|\{w \in d_i : \mathrm{lex}(w)\neq 0\}\bigr|
+\end{equation}
+
+defaulting to neutral when $n_i=0$, then bucketed into a five-level label $L_i$ (STRONG\_SELL to STRONG\_BUY) via Eq.~\eqref{eq:level-thresholds}.
+
+Not every article deserves equal weight: a same-day piece from a known outlet carries more signal than a stale mention from an obscure source. Each gets an influence weight $\omega_i$ combining a recency factor $\rho_i$, a relevance score $\mathrm{rel}_i \in [0,1]$ (token overlap with the ticker/query), and a source-credibility factor $\sigma_i$:
+
+\begin{equation}
+\omega_i = \mathrm{clip}\bigl(\mathrm{rel}_i \cdot \rho_i \cdot \sigma_i,\ 0.1,\ 2.2\bigr), \qquad \rho_i \propto \lambda^{a_i/h}
+\end{equation}
+
+where $a_i$ is article age in hours, $h$ a horizon-dependent half-life, and $\lambda=0.85$ the decay rate; $h$ shifts with the query's implied horizon ("today" vs. "this month"), and the implementation adds a small same-day freshness bonus plus a stale-article penalty on top. Mapping each $L_i$ to a numeric $v_i \in \{-2,...,2\}$, overall sentiment $S$ is the influence-weighted mean:
+
+\begin{equation}
+S = \frac{\sum_{i=1}^{N} v_i\,\omega_i}{\sum_{i=1}^{N} \omega_i} \in [-2,2]
+\end{equation}
+
+\begin{equation}
+\mathrm{level}(S) =
+\begin{cases}
+\text{STRONG\_BUY} & S \geq 1.5 \\
+\text{BUY} & 0.5 \leq S < 1.5 \\
+\text{HOLD} & -0.5 \leq S < 0.5 \\
+\text{SELL} & -1.5 \leq S < -0.5 \\
+\text{STRONG\_SELL} & S < -1.5
+\end{cases}
+\label{eq:level-thresholds}
+\end{equation}
+
+A companion confidence score $C \in [0.45, 0.95]$ captures cross-source agreement -- the same $S$ means more when sources agree than when coverage is scattered. Level, score, and confidence pass downstream to the Analyst Agent.
+
+\subsection{Analyst Agent: Price Prediction}
+
+Brought online in Version 2, the Analyst Agent turns raw market data into a short-term directional call through four stages: data acquisition, feature engineering, an ensemble model, and an offline fallback.
+
+\subsubsection{Data Acquisition}
+
+The agent pulls daily OHLCV data -- five years per ticker for the evaluation in Section~\ref{sec:evaluation} -- and needs at least a $T=90$-day rolling window before producing a prediction, with data cached locally to limit repeated external calls.
+
+\subsubsection{Feature Engineering}
+
+For each trading day $t$, a 16-dimensional feature vector extends a standard technical set with a few complementary features (Section~\ref{sec:evaluation} covers the correlation analysis behind this):
+
+\begin{equation}
+\begin{aligned}
+x_t = \big[\ &r_t^{(1)}, r_t^{(5)}, r_t^{(10)}, r_t^{(20)}, \sigma_{5,t}, \sigma_{10,t}, MA_{10,t}, MA_{20,t}, \\
+&\textstyle\frac{V_t}{\bar{V}}, RSI_{14,t}, M_t, B_t, m_t\ \big]
+\end{aligned}
+\end{equation}
+
+where $r_t^{(k)}$ is the $k$-day trailing return, $\sigma_{k,t}$ the $k$-day return volatility, $MA_{k,t}$ the $k$-day moving-average ratio, $V_t/\bar V$ volume relative to its 20-day norm, and $RSI_{14,t}$ the 14-day Relative Strength Index:
+
+\begin{equation}
+RSI_{14} = 100 - \frac{100}{1 + RS}, \qquad RS = \frac{\mathrm{Average\ Gain}_{14}}{\mathrm{Average\ Loss}_{14}}
+\end{equation}
+
+Three added features earned their place after the importance and correlation analysis in Section~\ref{sec:evaluation}: $M_t$, the MACD histogram (12-day EMA minus 26-day EMA, less its own 9-day EMA signal line, normalized by price); $B_t$, Bollinger \%B within a 20-day, 2-std band, capturing price extremity differently than the moving averages; and $m_t$, the ticker's 5-day return relative to SPY over the same window, giving thin cross-sectional context. Features are standardized and winsorized at 4 standard deviations using statistics from each rolling training window only, preventing future-window leakage.
+
+\subsubsection{Prediction Model}
+
+Two models train on the same rolling window. A Ridge regression predicts the forward return directly,
+
+\begin{equation}
+\hat{r} = w^\top x_t + b + \epsilon,
+\end{equation}
+
+retrained at each step over a sliding window of up to $W = 220$ trading days. A logistic-regression classifier is trained concurrently to predict the return's sign directly, rather than borrowing the regressor's sign as a proxy. At inference, the classifier's probability is used whenever it falls outside the 0.45--0.55 band; otherwise the Ridge sign applies -- reflecting that a model tuned for return magnitude isn't necessarily the one you want for direction, since those are distinct objectives. Trading decisions follow a threshold rule:
+\[
+\hat{r} > \theta^{+} \rightarrow \text{Buy}, \qquad
+\hat{r} < \theta^{-} \rightarrow \text{Sell}, \qquad
+\text{otherwise Hold},
+\]
+with $\theta^{+} = 0.005$, $\theta^{-} = -0.005$, matched to the model's five-day forecast horizon.
+
+Regularization strength was initially set by visual inspection; a later walk-forward hyperparameter search -- tuned on an earlier stretch of each ticker's history, tested only on the untouched remainder -- found no setting that reliably beat the default. We kept the simpler setting and report the null result here, since it says something useful about the limits of tuning in this setup.
+
+%% [CHANGED] Fallback Regime rewritten as a cautionary design finding.
+\subsubsection{Data Availability and Degradation}
+
+An earlier revision of the system substituted synthetic OHLCV drawn from a Geometric Brownian Motion process (drift $\mu = 0.0003$, daily volatility $\sigma_{\mathrm{daily}} = 0.015$) whenever live prices were unavailable, and ran the remainder of the pipeline unchanged. The intent was availability; the effect was that a recommendation derived from simulated prices was outwardly indistinguishable from one derived from the market. We removed that behaviour. The agent now emits an explicit availability flag, and the orchestrator reduces the weight of, or withholds, any component whose evidence is missing.
+
+We record the change because the original pattern is an easy one to adopt and a poor one to keep. In a decision-support setting, a fallback that preserves the appearance of a complete answer while discarding its provenance is more damaging than a visible failure: the user retains confidence they are no longer entitled to. Degradation should be observable at the interface, not absorbed silently beneath it.
+
+\subsection{Risk Manager Agent}
+
+The Risk Manager Agent is where predicted return, sentiment, and volatility converge into a single recommendation.
+
+\subsubsection{Volatility-Based Risk Scoring}
+
+Market risk starts from 20-day rolling volatility $\sigma_{20}$, normalized as:
+
+\begin{equation}
+\rho = \min\left(1, \frac{\sigma_{20}}{\sigma_{\mathrm{ref}}}\right)
+\end{equation}
+
+with $\sigma_{\mathrm{ref}}=0.03$ as the reference for a volatile stock, then adjusted using 14-day maximum drawdown $D$:
+
+\begin{equation}
+\rho' = 0.7\rho + 0.3\left(\frac{|D|}{D_{\mathrm{ref}}}\right)
+\end{equation}
+
+with $D_{\mathrm{ref}}=0.15$.
+
+\subsubsection{Risk Profile Weighting}
+
+Weighting between predicted return and risk mitigation depends on the user's risk profile:
+
+\[
+w_r =
+\begin{cases}
+(0.2, 0.8), & \text{Low Risk} \\
+(0.5, 0.5), & \text{Medium Risk} \\
+(0.8, 0.2), & \text{High Risk}
+\end{cases}
+\]
+
+The first term weights the Analyst's prediction signal, the second the risk-dampening factor. In the portfolio backtest (Section~\ref{sec:evaluation}), each profile also caps position size (6\%, 10\%, 16\% of capital for low, medium, high risk), tightened further under low ensemble confidence rather than sizing every accepted signal the same.
+
+\subsubsection{Composite Recommendation Score}
+
+\begin{equation}
+\label{eq:final}
+\mathrm{Score} = w_r^{(1)} \hat{r}_{\mathrm{norm}} + w_r^{(2)} S + (1-\rho')\Gamma
+\end{equation}
+
+where $\hat{r}_{\mathrm{norm}}$ is the normalized predicted return, $S$ the Researcher Agent's sentiment score, and $\Gamma \in \{-1,0,1\}$ an RSI-based regime flag (oversold, neutral, overbought). The score maps to five classes: Strong Buy, Buy, Hold, Sell, Strong Sell. The backtest also charges a 10-basis-point transaction cost on each position-size change.
+
+%% [CHANGED] execution-timing convention stated explicitly
+Position changes take effect on the session following the one whose closing data produced them. Stating this convention matters: applying a decision to the same session's return would let information from the closing price influence a position notionally taken before it, which inflates measured performance without any corresponding gain being reachable in practice.
+
+%% ============================================================
+\section{Orchestration Pipeline}
+\label{sec:pipeline}
+%% ============================================================
+
+Execution begins at \texttt{POST/run} and follows Algorithm~\ref{alg:findec}. Steps run in order because later agents depend on earlier outputs -- the Risk Manager, for instance, needs the Analyst's volatility estimate -- which also keeps inter-agent communication overhead and overall latency low.
+
+\begin{algorithm}[htbp]
+\caption{FINDEC Orchestration Workflow}
+\label{alg:findec}
+
+\textbf{Input:}
+$q = \{\texttt{ticker}, \texttt{version}, \texttt{risk\_profile}\}$
+
+\textbf{Output:}
+Composite report $O$
+
+\begin{algorithmic}[1]
+
+\STATE Initialize $O \leftarrow \{\}$
+
+\IF{$q.\texttt{version} \geq 1$}
+    \STATE Retrieve news articles using \texttt{FetchNews()}
+    \STATE Compute sentiment score using Researcher Agent
+    \STATE Store sentiment output in $O$
+\ENDIF
+
+\IF{$q.\texttt{version} \geq 2$}
+    \STATE Retrieve OHLCV market data
+    \STATE Execute Analyst Agent for prediction and volatility estimation
+    \STATE Store prediction output in $O$
+\ENDIF
+
+\IF{$q.\texttt{version} \geq 4$}
+    \STATE Compute adjusted risk score
+    \STATE Execute Risk Manager Agent
+    \STATE Store final recommendation score in $O$
+\ENDIF
+
+\STATE Return $O$
+
+\end{algorithmic}
+\end{algorithm}
+
+The backend caps authenticated users at ten queries per hour via a sliding-window token bucket. Reports are stored in MongoDB and retrievable via \texttt{GET /api/reports/:id}. Authentication runs on short-lived (15-minute) JWT access tokens backed by refresh tokens and per-session revocation.
+
+%% ============================================================
+\section{Evaluation}
+\label{sec:evaluation}
+%% ============================================================
+
+Unless noted, results here come directly from the running codebase, measured against five years (2021--2026) of genuine daily OHLCV history for five S\&P 500 names (AAPL, MSFT, AMZN, TSLA, NVDA) under strict walk-forward validation: at each step the model retrains on a trailing window and is tested only on the next unseen step, so no future information reaches a prediction. Wherever a held-out split was used to pick a hyperparameter, we say so explicitly, since scoring a choice on the data used to select it would overstate its benefit.
+
+%% [CHANGED] added interval reporting policy
+Accuracy figures are reported with 95\% Wilson score intervals, which remain valid for proportions at the sample sizes involved here, and comparisons between models carry the corresponding $p$-value. We adopt this convention throughout because the differences at stake are small relative to what samples of this size can resolve, a point Section~\ref{sec:power} develops directly.
+
+\subsection{Sentiment Classification Performance}
+
+The Researcher Agent's lexicon-based scoring was evaluated against a labeled financial-headline benchmark (Table~\ref{tab:sentiment}). These numbers are reported as originally measured; a re-check against a larger public benchmark -- the Financial PhraseBank corpus~\cite{sun2025financial}, directly comparable to the related-work baseline cited earlier -- is still in progress, since 500 internally labeled headlines alone is a limited basis for a generalization claim.
+
+\begin{table}[!ht]
+\centering
+\setlength{\belowcaptionskip}{3pt}
+\caption{Researcher Agent Sentiment Classification Performance. Intervals are 95\% Wilson bounds on recall.}
+\vspace{-2.5mm}
+\begin{tabular}{
+  >{\arraybackslash}m{34pt}
+  >{\centering\arraybackslash}m{30pt}
+  >{\centering\arraybackslash}m{28pt}
+  >{\centering\arraybackslash}m{52pt}
+  >{\centering\arraybackslash}m{22pt}
+  }
+  \toprule
+    \textbf{Class} & \textbf{Prec.} & \textbf{Recall} & \textbf{95\% CI (rec.)} & \textbf{Supp.} \\
+    \midrule
+    Positive & 0.84 & 0.88 & [0.83, 0.92] & 185 \\
+    Neutral  & 0.78 & 0.71 & [0.65, 0.77] & 210 \\
+    Negative & 0.90 & 0.96 & [0.91, 0.99] & 105 \\
+    \textbf{Macro Avg} & \textbf{0.84} & \textbf{0.85} & --- & \textbf{500} \\
+  \bottomrule
+\end{tabular}
+\label{tab:sentiment}
+\end{table}
+
+The neutral class comes out weakest on recall, matching a known limitation of lexicon-based methods: neutral language offers few strongly sentiment-bearing words to latch onto~\cite{sun2025financial}. A natural next step is swapping in a transformer encoder like FinBERT~\cite{araci2019finbert} for a more context-aware read.
+
+\subsection{Analyst Prediction Quality}
+
+Table~\ref{tab:analyst} reports directional accuracy (DA) and normalized mean absolute error (nMAE) for Ridge alone and the Ridge-plus-classifier ensemble, both retrained at every step over a trailing 220-day window and scored on each ticker's most recent 120 walk-forward steps.
+
+%% [CHANGED] CI column added
+\begin{table}[!ht]
+\centering
+\setlength{\belowcaptionskip}{3pt}
+\caption{Analyst Agent Walk-Forward Evaluation (5-year history, 5 tickers, $n=120$ steps/ticker). Intervals are 95\% Wilson bounds.}
+\vspace{-2.5mm}
+\begin{tabular}{
+  >{\centering\arraybackslash}m{26pt}
+  >{\centering\arraybackslash}m{34pt}
+  >{\centering\arraybackslash}m{48pt}
+  >{\centering\arraybackslash}m{38pt}
+  >{\centering\arraybackslash}m{28pt}
+  }
+  \toprule
+    \textbf{Ticker} & \textbf{DA Ridge} & \textbf{95\% CI} & \textbf{DA Ens.} & \textbf{nMAE} \\
+    \midrule
+    AAPL  & 52.5 & [43.6, 61.2] & 54.2 & 3.23 \\
+    MSFT  & 50.8 & [42.0, 59.6] & 50.8 & 4.14 \\
+    AMZN  & 47.5 & [38.8, 56.4] & 40.0 & 4.25 \\
+    TSLA  & 66.7 & [57.8, 74.5] & 64.2 & 3.85 \\
+    NVDA  & 60.8 & [51.9, 69.1] & 58.3 & 3.91 \\
+    \textbf{Pooled} & \textbf{55.7} & \textbf{[51.7, 59.6]} & \textbf{53.5} & \textbf{3.88} \\
+  \bottomrule
+\end{tabular}
+\label{tab:analyst}
+\end{table}
+
+%% [CHANGED] rewritten with honest concentration disclosure
+Pooled across all five tickers ($n=600$), Ridge's 55.7\% is significantly above the 50\% weak-form baseline ($p=0.006$), broadly consistent with published linear-model results for daily equity direction. The per-ticker picture is weaker than that average suggests. Only TSLA ($p<0.001$) and NVDA ($p=0.022$) are individually separable from chance; the intervals for AAPL, MSFT and AMZN all straddle 50\% and span roughly eighteen percentage points.
+
+The aggregate therefore rests on a narrow base. Excluding TSLA drops the pooled figure to 52.9\% ($p=0.22$); excluding NVDA as well leaves 50.3\% on $n=360$ ($p=0.96$), which is indistinguishable from a coin toss. We report this decomposition because an average over five correlated names can present a concentrated effect as a general one, and readers should know which of the two this is.
+
+The ensemble is the clearer negative result. At 53.5\% pooled it is not significantly above baseline ($p=0.09$), sits below Ridge, and falls markedly behind on AMZN, despite having beaten Ridge on an earlier and shorter one-year window. We report this rather than smoothing it over: it shows how readily a short evaluation window supports a conclusion that a longer one withdraws, and it is why the longer walk-forward protocol is used throughout this section.
+
+A separate comparison on a strict chronological tune/test split (hyperparameters chosen on the first 70\% of each ticker's history, scored once on the untouched 30\%) placed a gradient-boosted variant at 59.2\% average directional accuracy against Ridge's 55.3\%, ahead on four of five tickers. Taken alone this is the most encouraging number in the evaluation, but it does not survive the correction its provenance requires: the 3.9-point margin corresponds to $p=0.06$ under a paired comparison, and to $p=0.22$ once the four model variants we examined are accounted for. Resolving a difference of that size at 80\% power would need roughly 1{,}290 walk-forward steps against the 600 available. We therefore treat gradient boosting as a direction worth pursuing rather than as a demonstrated improvement.
+
+A pooled model trained across all five tickers at once, rather than one per ticker, was tested on the same split and performed worse (51.0\% vs. 55.3\%), included here for completeness.
+
+\subsection{Risk Manager Integration}
+
+Table~\ref{tab:risk} shows the medium-risk-profile portfolio backtest -- transaction costs included, positions scaled by confidence -- across all five tickers over the same window, against an unmanaged buy-and-hold baseline.
+
+\begin{table}[!ht]
+\centering
+\setlength{\belowcaptionskip}{3pt}
+\caption{Medium-Risk Portfolio vs. Buy-and-Hold (5-year, 5 tickers). Figures are descriptive of this window; see Section~\ref{sec:power}.}
+\vspace{-2.5mm}
+\begin{tabular}{
+  >{\arraybackslash}m{25pt}
+  >{\centering\arraybackslash}m{55pt}
+  >{\centering\arraybackslash}m{25pt}
+  >{\centering\arraybackslash}m{55pt}
+  >{\centering\arraybackslash}m{25pt}
+  }
+  \toprule
+  \textbf{Ticker} & \textbf{Model Ret. (\%)} & \textbf{Sharpe} & \textbf{B\&H Ret. (\%)} & \textbf{Sharpe}\\
+  \midrule
+    AAPL & -1.00 & -0.44 & 17.56 & 0.72 \\
+    MSFT & -1.11 & -0.55 & 7.14  & 0.39 \\
+    AMZN & -0.79 & -0.26 & 7.41  & 0.38 \\
+    TSLA & 3.30  & 0.64  & 13.00 & 0.50 \\
+    NVDA & 2.31  & 0.52  & 63.93 & 1.21 \\
+  \bottomrule
+\end{tabular}
+\label{tab:risk}
+\end{table}
+
+Position sizing from the Risk Manager cuts maximum drawdown sharply against buy-and-hold on every ticker (-7.4\% vs. -33.4\% on AAPL, -8.4\% vs. -66.4\% on NVDA; full figures omitted here for space, available in the repository), but not without cost: raw return is negative on three of five tickers, and Sharpe beats buy-and-hold on only two. That is a more mixed picture than a single favorable window would suggest, and we present it as such. The strategy is best described as a conservative, drawdown-averse alternative to full market exposure rather than a return-maximizer; a regime-aware sizing rule that scales exposure up during sustained uptrends (NVDA's over this window, for example) is a natural next step, discussed in Section~\ref{sec:discussion}.
+
+%% [CHANGED] NEW FIGURE
+Figure~\ref{fig:tsla} makes the trade-off concrete for TSLA, the most volatile name in the set. The managed position tracks close to its starting value throughout, while buy-and-hold traverses a drawdown exceeding 60\% before recovering. The lower panel is the substance of the claim: the drawdown envelope under position sizing stays within a few percent for the entire period, including the 2022 decline that the unmanaged position absorbs in full. The upper panel is equally important to read honestly -- the same constraint that suppresses the drawdown also keeps the strategy out of the subsequent recovery, and a simple moving-average rule captures more of both.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{tsla_equity_corrected.pdf}
+\caption{TSLA under the medium risk profile: growth of \$1 (top) and drawdown envelope (bottom), against buy-and-hold and an SMA(20/50) timing baseline. The dotted line marks the start of the held-out segment. Position changes take effect one session after the data that produced them. The managed position holds its drawdown within a few percent where buy-and-hold exceeds 60\%, and forgoes most of the upside in doing so.}
+\label{fig:tsla}
+\end{figure}
+
+\subsection{System Latency}
+
+Earlier testing put the full Version 4 pipeline under 1.3 seconds end to end on a 4-vCPU/8-GB reference server. The Analyst Agent now fits an additional logistic classifier at every walk-forward step alongside Ridge, adding a small, as-yet-unquantified amount of latency; re-measuring end-to-end latency under the updated model is pending work noted in Section~\ref{sec:discussion}.
+
+%% [CHANGED] NEW SUBSECTION
+\subsection{Statistical Power of This Evaluation}
+\label{sec:power}
+
+The comparisons above are limited less by the models than by how much a study of this size can resolve, and it is worth stating that boundary explicitly rather than leaving it implicit in the intervals.
+
+For directional accuracy the arithmetic is immediate. At $n=120$ walk-forward steps per ticker, the standard error of an accuracy estimate is $\sqrt{0.25/120} = 4.56$ percentage points, so a single ticker's 95\% interval spans about eighteen points. Only differences from the baseline larger than roughly nine points are detectable at that sample size, which is why three of the five per-ticker results in Table~\ref{tab:analyst} are inconclusive despite point estimates above or below 50\%. Pooling to $n=600$ narrows the standard error to 2.04 points and is what allows the aggregate Ridge result to reach significance.
+
+The portfolio comparison is bounded more tightly still. Treating the variance of a difference between two Sharpe ratios computed on correlated return series, and measuring the strategy-to-benchmark correlation directly from our own backtest ($\rho \approx 0.55$), a true Sharpe improvement of $+0.30$ would require on the order of $10^4$ trading days per ticker to detect at 80\% power. Five years supplies roughly 1{,}250. The corresponding power at the sample size actually available is under 10\%, against a 5\% false-positive rate. Table~\ref{tab:risk} cannot, in either direction, settle whether the managed strategy's risk-adjusted return differs from buy-and-hold, and we do not claim that it does.
+
+Two consequences follow for how the results should be read. First, the drawdown reduction is the substantive risk-management finding, because it is large, consistent in sign across all five tickers, and does not depend on resolving a small difference in means. Second, the return and Sharpe columns are descriptive of this window and should not be generalised. We note that this constraint is not specific to FINDEC: evaluations in this area frequently rest on shorter windows and similarly small, mutually correlated ticker sets, where the same arithmetic applies with greater force.
+
+%% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+%% ============================================================
+
+\subsection{Design Trade-offs}
+
+We deliberately kept heavy LLM reasoning out of FINDEC's low-level analytical operations, relying instead on deterministic algorithmic processing for predictable, auditable outputs -- valuable in a regulated financial context. This improves reproducibility, interpretability, and transparency relative to a fully generative agent pipeline, while the versioned architecture lets analytical complexity scale in stages without sacrificing responsiveness for lighter deployments. This mirrors a broader trend in explainable AI for finance, where deterministic scoring pipelines persist precisely because they simplify auditing and compliance checks. Future work will bring LLMs in at a higher level -- as a reasoning coordinator, for example synthesizing the Researcher Agent's source articles via retrieval-augmented generation -- while keeping deterministic subagents underneath as grounded computational tools.
+
+\subsection{Limitations}
+
+These limitations came directly out of running the evaluation, not from abstract caution. Ridge regression is cheap to run but, as Table~\ref{tab:analyst} shows, captures only a modest directional edge; the gradient-boosting comparison hints at headroom, but adopting it needs further latency and robustness testing, and the margin is not yet statistically established. The classifier ensemble improved results on a shorter window and did not generalize to the full five-year evaluation, a caution against selecting techniques on short backtests. The Risk Manager's portfolio strategy trades return for drawdown protection unevenly across tickers (Table~\ref{tab:risk}), and is fairer described as conservative than market-beating. The sentiment benchmark in Table~\ref{tab:sentiment} predates this evaluation refresh, and checking it against a larger public benchmark remains ongoing. Finally, lexicon-based sentiment scoring is inherently less nuanced than a transformer-based financial language model like FinBERT, likely the most direct avenue for future improvement.
+
+%% [CHANGED] statistical limitations paragraph
+Two further limitations are statistical rather than architectural. The evaluation universe is five large-capitalisation US technology stocks chosen after the fact; they are mutually correlated and survivorship-selected, so a cross-ticker average overstates the effective sample size and the window is not representative of arbitrary market conditions. More fundamentally, as Section~\ref{sec:power} sets out, the sample cannot support inferential claims about risk-adjusted return at conventional thresholds. Readers should treat the return and Sharpe figures as a description of this particular period. We report them in full, including the tickers on which the strategy loses money, precisely because selective presentation at this sample size is the mechanism by which spurious findings enter the literature.
+
+\subsection{Ethical Considerations}
+
+FINDEC is a decision-support tool, not an investment advisor, and every recommendation carries that disclaimer. Query rate limiting reduces the risk of automated misuse or market manipulation attempts. Because the framework is open source, its scoring mechanisms are independently auditable -- including, as this evaluation shows, auditing which claimed improvements do and do not survive longer or stricter testing.
+
+%% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%% ============================================================
+
+%% [CHANGED] claims aligned to the statistics
+FINDEC is a multi-agent AI framework for financial decision support built from a Researcher Agent for sentiment, an Analyst Agent for price prediction, and a Risk Manager Agent for risk-adjusted recommendations, wrapped in a production-style microservices architecture with a versioned rollout. Across a five-year, five-ticker walk-forward evaluation, the Analyst Agent's pooled directional accuracy sits significantly above random-walk, though the margin is concentrated in two tickers and no individual name is separable from chance; a gradient-boosted variant looks promising on held-out data but does not yet clear correction for the model search; and the Risk Manager Agent reduces drawdown substantially and consistently, at a clear cost in return that this sample cannot resolve into a risk-adjusted verdict. We report all of it -- the negative results, the ticker-specific concentration, and the boundary of what a study this size can establish -- as an honest baseline for a lightweight, LLM-free, reproducible financial decision-support system. Next steps include validating transformer-based sentiment scoring against a larger public benchmark, moving gradient boosting into production once stress-tested and confirmed on a longer sample, adding regime-aware position sizing to the Risk Manager Agent, and broadening the evaluation universe far enough that risk-adjusted comparisons become answerable at all.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

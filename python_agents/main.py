@@ -52,3 +52,21 @@ async def health() -> dict:
 @app.post("/run")
 async def run_agents(payload: QueryRequest) -> dict:
     return crew.run(payload.model_dump())
+
+
+@app.get("/reliability")
+async def reliability() -> dict:
+    """Transparency endpoint: dumps every agent's current reliability
+    profile (per volatility-regime context), as tracked in
+    services/reliability.py and used to adaptively weight each agent's
+    contribution to the buy score in orchestrator/crew.py.
+    """
+    return {
+        "agents": crew.reliability.snapshot(),
+        "note": (
+            "Scores are Bayesian-smoothed toward a 0.75 prior until an agent/context "
+            "accumulates enough real observations to override it. On serverless "
+            "deployments this resets on cold start (see services/reliability.py)."
+        ),
+    }
+

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="1140" viewBox="0 0 1160 1140" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-end">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a1a1a"/>
+    </marker>
+    <marker id="arrowDash" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-end">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+
+  <rect width="1160" height="1140" fill="#ffffff"/>
+
+  <!-- Vertical divider -->
+  <line x1="210" y1="10" x2="210" y2="900" stroke="#bdbdbd" stroke-width="2" stroke-dasharray="6 7"/>
+
+  <!-- ===================== TIER LABELS ===================== -->
+  <text x="105" y="80" text-anchor="middle" font-size="34" font-weight="700" fill="#2E7D32">TIER 1</text>
+  <text x="105" y="112" text-anchor="middle" font-size="18" fill="#2E7D32">(Presentation)</text>
+
+  <text x="105" y="430" text-anchor="middle" font-size="34" font-weight="700" fill="#E8850C">TIER 2</text>
+  <text x="105" y="462" text-anchor="middle" font-size="18" fill="#E8850C">(Backend &amp; Auth)</text>
+
+  <text x="105" y="775" text-anchor="middle" font-size="34" font-weight="700" fill="#7B3FE4">TIER 3</text>
+  <text x="105" y="807" text-anchor="middle" font-size="18" fill="#7B3FE4">(Agent Service)</text>
+
+  <!-- ===================== TIER 1: FRONTEND ===================== -->
+  <rect x="270" y="20" width="640" height="150" rx="16" fill="#D5EAD8" stroke="#2E7D32" stroke-width="3"/>
+  <circle cx="345" cy="95" r="42" fill="#ffffff" stroke="#2E7D32" stroke-width="3"/>
+  <text x="345" y="112" text-anchor="middle" font-size="46">🌐</text>
+  <text x="600" y="82" text-anchor="middle" font-size="34" font-weight="700" fill="#1B5E20">Next.js Frontend</text>
+  <text x="600" y="122" text-anchor="middle" font-size="21" fill="#1B5E20">(TypeScript / App Router) — Port 3000</text>
+
+  <!-- Arrow 1 -->
+  <line x1="470" y1="170" x2="470" y2="320" stroke="#1a1a1a" stroke-width="4" marker-end="url(#arrow)"/>
+  <text x="500" y="252" font-size="22" fill="#1a1a1a">HTTP/REST</text>
+
+  <!-- ===================== TIER 2: BACKEND ===================== -->
+  <rect x="270" y="330" width="440" height="170" rx="16" fill="#FBE2B7" stroke="#E8850C" stroke-width="3"/>
+  <text x="490" y="410" text-anchor="middle" font-size="34" font-weight="700" fill="#B5651D">Node.js / Express</text>
+  <text x="490" y="450" text-anchor="middle" font-size="23" fill="#B5651D">Backend — Port 4000</text>
+
+  <!-- Dashed arrow to JWT -->
+  <line x1="710" y1="415" x2="900" y2="415" stroke="#1a1a1a" stroke-width="3.5" stroke-dasharray="9 8" marker-end="url(#arrowDash)"/>
+  <text x="805" y="400" text-anchor="middle" font-size="21" fill="#1a1a1a">Auth/Verify</text>
+
+  <!-- JWT box -->
+  <rect x="905" y="335" width="240" height="160" rx="16" fill="#E7D8F9" stroke="#7B3FE4" stroke-width="3"/>
+  <circle cx="965" cy="400" r="34" fill="#ffffff" stroke="#7B3FE4" stroke-width="3"/>
+  <text x="965" y="414" text-anchor="middle" font-size="36">🔒</text>
+  <text x="1035" y="392" text-anchor="middle" font-size="26" font-weight="700" fill="#5B2C9E">JWT Auth</text>
+  <text x="1025" y="432" text-anchor="middle" font-size="19" fill="#5B2C9E">(MongoDB /</text>
+  <text x="1025" y="458" text-anchor="middle" font-size="19" fill="#5B2CF9">In-Memory)</text>
+
+  <!-- Arrow 2 -->
+  <line x1="470" y1="500" x2="470" y2="650" stroke="#1a1a1a" stroke-width="4" marker-end="url(#arrow)"/>
+  <text x="500" y="582" font-size="22" fill="#1a1a1a">POST /run (JSON)</text>
+
+  <!-- ===================== TIER 3: FASTAPI ===================== -->
+  <rect x="270" y="660" width="640" height="180" rx="16" fill="#E7D8F9" stroke="#7B3FE4" stroke-width="3"/>
+  <circle cx="345" cy="750" r="42" fill="#ffffff" stroke="#7B3FE4" stroke-width="3"/>
+  <text x="345" y="766" text-anchor="middle" font-size="44">⚡</text>
+  <text x="620" y="722" text-anchor="middle" font-size="30" font-weight="700" fill="#5B2C9E">FastAPI Agent Service <tspan font-size="22" font-weight="400">(Python) — Port 8000</tspan></text>
+  <text x="620" y="762" text-anchor="middle" font-size="22" fill="#5B2C9E">Researcher → Analyst → Risk Manager,</text>
+  <text x="620" y="794" text-anchor="middle" font-size="22" fill="#5B2C9E">versioned v1–v4</text>
+
+  <!-- ===================== LEGEND ===================== -->
+  <rect x="140" y="920" width="880" height="90" rx="16" fill="#ffffff" stroke="#1a1a1a" stroke-width="2.5"/>
+  <line x1="190" y1="965" x2="270" y2="965" stroke="#1a1a1a" stroke-width="4" marker-end="url(#arrow)"/>
+  <text x="290" y="972" font-size="21" fill="#1a1a1a">= Request / Data Flow</text>
+  <line x1="600" y1="965" x2="690" y2="965" stroke="#1a1a1a" stroke-width="3.5" stroke-dasharray="9 8" marker-end="url(#arrowDash)"/>
+  <text x="710" y="972" font-size="21" fill="#1a1a1a">= External API / Fallback</text>
+
+  <!-- ===================== FOOTER ===================== -->
+  <text x="580" y="1070" text-anchor="middle" font-size="24" font-weight="700" fill="#1a1a1a">Ports: <tspan fill="#2E7D32">3000</tspan> (Frontend) • <tspan fill="#E8850C">4000</tspan> (Backend) • <tspan fill="#7B3FE4">8000</tspan> (Agent Service)</text>
+</svg>
