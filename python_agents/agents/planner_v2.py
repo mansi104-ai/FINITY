@@ -155,16 +155,36 @@ class PlannerAgent:
 
     def _to_graph(self, d: Dict[str, Any], planned_by: str, cached: bool) -> TaskGraph:
         intent = Intent(d["intent"])
-        # A plan with no subtasks is valid only for DEFINE, which is terminal
-        # by design. Anywhere else it is a truncated or malformed response,
-        # and accepting it silently produced a one-agent pipeline that still
-        # looked well-formed downstream. Raising here sends the caller to the
-        # next model, then to the deterministic fallback.
-        if intent is not Intent.DEFINE and not (d.get("subtasks") or []):
-            raise ValueError(f"intent={intent.value} returned zero subtasks")
+        raw_subtasks = d.get("subtasks") or []
+
+        # A plan with no subtasks is terminal and correct for DEFINE. Elsewhere
+        # it used to be rejected outright, which sent the query to the regex
+        # fallback -- and measurement showed that firing on 33% of a labelled
+        # set, because short queries ("How healthy are their margins?", "What
+        # is the P/E ratio?") reliably come back with a sound intent and an
+        # empty subtask list.
+        #
+        # Rejecting those threw away the good part of the answer. The intent
+        # is the hard bit and the model got it right; the decomposition is
+        # recoverable from the routing prior, which exists precisely to say
+        # which agents an intent normally needs. So fall back to the prior for
+        # the subtasks and keep the classification.
+        if intent is not Intent.DEFINE and not raw_subtasks:
+            ticker = next((t for t in (d.get("tickers") or [])), None)
+            horizon = int(d.get("horizon_days") or 90)
+            subject = ticker or "the security"
+            raw_subtasks = [
+                {"id": f"s{i + 1}", "agent": agent, "priority": i + 1,
+                 "question": (f"Report {agent} findings for {subject} "
+                              f"relevant to a {intent.value} question "
+                              f"over the next {horizon} days.")}
+                for i, agent in enumerate(DEFAULT_AGENTS.get(intent.value, ()))
+            ]
+            if not raw_subtasks:
+                raise ValueError(f"intent={intent.value} has no subtasks and no routing prior")
 
         subtasks: List[SubTask] = []
-        for i, raw in enumerate(d.get("subtasks") or []):
+        for i, raw in enumerate(raw_subtasks):
             q = (raw.get("question") or "").strip()
             if not q:
                 continue
