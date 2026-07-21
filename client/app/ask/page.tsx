@@ -20,7 +20,11 @@ type AgentTrace = {
   agent: string;
   status: string;
   confidence: number;
+  /** Share of total evidence weight — includes agents that never vote. */
   weight: number | null;
+  /** Share of the directional vote, renormalised over actual voters. */
+  voting_weight: number | null;
+  votes_on_direction: boolean;
   summary: string[];
   payload: Record<string, unknown>;
   as_of: string | null;
@@ -284,13 +288,29 @@ function AnswerCard({ data }: { data: Answer }) {
                     {a.summary.map((s, i) => (
                       <div key={i}>{s}</div>
                     ))}
+                    {/* Evidence weight and voting weight are shown apart.
+                        Risk routinely carries the largest evidence weight
+                        while contributing nothing to the direction, and a
+                        single percentage next to a BUY invites exactly the
+                        wrong inference. */}
                     <div style={{ marginTop: "0.2rem", fontSize: "0.76rem" }}>
                       confidence {a.confidence.toFixed(2)}
-                      {a.weight != null && <> · weight {Math.round(a.weight * 100)}%</>}
+                      {a.weight != null && <> · {Math.round(a.weight * 100)}% of evidence</>}
+                      {a.votes_on_direction && a.voting_weight != null ? (
+                        <> · {Math.round(a.voting_weight * 100)}% of the call</>
+                      ) : (
+                        <> · does not vote on direction</>
+                      )}
                       {a.as_of && <> · as of {a.as_of}</>}
                     </div>
                     {a.weight != null && (
-                      <div className="ask-weightbar" style={{ width: `${Math.max(2, a.weight * 100)}%` }} />
+                      <div
+                        className="ask-weightbar"
+                        style={{
+                          width: `${Math.max(2, a.weight * 100)}%`,
+                          opacity: a.votes_on_direction ? 0.55 : 0.22,
+                        }}
+                      />
                     )}
                   </>
                 ) : (

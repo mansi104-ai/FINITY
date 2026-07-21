@@ -209,6 +209,13 @@ def fuse(results: List[AgentResult], regime: str = "unknown",
     contributing = len(directional)
     dir_total = sum(w for w, _ in directional.values())
     score = (sum(w * v for w, v in directional.values()) / dir_total) if dir_total else 0.0
+
+    # Publish the renormalised voting shares alongside the evidence weights.
+    # Without this the reader sees risk holding the largest weight next to a
+    # directional verdict and reasonably concludes it drove the call, when it
+    # contributed exactly nothing to the direction.
+    fw.voting_weights = {a: round(w / dir_total, 4)
+                         for a, (w, _) in directional.items()} if dir_total else {}
     fw.components["_directional_share"] = {
         "voting_weight_before_renorm": round(dir_total, 4),
         "voters": float(contributing),

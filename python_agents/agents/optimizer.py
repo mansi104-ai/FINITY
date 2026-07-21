@@ -55,6 +55,39 @@ def _direction_of(r: AgentResult) -> Optional[str]:
     return None
 
 
+def _describe(dirs: Dict[str, List[str]], abstained: List[str],
+              non_voting: List[str], usable: List[AgentResult],
+              results: List[AgentResult]) -> str:
+    """Say what the evidence actually was, without inflating it.
+
+    "Agreement" requires at least two agents pointing the same way. One
+    directional call plus two silences is a single opinion, and describing it
+    as consensus is the difference between a summary and a claim.
+    """
+    voters = [a for names in dirs.values() for a in names]
+    parts: List[str] = []
+
+    if not voters:
+        parts.append("no agent expressed a direction")
+    elif len(voters) == 1:
+        d = next(iter(dirs))
+        parts.append(f"one directional call ({voters[0]}: {d}), not a consensus")
+    else:
+        d = next(iter(dirs))
+        parts.append(f"{len(voters)} agents agree ({d}): {', '.join(voters)}")
+
+    if abstained:
+        parts.append(f"{', '.join(abstained)} saw no direction")
+    if non_voting:
+        parts.append(f"{', '.join(non_voting)} informs sizing, not direction")
+
+    n_failed = len(results) - len(usable)
+    if n_failed:
+        parts.append(f"{n_failed} agent(s) returned no evidence")
+
+    return "; ".join(parts)
+
+
 @dataclass
 class OptimizerVerdict:
     sufficient: bool
@@ -142,10 +175,24 @@ class OptimizerAgent:
         if not usable:
             return False, "no usable agent results; nothing to reconcile"
 
-        dirs = {}
+        # Three distinct populations, kept apart on purpose. An earlier
+        # version collapsed them and reported "agents agree (up); 3/3
+        # returned evidence" for a case where exactly one agent said up, one
+        # abstained with a sideways read, and one (risk) casts no directional
+        # vote at all. The fused number was right -- the abstention correctly
+        # dragged the score from 1.00 to 0.57 -- but the sentence claimed a
+        # consensus that did not exist, and that sentence is what a user
+        # reads and what the research record stores.
+        dirs: Dict[str, List[str]] = {}
+        abstained: List[str] = []
+        non_voting: List[str] = []
         for r in usable:
             d = _direction_of(r)
-            if d and d != "flat":
+            if d is None:
+                non_voting.append(r.agent.value)
+            elif d == "flat":
+                abstained.append(r.agent.value)
+            else:
                 dirs.setdefault(d, []).append(r.agent.value)
 
         if "up" in dirs and "down" in dirs:
@@ -157,9 +204,7 @@ class OptimizerAgent:
         if len(failed) > len(results) / 2:
             return True, f"majority of agents returned no evidence: {', '.join(failed)}"
 
-        agreed = next(iter(dirs), "flat")
-        return False, (f"agents agree ({agreed}); "
-                       f"{len(usable)}/{len(results)} returned evidence")
+        return False, _describe(dirs, abstained, non_voting, usable, results)
 
     # ------------------------------------------------------------------
     def _ask_llm(self, graph: TaskGraph, results: List[AgentResult],

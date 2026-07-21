@@ -319,7 +319,15 @@ class FusionWeights:
     each factor is inspectable.
     """
 
+    # Share of total evidence weight. Includes agents that inform sizing but
+    # cast no directional vote (risk, fundamentals).
     weights: Dict[str, float] = field(default_factory=dict)
+    # Share of the *directional* vote, renormalised over agents that actually
+    # express a direction. Reported separately because the two differ a lot:
+    # risk routinely carries the largest evidence weight while contributing
+    # nothing to the call, and showing one number invites the reader to
+    # assume it drove the other.
+    voting_weights: Dict[str, float] = field(default_factory=dict)
     # Per-agent factor breakdown: agent -> {confidence, reliability,
     # freshness, regime_fit}. Their product (normalised) gives `weights`.
     components: Dict[str, Dict[str, float]] = field(default_factory=dict)

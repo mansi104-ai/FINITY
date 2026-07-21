@@ -68,7 +68,9 @@ class AgentTrace(BaseModel):
     agent: str
     status: str
     confidence: float
-    weight: Optional[float] = None
+    weight: Optional[float] = None          # share of evidence weight
+    voting_weight: Optional[float] = None   # share of the directional vote
+    votes_on_direction: bool = False
     summary: List[str] = []
     payload: Dict[str, Any] = {}
     as_of: Optional[str] = None
@@ -115,6 +117,8 @@ async def ask(req: AskRequest) -> Dict[str, Any]:
     traces = [AgentTrace(
         agent=r.agent.value, status=r.status.value, confidence=round(r.confidence, 3),
         weight=fw.weights.get(r.agent.value),
+        voting_weight=fw.voting_weights.get(r.agent.value),
+        votes_on_direction=r.agent.value in fw.voting_weights,
         summary=r.reasoning[:3], payload=r.payload or {},
         as_of=r.as_of, duration_ms=r.duration_ms).model_dump() for r in results]
 
@@ -142,6 +146,7 @@ async def ask(req: AskRequest) -> Dict[str, Any]:
         },
         "decision": decision,
         "fusion": {"regime": regime, "weights": fw.weights,
+                   "voting_weights": fw.voting_weights,
                    "components": fw.components, "explanation": fw.explanation},
         # Where a fuller view of this evidence lives in the existing app.
         "links": _links_for(graph.tickers),
