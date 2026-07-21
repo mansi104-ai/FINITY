@@ -484,8 +484,20 @@ average exposure every day with no timing whatsoever, which separates genuine
 risk management from simply holding less. The sized policy attains a Sharpe
 ratio of $0.381$, an annualised return of $9.97\%$ and a maximum drawdown of
 $-38.0\%$; the constant-exposure control at the same average exposure attains
-$0.539$, $11.52\%$ and $-33.8\%$, dominating on all three. A fully invested
+$0.539$, $11.52\%$ and $-33.8\%$, dominating on all three (Figure~\ref{fig:exposure}). A fully invested
 arm reproduces buy-and-hold exactly, confirming the harness.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\linewidth]{matched_exposure.png}
+\caption{The matched-exposure control. Holding the sized policy's own average
+exposure of $42\%$ every day, with no timing whatsoever, beats that policy on
+all three measures at once (dark bars). Buy-and-hold earns the most and falls
+furthest, which is why comparing against it alone conceals the failure:
+reduced exposure lowers drawdown, so any delevered policy resembles risk
+management regardless of what its timing contributes.}
+\label{fig:exposure}
+\end{figure}
 
 Volatility targeting, which requires no directional forecast, was tested
 separately across all 196 equities and proved significantly worse than a
