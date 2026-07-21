@@ -187,29 +187,43 @@ users adapt, so 7.4% is a floor produced by platform policy, **not** a
 measurement of investor demand for advice. Writing it as the latter is wrong
 and a reviewer who knows the paper will catch it.
 
-### 1.7 Planner intent accuracy — LIVE, and biased
+### 1.7 Planner intent accuracy — MEASURED IN PRODUCTION MODE
+
+**Individual mode (one call per query, the production path):**
 
 | Subset | n | Accuracy |
 |---|---:|---:|
-| Published labels (Blankespoor Table 9) | 26 | **0.923** |
-| Authored labels (advice, risk_check) | 7 | 1.000 |
-| Overall | 33 | 0.939 |
+| Published labels (Blankespoor Table 9) | 26 | **0.692** |
+| Authored labels (advice, risk_check) | 7 | 0.857 |
+| Overall | 33 | 0.727 |
 
-Comparison point: their SBERT scores 0.75 on task classification (different
-sample, 300-question holdout — indicative, not like-for-like).
+Comparison point: their SBERT scores **0.75**. We are **below** it.
 
-Grade: **CAVEAT — mandatory, and this one is dangerous.** The prompt was
-revised four times against these same 26 questions. This is *tuning-set*
-performance and carries exactly the data-snooping problem the paper criticises
-elsewhere. Quoting 0.923 as a result while criticising others for overfitting
-would be the most damaging inconsistency in the paper.
+**The earlier 0.923 was an artefact of batch mode and must not be used.**
+Classifying all 33 questions in one call lets the model compare them against
+each other, which production never does. The inflation is **+0.23** — larger
+than most effects this paper discusses, and a caution worth stating in its own
+right: an evaluation harness that batches for convenience can manufacture a
+result the deployed system cannot reproduce.
 
-**Either** build a held-out set before submission (§5, highest-value remaining
-work — a few hours), **or** report it explicitly as tuning-set performance with
-the number of revisions stated.
+Per-label recall shows the failure is concentrated, not diffuse:
 
-Measured in batch mode. A per-query run matches production and is the number to
-quote; it costs one LLM call per item.
+| Label | Recall |
+|---|---|
+| advice, assess, data_point, define, screen | 3/3 or 4/4 |
+| trend, risk_check, company_profile | 2/3 |
+| compare | 1/2 |
+| interpret | 1/3 |
+| **summarize** | **0/3** |
+
+`summarize` fails completely — all three go to `company_profile` or
+`risk_check`. `interpret`, the largest real-world category at 47.5%, is 1/3.
+
+Grade: **CAVEAT.** Reportable as an honest production measurement. It is
+below the published baseline, so it cannot be presented as a contribution —
+only as a component measurement, or as motivation for the taxonomy work.
+Still tuning-set data (the prompt was revised four times against these
+questions), so a held-out set remains required before any claim.
 
 ### 1.8 Systems and cost — LIVE
 
