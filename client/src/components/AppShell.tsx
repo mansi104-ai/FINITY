@@ -24,11 +24,11 @@ type IconKey =
 const BOTTOM_NAV: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/markets", label: "Markets", icon: "markets" },
-  { href: "/brief", label: "Brief", icon: "brief" },
+  { href: "/ask", label: "Ask", icon: "brief" },
   { href: "/screener", label: "Screener", icon: "screener" },
 ];
 
-const PRIMARY: NavItem = { href: "/brief", label: "AI Brief", icon: "brief" };
+const PRIMARY: NavItem = { href: "/ask", label: "Ask", icon: "brief" };
 const GROUPS: Array<{ title: string; authOnly?: boolean; items: NavItem[] }> = [
   {
     title: "Market",
@@ -37,6 +37,7 @@ const GROUPS: Array<{ title: string; authOnly?: boolean; items: NavItem[] }> = [
       { href: "/screener", label: "Screener", icon: "screener" },
       { href: "/earnings", label: "Earnings", icon: "calendar" },
       { href: "/research", label: "Research", icon: "research" },
+      { href: "/method", label: "Method", icon: "research" },
       { href: "/insights", label: "Insights", icon: "insights" },
     ],
   },

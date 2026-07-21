@@ -43,6 +43,22 @@ app.add_middleware(
 
 crew = FinanceCrew()
 
+# v2 router: the agentic pipeline plus the forward-test record. Mounted
+# fail-soft so a missing v2 dependency (torch, for instance) degrades to the
+# v1 surface instead of preventing the service from binding at all -- the
+# failure mode that took this deployment down before.
+try:
+    try:
+        from .api_v2 import router as v2_router
+    except ImportError:
+        from api_v2 import router as v2_router  # type: ignore
+    app.include_router(v2_router)
+    V2_AVAILABLE = True
+    V2_ERROR = ""
+except Exception as _e:  # pragma: no cover
+    V2_AVAILABLE = False
+    V2_ERROR = f"{type(_e).__name__}: {_e}"
+
 
 @app.get("/health")
 async def health() -> dict:

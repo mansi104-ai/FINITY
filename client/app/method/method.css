@@ -1,0 +1,77 @@
+/* Research showcase. Typographic and dense rather than decorative: the
+   audience is someone deciding whether the work is sound. */
+
+.mth { max-width: 940px; margin: 0 auto; padding: 1.5rem 1.15rem 4rem; }
+
+.mth-hero { padding: 1.5rem 0 2rem; border-bottom: 1px solid var(--border); }
+.mth-kicker {
+  text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem;
+  color: var(--muted); margin: 0 0 0.6rem;
+}
+.mth-hero h1 {
+  font-size: clamp(1.7rem, 4.4vw, 2.5rem); line-height: 1.15;
+  letter-spacing: -0.025em; margin: 0 0 0.9rem; color: var(--text);
+}
+.mth-lede { font-size: 1.03rem; line-height: 1.65; color: var(--muted); max-width: 62ch; margin: 0; }
+
+.mth section { padding: 2.2rem 0 0; }
+.mth h2 {
+  font-size: 1.22rem; letter-spacing: -0.015em; margin: 0 0 0.35rem; color: var(--text);
+}
+.mth h2 + .mth-sub { color: var(--muted); font-size: 0.87rem; margin: 0 0 1.1rem; }
+.mth p { line-height: 1.65; color: var(--text); max-width: 68ch; }
+.mth p.muted { color: var(--muted); }
+
+/* two-plane diagram */
+.mth-planes { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.mth-plane {
+  border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.1rem;
+  background: var(--card);
+}
+.mth-plane.control { background: var(--board-blue); }
+.mth-plane.decision { background: var(--board-mint); }
+.mth-plane h3 { margin: 0 0 0.15rem; font-size: 0.98rem; color: var(--text); }
+.mth-plane .role { font-size: 0.8rem; color: var(--muted); margin: 0 0 0.7rem; }
+.mth-agents { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.7rem; }
+.mth-chip {
+  font-size: 0.76rem; background: rgba(255, 255, 255, 0.68);
+  border: 1px solid var(--border); border-radius: 999px; padding: 0.16rem 0.6rem;
+  color: var(--text);
+}
+.mth-plane .note { font-size: 0.82rem; line-height: 1.5; color: var(--muted); margin: 0; }
+
+/* stat strip */
+.mth-stats { display: grid; gap: 0.7rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 1rem 0; }
+.mth-stat { border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 0.9rem; background: var(--card); }
+.mth-stat .n { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+.mth-stat .l { font-size: 0.76rem; color: var(--muted); margin-top: 0.1rem; line-height: 1.35; }
+
+/* tables */
+.mth-tablewrap { overflow-x: auto; margin: 0.9rem 0; }
+.mth table { border-collapse: collapse; width: 100%; font-size: 0.86rem; min-width: 460px; }
+.mth th, .mth td { text-align: left; padding: 0.5rem 0.65rem; border-bottom: 1px solid var(--border); }
+.mth th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.mth td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.mth-flag { font-size: 0.76rem; padding: 0.1rem 0.5rem; border-radius: 999px; }
+.mth-flag.ok { background: rgba(51, 179, 107, 0.16); color: #1d7d47; }
+.mth-flag.warn { background: rgba(242, 179, 39, 0.18); color: #8a6300; }
+
+.mth-callout {
+  border-left: 3px solid var(--primary); background: var(--bg-elevated);
+  padding: 0.85rem 1.05rem; border-radius: 0 10px 10px 0; margin: 1rem 0;
+}
+.mth-callout p { margin: 0; font-size: 0.9rem; line-height: 1.6; }
+
+.mth-limits { border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.2rem; background: var(--card); }
+.mth-limits li { margin-bottom: 0.55rem; line-height: 1.55; }
+.mth-limits li:last-child { margin-bottom: 0; }
+
+.mth-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+.mth-links a {
+  border: 1px solid var(--border); border-radius: 999px; padding: 0.35rem 0.85rem;
+  color: var(--primary); text-decoration: none; font-size: 0.85rem; background: var(--card);
+}
+.mth-links a:hover { border-color: var(--primary); }
+
+.mth-loading { color: var(--muted); font-size: 0.88rem; padding: 0.6rem 0; }
