@@ -12,8 +12,12 @@
 import { useEffect, useState } from "react";
 import "./method.css";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
+const AGENTS_BASE = (
+  // The Python agent service, NOT NEXT_PUBLIC_API_URL -- that one points at
+  // the Node backend on :4000, which has no /v2 routes. Using it here made
+  // every request 404 against a server that was running perfectly well.
+  process.env.NEXT_PUBLIC_AGENTS_URL || "http://127.0.0.1:8000"
+).trim().replace(/\/$/, "");
 
 type Forward = {
   summary: { predictions: number; scored: number; trading_days: number; tickers: number; date_range: string[] | null };
@@ -39,8 +43,8 @@ export default function MethodPage() {
     (async () => {
       try {
         const [f, a] = await Promise.all([
-          fetch(`${API_BASE}/v2/forward`).then((r) => r.json()),
-          fetch(`${API_BASE}/v2/agents`).then((r) => r.json()),
+          fetch(`${AGENTS_BASE}/v2/forward`).then((r) => r.json()),
+          fetch(`${AGENTS_BASE}/v2/agents`).then((r) => r.json()),
         ]);
         setFwd(f);
         setAg(a);

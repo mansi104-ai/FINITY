@@ -13,8 +13,12 @@
 import { useEffect, useRef, useState } from "react";
 import "./ask.css";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
+const AGENTS_BASE = (
+  // The Python agent service, NOT NEXT_PUBLIC_API_URL -- that one points at
+  // the Node backend on :4000, which has no /v2 routes. Using it here made
+  // every request 404 against a server that was running perfectly well.
+  process.env.NEXT_PUBLIC_AGENTS_URL || "http://127.0.0.1:8000"
+).trim().replace(/\/$/, "");
 
 type AgentTrace = {
   agent: string;
@@ -109,22 +113,38 @@ export default function AskPage() {
     if (taRef.current) taRef.current.style.height = "auto";
 
     try {
-      const res = await fetch(`${API_BASE}/v2/ask`, {
+      const res = await fetch(`${AGENTS_BASE}/v2/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q }),
       });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      // Distinguish the failure modes rather than blaming the same thing for
+      // all of them. A 404 means something answered and did not recognise the
+      // route -- usually the wrong service, not a dead one -- and reporting
+      // that as "not running" sends you to restart a server that was fine.
+      if (res.status === 404) {
+        throw new Error(
+          `404 from ${AGENTS_BASE}. Something is answering there but has no /v2/ask route — ` +
+            `this is most likely pointing at the Node backend (:4000) rather than the Python ` +
+            `agent service (:8000). Set NEXT_PUBLIC_AGENTS_URL to the agent service.`
+        );
+      }
+      if (!res.ok) {
+        throw new Error(`Agent service returned ${res.status} from ${AGENTS_BASE}/v2/ask.`);
+      }
       const data: Answer = await res.json();
       setMessages((m) => [...m, { role: "assistant", data }]);
     } catch (e) {
+      const isNetwork = e instanceof TypeError; // fetch rejects this way when nothing answers
       setMessages((m) => [
         ...m,
         {
           role: "error",
-          text:
-            e instanceof Error
-              ? `${e.message}. The agent service may not be running — start it with "uvicorn main:app" in python_agents.`
+          text: isNetwork
+            ? `Could not reach the agent service at ${AGENTS_BASE}. Start it with ` +
+              `"uvicorn main:app --port 8000" in python_agents, or set NEXT_PUBLIC_AGENTS_URL.`
+            : e instanceof Error
+              ? e.message
               : "Something went wrong.",
         },
       ]);
