@@ -1,0 +1,114 @@
+{
+  "frozen_on": "2026-07-21",
+  "hash": "06c5e17699d7f9c3",
+  "benchmark": "SPY",
+  "n_tickers": 40,
+  "n_sectors": 11,
+  "selection_rule": "Large-cap US equities, at least two per GICS sector, chosen for depth of price history. No screening on past or recent returns.",
+  "sectors": {
+    "information_technology": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AVGO",
+      "CRM",
+      "AMD",
+      "ORCL"
+    ],
+    "communication_services": [
+      "GOOGL",
+      "META",
+      "NFLX",
+      "DIS"
+    ],
+    "consumer_discretionary": [
+      "AMZN",
+      "TSLA",
+      "HD",
+      "MCD"
+    ],
+    "consumer_staples": [
+      "PG",
+      "KO",
+      "COST",
+      "WMT"
+    ],
+    "financials": [
+      "JPM",
+      "BAC",
+      "GS",
+      "BRK-B"
+    ],
+    "health_care": [
+      "UNH",
+      "JNJ",
+      "LLY",
+      "ABBV"
+    ],
+    "industrials": [
+      "CAT",
+      "BA",
+      "HON",
+      "UNP"
+    ],
+    "energy": [
+      "XOM",
+      "CVX",
+      "COP"
+    ],
+    "utilities": [
+      "NEE",
+      "DUK"
+    ],
+    "real_estate": [
+      "PLD",
+      "AMT"
+    ],
+    "materials": [
+      "LIN",
+      "SHW"
+    ]
+  },
+  "tickers": [
+    "AAPL",
+    "ABBV",
+    "AMD",
+    "AMT",
+    "AMZN",
+    "AVGO",
+    "BA",
+    "BAC",
+    "BRK-B",
+    "CAT",
+    "COP",
+    "COST",
+    "CRM",
+    "CVX",
+    "DIS",
+    "DUK",
+    "GOOGL",
+    "GS",
+    "HD",
+    "HON",
+    "JNJ",
+    "JPM",
+    "KO",
+    "LIN",
+    "LLY",
+    "MCD",
+    "META",
+    "MSFT",
+    "NEE",
+    "NFLX",
+    "NVDA",
+    "ORCL",
+    "PG",
+    "PLD",
+    "SHW",
+    "TSLA",
+    "UNH",
+    "UNP",
+    "WMT",
+    "XOM"
+  ]
+}

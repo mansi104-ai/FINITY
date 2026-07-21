@@ -1,17 +1,38 @@
 fastapi==0.115.6
 uvicorn==0.32.1
 pydantic==2.10.3
-numpy==2.1.3
+numpy>=2.1.3
 pandas==2.2.3
 yfinance==0.2.54
 requests==2.32.3
 cachetools==5.5.2
 dotenv
 
-# Optional -- all agents fall back to deterministic logic if these are
-# missing or ANTHROPIC_API_KEY is unset. Install them to enable the
-# LLM-assisted Planner/Risk Reasoning/Verification/Explanation agents and
-# local FinBERT sentiment.
-anthropic==0.40.0
-transformers==4.46.3
-torch==2.5.1
+# --- Language model (control plane) --------------------------------------
+# The control plane runs on OpenRouter, not Anthropic: this deployment has no
+# ANTHROPIC_API_KEY and the free-tier OpenRouter models support the
+# schema-enforced JSON the Planner and Optimizer depend on. services/llm.py
+# calls the HTTP API through urllib, so no SDK is required.
+#
+# `anthropic` remains optional and is needed only by the legacy
+# services/llm_client.py path.
+# anthropic==0.40.0
+
+# --- FinBERT sentiment (decision plane) -----------------------------------
+# Required, not optional: FinBERT does all per-article sentiment scoring
+# locally, which is what keeps the pipeline inside a ~50 call/day free-tier
+# LLM budget. Without it the Researcher agent reports UNAVAILABLE.
+#
+# The previous pins (torch==2.5.1, transformers==4.46.3) do NOT install on
+# Python 3.13 -- torch added 3.13 support in 2.6. Verified working:
+# torch 2.13.0+cpu, transformers 5.14.1 on CPython 3.13.
+#
+# Install the CPU wheel explicitly; the default index pulls a CUDA build that
+# is several GB larger and buys nothing here:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.6
+transformers>=5.0
+
+# --- Evaluation ------------------------------------------------------------
+# Forward-test harness and offline evaluation only; not needed to serve.
+scikit-learn>=1.6
