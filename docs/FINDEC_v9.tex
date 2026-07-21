@@ -376,7 +376,7 @@ Manager row is developed in Section~\ref{sec:sizing}.
 \label{sec:analyst-eval}
 Table~\ref{tab:analyst} reports, for each candidate target, the rank
 correlation between a forecast built from trailing information and the
-realised outcome, together with the deployed Analyst's directional accuracy
+realised outcome, plotted in Figure~\ref{fig:results}(a), together with the deployed Analyst's directional accuracy
 at three horizons.
 
 \begin{table}[!ht]
@@ -428,7 +428,7 @@ base rate only marginally, and their reliability curve slopes downward,
 overstating risk where predicted risk is highest.
 
 \subsection{Confidence-Aware Abstention}
-Table~\ref{tab:abstain} and Figure~\ref{fig:coverage} report accuracy as a
+Table~\ref{tab:abstain} and Figure~\ref{fig:results}(b) report accuracy as a
 function of coverage, where coverage is the proportion of queries on which
 the system commits to a view and abstention removes the least confident.
 
@@ -457,14 +457,20 @@ the system commits to a view and abstention removes the least confident.
 \label{tab:abstain}
 \end{table}
 
-\begin{figure}[!ht]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=0.92\linewidth]{coverage_accuracy.png}
-\caption{Accuracy against coverage under confidence-based abstention, with
-$95\%$ Wilson intervals. The dashed line marks chance. Withholding the least
-confident decisions raises accuracy monotonically.}
-\label{fig:coverage}
-\end{figure}
+\includegraphics[width=0.92\textwidth]{results_panels.png}
+\caption{The two central results. (a) Strength of the relationship between a
+forecast built from trailing information and the realised outcome, over
+43{,}512 out-of-sample observations at a 21-day horizon; bar length is the
+magnitude of the rank correlation and the signed value is annotated. The two
+negative signs carry opposite meanings: for direction the forecast is
+anti-predictive, whereas for drawdown the negative sign is the expected
+relationship, since higher trailing volatility predicts a deeper subsequent
+fall. (b) Directional accuracy against coverage under confidence-based
+abstention, with $95\%$ Wilson intervals; the dashed line marks chance.}
+\label{fig:results}
+\end{figure*}
 
 Accuracy rises monotonically as the system answers less often, and every
 interval excludes chance. The Analyst cannot forecast direction, yet its
