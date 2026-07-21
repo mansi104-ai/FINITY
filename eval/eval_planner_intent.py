@@ -131,14 +131,39 @@ def run_batch(items):
     return [got.get(i, "<missing>") for i in range(len(items))]
 
 
-def run_individual(items):
-    planner = PlannerAgent()
-    out = []
+def run_individual(items, budget: int = 0):
+    """One plan per query, matching production.
+
+    Takes an explicit LLM budget because the production category caps are
+    sized for a *cached* workload -- roughly one planner call a day -- and an
+    evaluation is the opposite: dozens of deliberately uncached calls. Running
+    against the production ceiling silently refused all 33 calls, dropped
+    every one to the regex fallback, and produced a 3.8% "accuracy" that
+    measured the budget rather than the planner.
+    """
+    from services.llm import LLMClient, _Budget
+
+    need = max(len(items) * 3, 60)          # headroom for retries and failover
+    total = budget or need * 10             # planner share is ~10% of the total
+    planner = PlannerAgent(llm=LLMClient(budget=_Budget(total=total)))
+
+    out, fallbacks = [], 0
     for i, (q, _, _) in enumerate(items, 1):
         g = planner.plan(q)
-        out.append(g.intent.value if g.planned_by != "deterministic-fallback"
-                   else "<fallback>")
-        print(f"    {i}/{len(items)} {out[-1]:14s} {q[:56]}")
+        degraded = g.planned_by == "deterministic-fallback"
+        fallbacks += degraded
+        out.append("<fallback>" if degraded else g.intent.value)
+        note = ""
+        if degraded:
+            note = f"   <- {planner.llm.last_error or 'planner degraded'}"
+        print(f"    {i}/{len(items)} {out[-1]:16s} {q[:52]}{note}")
+
+        # Stop early rather than burn the remaining quota producing a number
+        # that cannot mean anything.
+        if fallbacks >= 5 and fallbacks == i:
+            print(f"\n  ABORTED: the first {i} calls all fell back. "
+                  f"Last error: {planner.llm.last_error}")
+            return None
     return out
 
 
@@ -151,6 +176,29 @@ def report(items, preds):
     # explicitly and report violations separately from ordinary errors: a
     # value outside the enum is a contract failure, not a wrong label.
     valid = set(_INTENTS)
+
+    # A degraded run is not a low score -- it is an absent measurement, and
+    # the two must never be reported the same way. An earlier version printed
+    # "accuracy=0.038" for a run in which the budget governor had refused all
+    # 33 calls and every answer came from the regex fallback. A number that
+    # low would have been read as a planner defect; in fact nothing about the
+    # planner was exercised at all. Refuse to score rather than mislead.
+    degraded = [p for _, _, _, p in rows if p == "<fallback>"]
+    if degraded:
+        share = len(degraded) / len(rows)
+        print(f"\n--- RUN DEGRADED: {len(degraded)}/{len(rows)} "
+              f"({share:.0%}) fell back to the deterministic path ---")
+        print("  These queries never reached the model, so they measure the")
+        print("  fallback, not the planner.")
+        if share > 0.10:
+            print("\n  NO ACCURACY REPORTED. Re-run with an adequate LLM budget:")
+            print("    python eval/eval_planner_intent.py --mode individual --budget 600")
+            print("  If failures persist, check `budget before` in the header and")
+            print("  the last error above -- free-tier daily quota is ~50 requests.")
+            return None
+        print("  Below the 10% threshold; degraded rows are excluded from the score.")
+        rows = [r for r in rows if r[3] != "<fallback>"]
+
     violations = [(q, p) for q, _, _, p in rows if p not in valid]
     if violations:
         print("\n--- SCHEMA VIOLATIONS (value outside intent enum) ---")
@@ -195,15 +243,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["batch", "individual"], default="batch")
     ap.add_argument("--out", default=str(_HERE / "results" / "planner_intent.json"))
+    ap.add_argument("--budget", type=int, default=0,
+                    help="total LLM budget for this run. Production category caps "
+                         "are sized for a cached workload (~1 planner call/day) and "
+                         "will refuse an evaluation outright.")
     a = ap.parse_args()
 
     print(f"mode={a.mode}  n={len(LABELLED)}  prompt={PLANNER_PROMPT_VERSION}")
     print(f"budget before: {json.dumps(get_llm().budget_report()['by_category']['planner'])}")
 
-    preds = run_batch(LABELLED) if a.mode == "batch" else run_individual(LABELLED)
+    preds = run_batch(LABELLED) if a.mode == "batch" else run_individual(LABELLED, a.budget)
     if preds is None:
         return 1
     acc = report(LABELLED, preds)
+    if acc is None:
+        print("\nNo result written: the run was too degraded to score.")
+        return 1
 
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps({

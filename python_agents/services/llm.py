@@ -46,6 +46,21 @@ from typing import Any, Dict, List, Optional
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
+# --------------------------------------------------------------------------
+# Provider selection
+# --------------------------------------------------------------------------
+# Anthropic is preferred when a key is present: it enforces a JSON schema
+# through forced tool use, which is stricter than OpenRouter's
+# response_format on free models -- those were observed returning values
+# outside a declared enum despite `strict: true`.
+#
+# Both backends speak plain HTTP through urllib. No SDK is installed on
+# purpose: adding one to requirements.txt is what produced a 4.8 GB
+# serverless bundle against a 500 MB limit.
+ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_VERSION = "2023-06-01"
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
+
 # Ordered by measured quality on the planning probe. nemotron-super was both
 # fastest (7.5s vs 26s and 35s) and the only model to get every field of the
 # hostile probe query right; gemma is a genuine second. gpt-oss-20b failed
@@ -180,6 +195,23 @@ class _Budget:
 
 # --------------------------------------------------------------------------
 
+def _load_named_key(name: str) -> str:
+    key = os.getenv(name, "").strip()
+    if key:
+        return key
+    for candidate in (Path.cwd() / ".env.local",
+                      Path(__file__).resolve().parents[2] / ".env.local"):
+        try:
+            for line in candidate.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if line.startswith(f"{name}="):
+                    v = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    if v:
+                        return v
+        except Exception:
+            continue
+    return ""
+
+
 def _load_key() -> str:
     key = os.getenv("OPENROUTER_API_KEY", "").strip()
     if key:
@@ -212,9 +244,22 @@ class LLMClient:
 
     def __init__(self, models: Optional[List[str]] = None,
                  budget: Optional[_Budget] = None,
-                 cache_dir: Path = _CACHE_DIR) -> None:
-        self.api_key = _load_key()
-        self.models = models or DEFAULT_MODELS
+                 cache_dir: Path = _CACHE_DIR,
+                 provider: Optional[str] = None) -> None:
+        # Anthropic when a key exists, OpenRouter otherwise. Set
+        # FINDEC_LLM_PROVIDER=openrouter to pin the fallback explicitly.
+        self.anthropic_key = _load_named_key("ANTHROPIC_API_KEY")
+        self.openrouter_key = _load_key()
+        self.provider = (provider or os.getenv("FINDEC_LLM_PROVIDER", "").strip()
+                         or ("anthropic" if self.anthropic_key else "openrouter"))
+
+        if self.provider == "anthropic":
+            self.api_key = self.anthropic_key
+            self.models = models or [ANTHROPIC_MODEL]
+        else:
+            self.api_key = self.openrouter_key
+            self.models = models or DEFAULT_MODELS
+
         self.budget = budget or _Budget()
         self.cache_dir = cache_dir
         self.available = bool(self.api_key)
@@ -289,12 +334,23 @@ class LLMClient:
                                duration_ms=0, cached=True)
 
         if not self.available:
-            self.last_error = "no OPENROUTER_API_KEY"
+            self.last_error = (
+                "no ANTHROPIC_API_KEY" if self.provider == "anthropic"
+                else "no OPENROUTER_API_KEY")
             return None
 
         if not self.budget.allow(category):
             self.last_error = f"daily budget exhausted for category '{category}'"
             return None
+
+        if self.provider == "anthropic":
+            out = self._call_anthropic(system, user, schema, schema_name,
+                                       max_tokens, timeout)
+            if out is None:
+                self.budget.refund(category)
+                return None
+            self._cache_put(cache_key, out.data)
+            return out
 
         body_base = {
             "messages": [
@@ -362,6 +418,72 @@ class LLMClient:
 
         # Every model failed; the reservation bought nothing, so give it back.
         self.budget.refund(category)
+        return None
+
+    # ---- Anthropic ----------------------------------------------------
+
+    def _call_anthropic(self, system: str, user: str, schema: Dict[str, Any],
+                        schema_name: str, max_tokens: int,
+                        timeout: int) -> Optional[LLMResponse]:
+        """Schema-constrained call via forced tool use.
+
+        Anthropic has no `response_format`, but a tool with an
+        ``input_schema`` and ``tool_choice`` pinned to it is stronger: the
+        model must emit arguments conforming to the schema, and enum
+        membership is genuinely enforced -- unlike OpenRouter's free tier,
+        where `strict: true` was observed returning an agent name inside an
+        intent field.
+        """
+        model = self.models[0] if self.models else ANTHROPIC_MODEL
+        body = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "temperature": 0,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+            "tools": [{
+                "name": schema_name,
+                "description": f"Emit the {schema_name} object.",
+                "input_schema": schema,
+            }],
+            "tool_choice": {"type": "tool", "name": schema_name},
+        }
+
+        for attempt in range(3):
+            t0 = time.perf_counter()
+            try:
+                req = urllib.request.Request(
+                    ANTHROPIC_URL, data=json.dumps(body).encode(),
+                    headers={"x-api-key": self.api_key,
+                             "anthropic-version": ANTHROPIC_VERSION,
+                             "content-type": "application/json"})
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    payload = json.load(r)
+            except urllib.error.HTTPError as e:
+                detail = e.read()[:200].decode(errors="replace")
+                self.last_error = f"anthropic {model}: HTTP {e.code}: {detail}"
+                # 429 and 5xx are transient; 401/400 will not improve on retry.
+                if e.code in (429, 500, 502, 503, 529) and attempt < 2:
+                    time.sleep(2 ** attempt + random.random())
+                    continue
+                return None
+            except Exception as e:
+                self.last_error = f"anthropic {model}: {type(e).__name__}: {e}"
+                if attempt < 2:
+                    time.sleep(1.0)
+                    continue
+                return None
+
+            dt_ms = int((time.perf_counter() - t0) * 1000)
+            data = next((b.get("input") for b in payload.get("content", [])
+                         if b.get("type") == "tool_use"), None)
+            if not isinstance(data, dict):
+                self.last_error = f"anthropic {model}: no tool_use block in reply"
+                return None
+            u = payload.get("usage") or {}
+            tokens = int(u.get("input_tokens", 0)) + int(u.get("output_tokens", 0))
+            return LLMResponse(data=data, model=model, tokens=tokens, duration_ms=dt_ms)
+
         return None
 
     def budget_report(self) -> Dict[str, Any]:
