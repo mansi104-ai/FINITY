@@ -397,14 +397,14 @@ def make_researcher_adapter(lookback_days: int = 7, max_articles: int = 15) -> "
 # --------------------------------------------------------------------------
 
 def build_default_adapters(fetcher) -> Dict[AgentName, "callable"]:
-    from .router import unavailable_adapter
+    try:
+        from .fundamentals import make_fundamentals_adapter
+    except ImportError:
+        from fundamentals import make_fundamentals_adapter  # type: ignore
     return {
         AgentName.MARKET: make_market_adapter(fetcher),
         AgentName.ANALYST: make_analyst_adapter(fetcher),
         AgentName.RISK: make_risk_adapter(fetcher),
         AgentName.RESEARCHER: make_researcher_adapter(),
-        # Not wired: Yahoo quoteSummary needs the cookie+crumb flow. Declared
-        # UNAVAILABLE rather than stubbed with neutral values.
-        AgentName.FUNDAMENTALS: unavailable_adapter(
-            "fundamentals adapter not implemented (needs Yahoo quoteSummary crumb flow)"),
+        AgentName.FUNDAMENTALS: make_fundamentals_adapter(),
     }

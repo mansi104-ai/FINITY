@@ -105,10 +105,24 @@ def predict_arm_a(bars: Bars, market: Optional[Bars],
     else:
         direction = "flat"
 
+    # Same volatility bucket arm B uses, computed from the same bars, so a
+    # per-agent track record is comparable across arms rather than each arm
+    # being scored against its own idea of the regime.
+    import math
+    from orchestrator.fusion import volatility_regime
+    cl = bars.close[-61:]
+    rets = [(cl[i] - cl[i - 1]) / cl[i - 1] for i in range(1, len(cl))]
+    regime = "unknown"
+    if len(rets) > 5:
+        mu = sum(rets) / len(rets)
+        sd = math.sqrt(sum((r - mu) ** 2 for r in rets) / (len(rets) - 1))
+        regime = volatility_regime(sd * math.sqrt(252) * 100)
+
     return {
         "direction": direction,
         "confidence": float(conf) / 100.0 if conf and conf > 1.0 else float(conf or 0.5),
         "predicted_return_pct": float(pct),
+        "regime": regime,
         "duration_ms": int((time.perf_counter() - t0) * 1000),
     }
 
@@ -356,6 +370,24 @@ def main() -> int:
         n = score_matured(store, fetcher, today)
         print(f"   {n} outcome(s) written")
 
+        if n:
+            # Recompute per-agent reliability from the full outcome history
+            # rather than incrementally from today's batch. The store keeps
+            # running counts, so incrementing per run would double-count
+            # every outcome on any re-run -- and the daily job is designed
+            # to be re-runnable.
+            import agent_scores
+            from services.reliability import get_reliability_store
+            rel = get_reliability_store()
+            rel._data = {}          # rebuild from scratch; see above
+            res, scored = agent_scores.score(store, record_to_reliability=True)
+            print(f"   reliability rebuilt from {scored} outcome(s)")
+            for name, regimes in sorted(res["agents"].items()):
+                for regime, v in sorted(regimes.items()):
+                    if v["accuracy"] is not None:
+                        print(f"     {name:<12}{regime:<11}"
+                              f"n={v['n']:<4} acc={v['accuracy']:.3f}")
+
     print("\n-- fetching prices --")
     market = fetcher.get(U.BENCHMARK, rng="2y", fetch_date=today)
     bars = fetcher.get_many(syms, rng="2y", fetch_date=today)
@@ -397,6 +429,8 @@ def main() -> int:
                 meta = dict(pipeline_version="v2-armA-numerical",
                             agents_used=["analyst"], position_pct=0.0,
                             fusion_weights={}, llm_calls=0, degraded=False,
+                            regime=(r.get("regime", "unknown")
+                                    if r and "error" not in r else "unknown"),
                             agent_evidence=({"analyst": {
                                 "predicted_return_pct":
                                     round(r["predicted_return_pct"], 4)}}
@@ -414,6 +448,7 @@ def main() -> int:
                                 llm_calls=r["llm_calls"],
                                 degraded=r["degraded"],
                                 agent_evidence=r["agent_evidence"],
+                                regime=r["regime"],
                                 rationale=r["rationale"])
                 except Exception as e:
                     r = {"error": f"{type(e).__name__}: {e}"}
@@ -446,6 +481,7 @@ def main() -> int:
                 llm_calls=meta.get("llm_calls", 0),
                 degraded=meta.get("degraded", False),
                 agent_evidence=meta.get("agent_evidence", {}),
+                regime=meta.get("regime", "unknown"),
                 rationale=meta.get("rationale", ""),
                 duration_ms=r["duration_ms"],
             ))

@@ -73,6 +73,11 @@ class Prediction:
     # evidence it was shown. A decision record has to carry the numbers its
     # own explanation refers to.
     agent_evidence: Dict[str, Any] = field(default_factory=dict)
+    # Volatility bucket at decision time. Stored rather than recomputed at
+    # scoring time: an agent's reliability is conditioned on the regime it
+    # was operating in, and recomputing later from a longer price series
+    # would bucket the decision by conditions it never saw.
+    regime: str = "unknown"
     intent: str = ""
     pipeline_version: str = "v2"
     planner_model: str = ""

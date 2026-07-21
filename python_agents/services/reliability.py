@@ -67,7 +67,15 @@ from typing import Dict, Optional
 PRIOR_SCORE = 0.75
 PRIOR_WEIGHT = 4.0
 
-DEFAULT_STORE_PATH = os.getenv("FINDEC_RELIABILITY_PATH", "/tmp/findec_reliability_store.json")
+# Default under the shared FINDEC state directory rather than "/tmp".
+# On Windows "/tmp/..." resolves to "\tmp\..." on the current drive, which
+# generally does not exist -- the store silently failed every write and
+# reliability reset to the prior on each process start. That is invisible in
+# normal use and fatal to a forward test, whose entire purpose is to
+# accumulate a track record across runs.
+_STATE_DIR = Path(os.getenv("FINDEC_STATE_DIR", Path.home() / ".findec"))
+DEFAULT_STORE_PATH = os.getenv("FINDEC_RELIABILITY_PATH",
+                               str(_STATE_DIR / "reliability_store.json"))
 
 _LOCK = threading.Lock()
 
