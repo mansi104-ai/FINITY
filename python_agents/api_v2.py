@@ -16,12 +16,15 @@ results look good is not evidence of anything.
 
 from __future__ import annotations
 
+import asyncio
+import json
 import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 _HERE = Path(__file__).resolve().parent
@@ -77,6 +80,43 @@ class AgentTrace(BaseModel):
     duration_ms: int = 0
 
 
+def _build_traces(results, fw) -> List[Dict[str, Any]]:
+    """One serialisable trace per agent result.
+
+    Evidence weight and voting weight are kept apart deliberately: the Risk
+    Manager routinely carries the largest evidence weight while casting no
+    directional vote, so collapsing the two into a single number next to a BUY
+    would invite exactly the wrong inference.
+    """
+    return [AgentTrace(
+        agent=r.agent.value, status=r.status.value, confidence=round(r.confidence, 3),
+        weight=fw.weights.get(r.agent.value),
+        voting_weight=fw.voting_weights.get(r.agent.value),
+        votes_on_direction=r.agent.value in fw.voting_weights,
+        summary=r.reasoning[:3], payload=r.payload or {},
+        as_of=r.as_of, duration_ms=r.duration_ms).model_dump() for r in results]
+
+
+def _provenance(results) -> List[Dict[str, str]]:
+    """The as-of cutoff each usable source was read at, newest first.
+
+    Freshness is not a footnote in a domain where a stale price silently
+    changes the answer, so the decision surface states it outright rather than
+    burying it inside the per-agent evidence.
+    """
+    seen: Dict[str, str] = {}
+    for r in results:
+        if getattr(r, "as_of", None) and getattr(r, "usable", False):
+            seen[r.agent.value] = r.as_of
+    return [{"agent": a, "as_of": ts}
+            for a, ts in sorted(seen.items(), key=lambda kv: kv[1], reverse=True)]
+
+
+def _sse(event: Dict[str, Any]) -> str:
+    """Serialise one pipeline event as a Server-Sent Events frame."""
+    return f"data: {json.dumps(event, default=str)}\n\n"
+
+
 @router.post("/ask")
 async def ask(req: AskRequest) -> Dict[str, Any]:
     """Free text in; decision plus the evidence behind it out."""
@@ -114,13 +154,7 @@ async def ask(req: AskRequest) -> Dict[str, Any]:
     decision, fw = fuse(results, regime=regime,
                         risk_posture=graph.risk_posture.value)
 
-    traces = [AgentTrace(
-        agent=r.agent.value, status=r.status.value, confidence=round(r.confidence, 3),
-        weight=fw.weights.get(r.agent.value),
-        voting_weight=fw.voting_weights.get(r.agent.value),
-        votes_on_direction=r.agent.value in fw.voting_weights,
-        summary=r.reasoning[:3], payload=r.payload or {},
-        as_of=r.as_of, duration_ms=r.duration_ms).model_dump() for r in results]
+    traces = _build_traces(results, fw)
 
     return {
         "intent": graph.intent.value,
@@ -148,6 +182,7 @@ async def ask(req: AskRequest) -> Dict[str, Any]:
         "fusion": {"regime": regime, "weights": fw.weights,
                    "voting_weights": fw.voting_weights,
                    "components": fw.components, "explanation": fw.explanation},
+        "provenance": _provenance(results),
         # Where a fuller view of this evidence lives in the existing app.
         "links": _links_for(graph.tickers),
         "duration_ms": int((time.perf_counter() - t0) * 1000),
@@ -157,6 +192,156 @@ async def ask(req: AskRequest) -> Dict[str, Any]:
 
 DISCLAIMER = ("FINDEC is decision support, not investment advice. "
               "Every figure shown is evidence for you to weigh, not a recommendation to act on.")
+
+
+@router.post("/ask/stream")
+async def ask_stream(req: AskRequest) -> StreamingResponse:
+    """Same pipeline as ``/ask``, emitted as it runs.
+
+    The blocking ``/ask`` returns nothing until the slowest agent lands, which
+    for a query that dispatches five agents means a spinner for the better part
+    of a minute -- the wait during which the product looks least like the team
+    of analysts it is. This route runs the identical pipeline in a worker
+    thread and streams Server-Sent Events as each stage completes: the plan,
+    the roster of agents about to run, each agent's finding the moment it
+    arrives, the optimizer's adjudication, and finally the fused decision. The
+    payloads are the same shapes ``/ask`` returns, so the two stay in step.
+
+    The pipeline is synchronous, so it runs off the event loop in a thread and
+    hands events back through an ``asyncio.Queue``; the generator drains the
+    queue and closes on a sentinel. A client that disconnects cancels the
+    generator, and the worker thread is awaited so its exceptions surface
+    rather than vanishing.
+    """
+
+    async def gen():
+        loop = asyncio.get_running_loop()
+        q: asyncio.Queue = asyncio.Queue()
+        sentinel = object()
+
+        def emit(event: Dict[str, Any]) -> None:
+            loop.call_soon_threadsafe(q.put_nowait, event)
+
+        def run_pipeline() -> None:
+            t0 = time.perf_counter()
+            try:
+                from contracts import AgentName, Intent
+                from orchestrator.fusion import fuse, volatility_regime
+
+                p = _get_pipeline()
+                graph = p["planner"].plan(req.query, risk_hint=req.risk_profile)
+                emit({
+                    "type": "plan",
+                    "intent": graph.intent.value,
+                    "tickers": graph.tickers,
+                    "horizon_days": graph.horizon_days,
+                    "risk_posture": graph.risk_posture.value,
+                    "rationale": graph.rationale,
+                    "planned_by": graph.planned_by,
+                    "cached": graph.cached,
+                })
+
+                if graph.intent is Intent.DEFINE:
+                    emit({
+                        "type": "decision", "terminal": True,
+                        "intent": graph.intent.value,
+                        "answer": ("This is a general finance concept rather than a "
+                                   "question about a specific security, so no market "
+                                   "data was gathered."),
+                        "disclaimer": DISCLAIMER,
+                    })
+                    emit({"type": "done",
+                          "duration_ms": int((time.perf_counter() - t0) * 1000)})
+                    return
+
+                # Tell the client which agents are about to run so it can render
+                # a placeholder card per agent and fill each in as it lands.
+                emit({
+                    "type": "agents_planned",
+                    "agents": [{"agent": s.agent.value, "question": s.question}
+                               for s in graph.subtasks],
+                })
+
+                def on_result(r) -> None:
+                    emit({
+                        "type": "agent_done",
+                        "agent": r.agent.value,
+                        "status": r.status.value,
+                        "confidence": round(r.confidence, 3),
+                        "summary": list(r.reasoning[:2]),
+                        "as_of": r.as_of,
+                        "duration_ms": r.duration_ms,
+                    })
+
+                results = p["router"].dispatch(graph, on_result=on_result)
+                results, verdict = p["optimizer"].run(graph, results, router=p["router"])
+                emit({
+                    "type": "optimizer",
+                    "sufficient": verdict.sufficient,
+                    "conflict": verdict.conflict,
+                    "assessment": verdict.assessment,
+                    "iterations": verdict.iterations,
+                    "used_llm": verdict.used_llm,
+                })
+
+                mkt = next((r for r in results
+                            if r.agent is AgentName.MARKET and r.usable), None)
+                regime = volatility_regime(
+                    (mkt.payload or {}).get("volatility_annual_pct") if mkt else None)
+                decision, fw = fuse(results, regime=regime,
+                                    risk_posture=graph.risk_posture.value)
+
+                emit({
+                    "type": "decision", "terminal": False,
+                    "intent": graph.intent.value,
+                    "tickers": graph.tickers,
+                    "horizon_days": graph.horizon_days,
+                    "risk_posture": graph.risk_posture.value,
+                    "plan": {"rationale": graph.rationale,
+                             "planned_by": graph.planned_by,
+                             "cached": graph.cached},
+                    "agents": _build_traces(results, fw),
+                    "decision": decision,
+                    "fusion": {"regime": regime,
+                               "weights": fw.weights,
+                               "voting_weights": fw.voting_weights,
+                               "explanation": fw.explanation},
+                    "provenance": _provenance(results),
+                    "links": _links_for(graph.tickers),
+                    "disclaimer": DISCLAIMER,
+                })
+                emit({"type": "done",
+                      "duration_ms": int((time.perf_counter() - t0) * 1000)})
+            except Exception as e:  # a crash must reach the client, not hang it
+                emit({"type": "error", "message": f"{type(e).__name__}: {e}"})
+            finally:
+                loop.call_soon_threadsafe(q.put_nowait, sentinel)
+
+        worker = loop.run_in_executor(None, run_pipeline)
+        try:
+            while True:
+                item = await q.get()
+                if item is sentinel:
+                    break
+                yield _sse(item)
+        finally:
+            # Surface a worker exception and guarantee the thread is finished
+            # before the response closes, even if the client walked away.
+            try:
+                await worker
+            except Exception:
+                pass
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            # Tell nginx/Vercel not to buffer, or events arrive in one lump.
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 def _links_for(tickers: List[str]) -> List[Dict[str, str]]:

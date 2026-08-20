@@ -53,8 +53,18 @@ class Router:
         self.timeout_s = timeout_s
 
     # ------------------------------------------------------------------
-    def dispatch(self, graph: TaskGraph, as_of: Optional[str] = None) -> List[AgentResult]:
-        """Run every subtask in ``graph``. Returns one result per subtask."""
+    def dispatch(self, graph: TaskGraph, as_of: Optional[str] = None,
+                 on_result: Optional[Callable[[AgentResult], None]] = None
+                 ) -> List[AgentResult]:
+        """Run every subtask in ``graph``. Returns one result per subtask.
+
+        ``on_result`` is invoked with each :class:`AgentResult` the instant it
+        lands, before the wave it belongs to has finished. It exists so a
+        streaming caller can surface an agent's finding the moment it arrives
+        rather than after the slowest agent returns; the batch return value is
+        unchanged, so non-streaming callers pass nothing and see no difference.
+        A raising callback must not sink the whole dispatch, so it is guarded.
+        """
         if not graph.subtasks:
             return []   # e.g. intent=define, which is terminal by design
 
@@ -82,13 +92,19 @@ class Router:
                 for fut, st in futures.items():
                     t0 = time.perf_counter()
                     try:
-                        results[st.id] = fut.result(timeout=self.timeout_s)
+                        res = fut.result(timeout=self.timeout_s)
                     except TimeoutError:
-                        results[st.id] = _err(st, ResultStatus.UNAVAILABLE,
-                                              f"timed out after {self.timeout_s}s", t0)
+                        res = _err(st, ResultStatus.UNAVAILABLE,
+                                   f"timed out after {self.timeout_s}s", t0)
                     except Exception as e:
-                        results[st.id] = _err(st, ResultStatus.ERROR,
-                                              f"{type(e).__name__}: {e}", t0)
+                        res = _err(st, ResultStatus.ERROR,
+                                   f"{type(e).__name__}: {e}", t0)
+                    results[st.id] = res
+                    if on_result is not None:
+                        try:
+                            on_result(res)
+                        except Exception:
+                            pass  # a broken listener must not fail the pipeline
 
             done = {st.id for st in wave}
             remaining = [st for st in remaining if st.id not in done]

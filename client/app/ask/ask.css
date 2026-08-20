@@ -212,7 +212,104 @@
   line-height: 1.5;
 }
 
+/* --- stop control (interrupt a running stream) ------------------------ */
+.ask-send.ask-stop { background: var(--danger); }
+.ask-send.ask-stop:hover { background: var(--danger); opacity: 0.88; }
+
+/* --- live reasoning (streamed) ---------------------------------------- */
+.ask-live { border-style: dashed; }
+.ask-live-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+  margin-bottom: 0.35rem;
+}
+.ask-live-intent {
+  color: var(--primary);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.ask-live-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin-right: 0.15rem;
+  animation: askpulse 1.3s infinite;
+}
+
+.ask-live-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.ask-live-agent {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  transition: border-color 0.2s ease, opacity 0.2s ease;
+}
+.ask-live-agent.pending { opacity: 0.75; }
+.ask-live-agent.ok { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+.ask-live-agent.warn { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
+.ask-live-agent-top {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+}
+.ask-live-agent-name { font-weight: 600; color: var(--text); text-transform: capitalize; }
+.ask-live-agent-top em { font-style: normal; color: var(--muted); font-size: 0.75rem; }
+.ask-live-conf { margin-left: auto; color: var(--muted); font-size: 0.76rem; }
+.ask-live-agent-detail { color: var(--muted); font-size: 0.8rem; margin-top: 0.3rem; line-height: 1.4; }
+.ask-live-agent.warn .ask-live-agent-detail { color: var(--warning); }
+
+.ask-live-status {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  color: var(--success);
+  font-size: 0.8rem;
+}
+.ask-live-agent.warn .ask-live-status { color: var(--warning); }
+.ask-live-spin {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: askspin 0.7s linear infinite;
+}
+@keyframes askspin { to { transform: rotate(360deg); } }
+
+/* --- provenance (freshness of each source) ---------------------------- */
+.ask-provenance {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* --- abstention (honest "no confident view") -------------------------- */
+.ask-abstain {
+  border-left: 3px solid var(--muted);
+  padding-left: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+.ask-abstain-head {
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 0.2rem;
+}
+
 @media (max-width: 640px) {
   .ask-agent { grid-template-columns: 1fr; gap: 0.15rem; }
   .ask-bubble { max-width: 92%; }
+  .ask-live-conf { margin-left: 0.5rem; }
 }
