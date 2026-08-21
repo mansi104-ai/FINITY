@@ -25,11 +25,13 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     url: SITE_URL,
+    images: [{ url: "/icon.svg", width: 64, height: 64, alt: "Findec logo" }],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
+    images: ["/icon.svg"],
   },
   robots: { index: true, follow: true },
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
