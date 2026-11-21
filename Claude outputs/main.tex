@@ -1,0 +1,655 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{newtxtext,newtxmath}
+
+\definecolor{DELCONblue}{HTML}{00629B}
+\definecolor{DELCONnavy}{HTML}{21374A}
+\definecolor{DELCONcyan}{HTML}{65B9D8}
+\definecolor{DELCONgold}{HTML}{F5AC24}
+\definecolor{DELCONred}{HTML}{D43E46}
+\definecolor{DELCONgray}{HTML}{434E58}
+\definecolor{DELCONmuted}{HTML}{647687}
+\definecolor{DELCONpale}{HTML}{F4F8FB}
+\definecolor{DELCONlight}{HTML}{DDE7EE}
+\newcommand{\keyphrase}[1]{\textbf{\color{DELCONred}#1}}
+
+\usetheme{default}
+\usefonttheme{serif}
+\setbeamercolor{normal text}{fg=DELCONgray,bg=white}
+\setbeamercolor{structure}{fg=DELCONblue}
+\setbeamercolor{frametitle}{fg=DELCONnavy,bg=white}
+\setbeamercolor{block title}{fg=DELCONblue,bg=DELCONpale}
+\setbeamercolor{block body}{fg=DELCONgray,bg=DELCONpale}
+\setbeamercolor{block title alerted}{fg=DELCONnavy,bg=DELCONgold}
+\setbeamercolor{block body alerted}{fg=DELCONgray,bg=DELCONpale}
+\setbeamercolor{footline}{fg=DELCONmuted,bg=white}
+\setbeamercolor{accent line}{bg=DELCONgold}
+\setbeamerfont{frametitle}{series=\bfseries}
+\setbeamerfont{block title}{series=\bfseries,size=\small}
+\setbeamertemplate{navigation symbols}{}
+\setbeamersize{text margin left=0.65cm,text margin right=0.65cm}
+\setbeamertemplate{blocks}[rounded][shadow=false]
+\setbeamertemplate{headline}{}
+\setbeamertemplate{frametitle}{%
+  \vspace{0.16cm}%
+  {\color{DELCONblue}\fontsize{8}{9}\selectfont\bfseries\MakeUppercase{\insertframesubtitle}\par}%
+  \vspace{0.05em}%
+  {\color{DELCONnavy}\fontsize{21}{24}\selectfont\bfseries\insertframetitle\par}%
+  \vspace{0.1em}%
+  {\color{DELCONgold}\rule{\linewidth}{1.2pt}\par}%
+  \vspace{0.16cm}%
+}
+\setbeamertemplate{footline}{%
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.78\paperwidth,ht=2.5ex,dp=1ex,leftskip=1em]{footline}%
+      \scriptsize IEEE DELCON 2026 \textbullet\ Paper ID: 1348
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.22\paperwidth,ht=2.5ex,dp=1ex,rightskip=1em plus 1fil]{footline}%
+      \hfill\scriptsize \insertframenumber/\inserttotalframenumber
+    \end{beamercolorbox}%
+  }%
+}
+\setbeamertemplate{itemize item}{\color{DELCONcyan}\small$\blacktriangleright$}
+\setbeamertemplate{itemize subitem}{\color{DELCONcyan}\scriptsize$\bullet$}
+
+\title{FINDEC: A Multi-Agent AI Framework for Intelligent Financial Decision Support}
+\author{Mansi, Sudesh Rani, and Kanu Goel}
+\institute{Department of Computer Science and Engineering, Punjab Engineering College (Deemed to be University), Chandigarh, India}
+\date{IEEE DELCON 2026, 19--21 November 2026}
+
+\begin{document}
+
+{
+\usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{bits-background-upload.png}}
+\begin{frame}[plain]
+  \vspace{0.04cm}
+  \noindent
+  \makebox[0.25\textwidth][l]{\hspace{0.35cm}\includegraphics[height=1.05cm]{bits-pilani-logo.png}}%
+  \makebox[0.50\textwidth][c]{\includegraphics[height=0.78cm]{pec-logo-upload.jpg}}%
+  \makebox[0.25\textwidth][r]{\includegraphics[width=2.0cm]{ieee-delhi-upload.png}\hspace{0.35cm}}\par
+  \vspace{0.05cm}
+  \noindent\hspace*{0.39\paperwidth}%
+  \begin{minipage}[t]{0.52\paperwidth}
+    \vspace{0.20cm}
+    {\color{DELCONblue}\small\bfseries ORAL PAPER PRESENTATION\par}
+    \vspace{0.22cm}
+    {\color{DELCONnavy}\bfseries\fontsize{20}{24}\selectfont FINDEC: A Multi-Agent AI Framework for Intelligent Financial Decision Support\par}
+    \vspace{0.18cm}
+    {\color{DELCONgray}\large Mansi, Sudesh Rani, and Kanu Goel\par}
+    \vspace{0.18cm}
+    {\color{DELCONmuted}\small Presenter: Dr. Sudesh Rani\par}
+    {\color{DELCONmuted}\small Department of Computer Science and Engineering\\Punjab Engineering College (Deemed to be University), Chandigarh, India\par}
+    \vspace{0.25cm}
+    {\color{DELCONblue}\small\bfseries 19--21 November 2026\hfill Paper ID: 1348\par}
+    \vspace{0.04cm}
+    {\color{DELCONmuted}\small Session ID: T3-S6\par}
+    \vfill
+    \hfill{\color{DELCONmuted}\scriptsize 1/\inserttotalframenumber}
+  \end{minipage}
+\end{frame}
+\usebackgroundtemplate{}
+}
+
+\begin{frame}{Presentation Roadmap}
+  \framesubtitle{AT A GLANCE}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{\Large\color{DELCONgold}01}
+        \keyphrase{Problem, objective, and contributions}
+      \end{block}
+      \vspace{0.12cm}
+      \begin{block}{\Large\color{DELCONgold}02}
+        \keyphrase{Architecture and agent workflow}
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{\Large\color{DELCONgold}03}
+        \keyphrase{Sentiment and forecasting methods}
+      \end{block}
+      \vspace{0.12cm}
+      \begin{block}{\Large\color{DELCONgold}04}
+        \keyphrase{Evaluation and results}
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{\Large\color{DELCONgold}05}
+        \keyphrase{Risk management and limitations}
+      \end{block}
+      \vspace{0.12cm}
+      \begin{block}{\Large\color{DELCONgold}06}
+        \keyphrase{Conclusions and references}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Motivation and Research Objective}
+  \framesubtitle{WHY FINDEC?}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Heterogeneous evidence}
+        \small Investment decisions combine \keyphrase{financial news, market history, and investor risk preferences}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Unequal access}
+        \small Retail investors may lack \keyphrase{specialist research, quantitative analysis, and risk-management support}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Deployment barriers}
+        \small Commercial LLMs, proprietary data, and GPU requirements limit \keyphrase{accessibility and reproducibility}.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.10cm}
+  \begin{alertblock}{Research objective}
+    Integrate \keyphrase{financial text, market features, and investor risk preferences} into an interpretable, statistically assessed recommendation pipeline for \keyphrase{standard CPU hardware}.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Research Contributions}
+  \framesubtitle{WHAT FINDEC ADDS}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \begin{block}{1. Lightweight multi-agent system}
+        \small A \keyphrase{Researcher, Analyst, and Risk Manager} collaborate for financial decision-making without relying on large language models.
+      \end{block}
+      \vspace{0.14cm}
+      \begin{block}{2. Hybrid prediction and recommendation}
+        \small Combines \keyphrase{recency-weighted lexicon sentiment} with an ensemble of Ridge regression and logistic classification, using engineered technical, volatility, and cross-sectional market features.
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{3. End-to-end CPU deployment}
+        \small Implements the complete system using a \keyphrase{FastAPI agent service, Node.js backend, and Next.js frontend}, designed to run on standard CPU hardware.
+      \end{block}
+      \vspace{0.14cm}
+      \begin{block}{4. Rigorous statistical evaluation}
+        \small Reports \keyphrase{confidence intervals, significance tests, and power analysis} to support rigorous and reproducible assessment.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[plain]
+  \vspace{0.08cm}
+  {\color{DELCONblue}\fontsize{8}{9}\selectfont\bfseries FIGURE 1 \textbullet\ SERVICE BOUNDARIES\par}
+  \vspace{0.05em}
+  {\color{DELCONnavy}\fontsize{21}{24}\selectfont\bfseries Three-Tier Deployment Architecture\par}
+  \vspace{0.1em}
+  {\color{DELCONgold}\rule{\textwidth}{1.2pt}\par}
+  \vspace{0.05cm}
+  \centering
+  \includegraphics[height=0.70\paperheight,width=0.95\paperwidth,keepaspectratio]{FINDEC-Arch1.png}\\[-0.1em]
+  {\tiny Fig.~1. \keyphrase{Three-tier deployment}; solid arrows show request/data flow and dashed arrows show external calls or fallback.}
+  \vfill
+  {\tiny IEEE DELCON 2026 \textbullet\ Paper ID: 1348\hfill\insertframenumber/\inserttotalframenumber}
+\end{frame}
+
+\begin{frame}{Deployment Services, Persistence, and Resilience}
+  \framesubtitle{ARCHITECTURE DETAILS}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Presentation tier}
+        \small \keyphrase{Next.js/TypeScript} App Router dashboard for charts, reports, and assistant sidebar (port 3000).
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Backend and authentication}
+        \small \keyphrase{Node.js/Express/TypeScript} REST for authentication, profiles, routing, and reports (port 4000). JSON Web Token (JWT) access lasts 15 minutes; \keyphrase{refresh tokens are revocable}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Agent service}
+        \small \keyphrase{Python/FastAPI} exposes \texttt{POST /run} on port 8000. The request's \texttt{version} controls pipeline depth; Docker Compose deploys all three tiers.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.1cm}
+  \begin{alertblock}{Data and operational controls}
+    \scriptsize MongoDB stores reports; rate limit is \keyphrase{10 requests/user/hour}. The live-data flag selects the source; provider failures set an availability flag.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[plain]
+  \vspace{0.08cm}
+  {\color{DELCONblue}\fontsize{8}{9}\selectfont\bfseries FIGURE 2 \textbullet\ SEQUENTIAL ORCHESTRATION\par}
+  \vspace{0.05em}
+  {\color{DELCONnavy}\fontsize{21}{24}\selectfont\bfseries Three-Agent Runtime Flow and Versioning\par}
+  \vspace{0.1em}
+  {\color{DELCONgold}\rule{\textwidth}{1.2pt}\par}
+  \vspace{0.08cm}
+  \centering
+  \includegraphics[height=0.62\paperheight,width=0.95\paperwidth,keepaspectratio]{FINDEC_agents.png}\\[-0.1em]
+  {\tiny Fig.~2. Request and data inputs flow through \keyphrase{agent signals} to persistence and the composite report.}
+  \vfill
+  {\tiny IEEE DELCON 2026 \textbullet\ Paper ID: 1348\hfill\insertframenumber/\inserttotalframenumber}
+\end{frame}
+
+\begin{frame}{Agent Responsibilities and Orchestration}
+  \framesubtitle{WHAT EACH SPECIALIST CONTRIBUTES}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Researcher \textbullet\ v1+}
+        \small Queries news using ticker/context; filters duplicates and non-financial items; returns \keyphrase{recency-weighted sentiment and confidence}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Analyst \textbullet\ v2+}
+        \small Uses cached OHLCV, technical/volatility features, Ridge return prediction, and a logistic direction check; passes the \keyphrase{forecast and volatility}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Risk Manager \textbullet\ v4}
+        \small Combines forecast, sentiment, volatility, drawdown, and regime; applies investor profile and \keyphrase{position caps} to produce a recommendation.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.1cm}
+  \begin{block}{Versioned orchestration and report}
+    \small v1 runs Researcher; v2 adds Analyst; v3 adds backend orchestration and persistence; v4 adds Risk Manager. Request $q$ contains ticker, version, and risk profile. The report stores the \keyphrase{recommendation, prediction, sentiment summary, and risk score}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Researcher Agent: Recency-Weighted Sentiment}
+  \framesubtitle{SCORING AND ARTICLE INFLUENCE}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.61\textwidth}
+      \begin{block}{Article score, weight, and aggregate}
+        \scriptsize
+        \begin{align*}
+          \hat{s}_i &= \frac{1}{n_i}\sum_{\substack{w\in d_i\\\mathrm{lex}(w)\ne0}}\mathrm{lex}(w),\qquad
+          n_i=\left|\{w\in d_i:\mathrm{lex}(w)\ne0\}\right|,\\[0.12em]
+          \omega_i &= \operatorname{clip}(\mathrm{rel}_i\rho_i\sigma_i,\,0.1,\,2.2),\qquad
+          \rho_i\propto\lambda^{a_i/h},\\[0.12em]
+          S &= \frac{\sum_{i=1}^{N}v_i\omega_i}{\sum_{i=1}^{N}\omega_i}\in[-2,2].
+        \end{align*}
+      \end{block}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \begin{block}{Symbols}
+        \scriptsize $d_i$: article $i$; $w$: token; $N$: article count; $\mathrm{lex}(w)\in\{-2,-1,0,1,2\}$: signed lexicon value; $n_i$: non-neutral token count; $\hat{s}_i$: article score; $v_i$: mapped sentiment; $S$: aggregate. $\mathrm{rel}_i\in[0,1]$: ticker/query relevance; $\sigma_i$: source credibility; $\rho_i$: recency factor; $a_i$: age in hours; $h$: query horizon; $\lambda=0.85$: decay parameter; $\omega_i$: clipped article weight.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.06cm}
+  {\scriptsize Articles with $n_i=0$ are neutral; \keyphrase{no relevant articles means zero coverage and a neutral estimate}. Confidence $C\in[0.45,0.95]$ reflects inter-article consistency; its calculation is not specified in the paper.}
+\end{frame}
+
+\begin{frame}{Analyst Agent: 13 Market Features}
+  \framesubtitle{FEATURE ENGINEERING AND PREPROCESSING}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.63\textwidth}
+      \begin{block}{Feature vector at trading day $t$}
+        \scriptsize
+        \begin{equation*}
+          \begin{aligned}
+            x_t=\big[&r_t^{(1)},r_t^{(5)},r_t^{(10)},r_t^{(20)},\sigma_{5,t},\sigma_{10,t},\\
+            &MA_{10,t},MA_{20,t},V_t/\bar V,RSI_{14,t},M_t,B_t,m_t\big].
+          \end{aligned}
+        \end{equation*}
+        \vspace{-0.25em}
+        \begin{itemize}\setlength{\itemsep}{1pt}
+          \item \keyphrase{$r_t^{(k)}$}: trailing $k$-day return; $\sigma_{k,t}$: $k$-day return volatility; $MA_{k,t}$: moving-average ratio (its denominator is not specified in the paper).
+          \item \keyphrase{$V_t/\bar V$}: daily volume / 20-day mean volume; $RSI_{14,t}$: 14-day Relative Strength Index.
+          \item \keyphrase{$M_t$}: price-normalized moving-average convergence/divergence (MACD) histogram (12/26-day exponential moving averages, 9-day signal); $B_t$: Bollinger \%B in a 20-day, $\pm2$ SD band.
+          \item \keyphrase{$m_t$}: ticker 5-day return relative to SPY (S\&P 500 ETF).
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.34\textwidth}
+      \begin{block}{RSI definition}
+        \centering\scriptsize
+        \begin{align*}
+          RS&=\frac{\bar G_{14}}{\bar L_{14}},\\
+          RSI_{14}&=100-\frac{100}{1+RS}.
+        \end{align*}
+        \scriptsize $\bar G_{14}$ and $\bar L_{14}$ are 14-day average gains and losses.
+      \end{block}
+      \begin{alertblock}{Leakage control}
+        \scriptsize \keyphrase{Training-window standardization}; winsorization at $\pm4$ SD; minimum history $T=90$ days.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Analyst Agent: Five-Day Forecast and Decision Rule}
+  \framesubtitle{RIDGE REGRESSION WITH LOGISTIC DIRECTION CHECK}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Rolling return model}
+        \centering\small
+        \begin{align*}
+          y_{t,5}&=w^{\top}x_t+b+\epsilon_t,\\
+          \hat r_{t,5}&=w^{\top}x_t+b.
+        \end{align*}
+        \scriptsize $y_{t,5}$: observed forward 5-day return; $\hat r_{t,5}$: predicted 5-day return; $x_t$: 13-feature vector; $w$: Ridge coefficients; $b$: intercept; $\epsilon_t$: residual. Ridge is refit on up to $W=1250$ trading days.
+      \end{block}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{alertblock}{Logistic check and decision}
+        \scriptsize A logistic classifier predicts $p_{\mathrm{up}}$, the probability of a positive 5-day return. If $p_{\mathrm{up}}\notin[0.45,0.55]$, its direction is used; otherwise, direction follows Ridge. \keyphrase{Buy} if $\hat r_{t,5}>\theta^+=0.005$; \keyphrase{sell} if $\hat r_{t,5}<\theta^-=-0.005$; otherwise \keyphrase{hold}. Ridge is selected for production; regularization parameters are not reported.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Experimental Protocol and Reproducibility}
+  \framesubtitle{WALK-FORWARD EVALUATION}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.56\textwidth}
+      \begin{block}{TABLE I. ANALYST REPRODUCIBILITY SETTINGS}
+        \centering\scriptsize
+        \setlength{\tabcolsep}{3pt}\begin{tabular}{p{0.36\linewidth}p{0.55\linewidth}}
+          \toprule
+          Setting & Value \\
+          \midrule
+          Rolling window $W$ & \keyphrase{1250 trading days} \\
+          Minimum history $T$ & 90 trading days \\
+          Winsorization & $\pm4$ standard deviations; training window only \\
+          Decision thresholds & $\theta^+=0.005$, $\theta^-=-0.005$ \\
+          Evaluation split & Walk-forward; \keyphrase{next 120/ticker} \\
+          Random seeds & Ridge deterministic; seeds for other stochastic components are unspecified \\
+          \bottomrule
+        \end{tabular}
+      \end{block}
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \begin{block}{Data and metrics}
+        \scriptsize Daily open/high/low/close/volume (OHLCV) for AAPL, MSFT, AMZN, TSLA, and NVDA, 2021--2026; 120 out-of-sample observations/ticker (\keyphrase{$n=600$ pooled}). Sentiment uses \keyphrase{500 annotated headlines}.
+      \end{block}
+      \begin{block}{Baselines and safeguards}
+        \scriptsize Directional accuracy vs. \keyphrase{50\% chance baseline}; buy-and-hold for portfolio comparison; separate fixed 5/20-day simple moving-average (SMA) signal for position-sizing evaluation. Preprocessing uses \keyphrase{training data only}; trades execute next session to avoid look-ahead. Reported accuracy uses 95\% Wilson confidence intervals and $p$-values.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Researcher Agent: Sentiment Levels and Evaluation}
+  \framesubtitle{CLASSIFICATION PERFORMANCE}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.45\textwidth}
+      \begin{block}{Aggregate score to level}
+        \scriptsize
+        \begin{tabular}{ll}
+          \toprule
+          Score $S$ & Output level \\
+          \midrule
+          $S\geq1.5$ & STRONG\_BUY \\
+          $0.5\leq S<1.5$ & BUY \\
+          $-0.5\leq S<0.5$ & HOLD \\
+          $-1.5\leq S<-0.5$ & SELL \\
+          $S<-1.5$ & STRONG\_SELL \\
+          \bottomrule
+        \end{tabular}
+      \end{block}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{block}{TABLE II. RESEARCHER SENTIMENT CLASSIFICATION}
+        \centering\scriptsize
+        \begin{tabular}{lrrrr}
+          \toprule
+          Class & Precision & Recall & F1 & Support \\
+          \midrule
+          Positive & 0.84 & 0.88 & 0.86 & 185 \\
+          Neutral & 0.78 & 0.71 & 0.74 & 210 \\
+          Negative & 0.90 & 0.96 & 0.93 & 105 \\
+          \textbf{Macro avg.} & \textbf{0.84} & \textbf{0.85} & \textbf{0.84} & \textbf{500} \\
+          \bottomrule
+        \end{tabular}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.06cm}
+  {\scriptsize \keyphrase{Macro-F1 is 0.84} on 500 annotated headlines; neutral recall (0.71) is weakest and negative-class F1 (0.93) is strongest. Precision, recall, and F1 are classification metrics; support is the number of examples.}
+\end{frame}
+
+\begin{frame}{Analyst Agent: Walk-Forward Results}
+  \framesubtitle{DIRECTIONAL ACCURACY AND MODEL COMPARISON}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.65\textwidth}
+      \begin{block}{TABLE III. FIVE-TICKER ANALYST PERFORMANCE}
+        \centering\scriptsize
+        \begin{tabular}{lrrrr}
+          \toprule
+          Ticker & Ridge DA (\%) & 95\% Wilson CI & Ensemble DA (\%) & nMAE \\
+          \midrule
+          AAPL & 52.5 & [43.6, 61.2] & 54.2 & 3.23 \\
+          MSFT & 50.8 & [42.0, 59.6] & 50.8 & 4.14 \\
+          AMZN & 47.5 & [38.8, 56.4] & 40.0 & 4.25 \\
+          TSLA & 66.7 & [57.8, 74.5] & 64.2 & 3.85 \\
+          NVDA & 60.8 & [51.9, 69.1] & 58.3 & 3.91 \\
+          \textbf{Pooled} & \textbf{55.7} & \textbf{[51.7, 59.6]} & \textbf{53.5} & \textbf{3.88} \\
+          \bottomrule
+        \end{tabular}
+        \par\tiny DA = directional accuracy; ensemble = Ridge plus logistic classifier; nMAE = normalized mean absolute error.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{alertblock}{Pooled Ridge}
+        \centering\Large 55.7\%\\[-0.1em]
+        \scriptsize \keyphrase{95\% CI [51.7, 59.6]}; $p=0.006$ vs. 50\% ($n=600$).
+      \end{alertblock}
+      \begin{block}{Additional comparisons}
+        \scriptsize \keyphrase{TSLA: 66.7\% ($p<0.001$)}; \keyphrase{NVDA: 60.8\% ($p=0.022$)}. Joint five-ticker model: 51.0\%. Gradient boosting: 59.2\%, not significantly above Ridge ($p=0.22$). \keyphrase{Ridge is retained for production}.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Risk Manager: Volatility and Position Caps}
+  \framesubtitle{RISK-AWARE POSITION SIZING}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Volatility and drawdown adjustment}
+        \centering\small
+        \begin{align*}
+          \rho&=\min\left(1,\frac{\sigma_{20}}{\sigma_{\mathrm{ref}}}\right),\qquad \sigma_{\mathrm{ref}}=0.03,\\
+          \rho'&=0.7\rho+0.3\left(\frac{|D_{14}|}{D_{\mathrm{ref}}}\right),\qquad D_{\mathrm{ref}}=0.15.
+        \end{align*}
+        \scriptsize $\sigma_{20}$: 20-day volatility; $D_{14}$: maximum drawdown over the last 14 days; $\rho$: normalized volatility risk; $\rho'$: combined risk score.
+      \end{block}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{block}{Risk-profile weights}
+        \centering\scriptsize
+        \begin{tabular}{lcc}
+          \toprule
+          Profile & $w_r^{(1)}$ & $w_r^{(2)}$ \\
+          \midrule
+          Low risk & 0.2 & 0.8 \\
+          Medium risk & 0.5 & 0.5 \\
+          High risk & 0.8 & 0.2 \\
+          \bottomrule
+        \end{tabular}
+        \par\tiny Weights are ordered as in the composite-score equation.
+      \end{block}
+      \begin{alertblock}{Position caps}
+        \scriptsize Maximum capital allocation: \keyphrase{6\% (low), 10\% (medium), and 16\% (high risk)}. The Risk Manager combines forecast, sentiment, volatility, drawdown, and market regime.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Composite Recommendation Score}
+  \framesubtitle{RISK MANAGER \textbullet\ COMBINING FORECAST, SENTIMENT, AND REGIME}
+  \begin{alertblock}{Score equation}
+    \centering\Large
+    \begin{equation*}
+      \mathrm{Score}=w_r^{(1)}\hat r_{\mathrm{norm}}+w_r^{(2)}S+(1-\rho')\Gamma.
+    \end{equation*}
+  \end{alertblock}
+  \vspace{0.10cm}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Terms}
+        \scriptsize $\hat r_{\mathrm{norm}}$: normalized return (formula unspecified); $S$: sentiment; $\rho'$: adjusted risk score; $\Gamma\in\{-1,0,1\}$: \keyphrase{oversold, neutral, or overbought regime}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Profile weights and output}
+        \scriptsize $w_r^{(1)}$: profile weight on normalized return; $w_r^{(2)}$: weight on sentiment in the printed equation (the prose calls it a risk-adjustment weight). \keyphrase{Five output classes}; cutoffs are unreported.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Risk Manager: Position-Sizing Results}
+  \framesubtitle{FIXED 5/20-DAY SMA SIGNAL TEST}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.68\textwidth}
+      \begin{block}{TABLE IV. RISK-MANAGER PERFORMANCE}
+        \centering\scriptsize
+        \begin{tabular}{lrrrr}
+          \toprule
+          Ticker & Model return (\%) & Sharpe & Buy-and-hold return (\%) & Sharpe \\
+          \midrule
+          AAPL & $-1.00$ & $-0.44$ & 17.56 & 0.72 \\
+          MSFT & $-1.11$ & $-0.55$ & 7.14 & 0.39 \\
+          AMZN & $-0.79$ & $-0.26$ & 7.41 & 0.38 \\
+          \textbf{TSLA} & \textbf{14.10} & \textbf{0.64} & \textbf{13.00} & \textbf{0.50} \\
+          NVDA & 2.31 & 0.52 & 63.93 & 1.21 \\
+          \bottomrule
+        \end{tabular}
+      \end{block}
+    \end{column}
+    \begin{column}{0.29\textwidth}
+      \begin{alertblock}{TSLA drawdown}
+        \centering\Large $-53.8\%\;\longrightarrow\;-21.6\%$
+      \end{alertblock}
+      \begin{block}{Interpretation}
+        \scriptsize The independent 5/20-day moving-average test \keyphrase{reduced maximum drawdown for all five assets}, by up to sevenfold, while sacrificing upside. Trades execute next session; Sharpe estimates are descriptive.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Behind the Scenes}
+  \framesubtitle{BEYOND THE PAPER \textbullet\ RISK-LAYER EXPERIMENTS}
+  \centering
+  \includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{behind_the_scenes_reveal.png}\\[0.2em]
+  {\tiny Volatility forecasting baselines, penalty-term isolation, and an exposure-matched control (details on request).}
+\end{frame}
+
+\begin{frame}{Five-Ticker Holdout Performance}
+  \framesubtitle{HIGH-RISK PROFILE \textbullet\ OUT-OF-SAMPLE COMPARISON}
+  \centering
+  \includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{dashboard.png}\\[0.2em]
+  {\scriptsize \keyphrase{Lower drawdown on all five} (TSLA $-53.8\%\rightarrow-21.6\%$); Sharpe higher than buy-and-hold except AMZN.}\\[0.1em]
+  {\tiny Fig.~3. Out-of-sample holdout (descriptive): Sharpe ratio, return vs. maximum drawdown, and Analyst directional accuracy.}
+\end{frame}
+
+\begin{frame}{Statistical Power, System Performance, and Limitations}
+  \framesubtitle{HOW TO INTERPRET THE EVIDENCE}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{alertblock}{CPU deployment}
+        \centering\Large $<1.3$ s\\[-0.1em]
+        \scriptsize Version 4 on 4 vCPUs and 8 GB RAM; \keyphrase{no GPU required}.
+      \end{alertblock}
+      \begin{block}{Scope}
+        \scriptsize Five large-cap equities and a finite walk-forward period; \keyphrase{generalization to other assets or market regimes is not established}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.34\textwidth}
+      \begin{block}{Directional-accuracy uncertainty}
+        \centering\scriptsize
+        \begin{equation*}
+          SE(\hat p)=\sqrt{\frac{\hat p(1-\hat p)}{n}}.
+        \end{equation*}
+        \scriptsize At the 50\% baseline, $SE=4.56\%$ for $n=120$ per ticker and $2.04\%$ for $n=600$ pooled. $\hat p$ is observed accuracy; $n$ is test observations.
+      \end{block}
+    \end{column}
+    \begin{column}{0.31\textwidth}
+      \begin{block}{Power and caveats}
+        \scriptsize Under return correlation 0.55, detecting a $+0.30$ Sharpe-ratio change requires about \keyphrase{$10{,}000$ trading days per ticker}. Observations may be dependent across assets and time; Sharpe estimates are descriptive. The risk experiment isolates position sizing from forecast quality.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Conclusions and Future Work}
+  \framesubtitle{TAKEAWAYS}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{\Large\color{DELCONgold}01}
+        Ridge achieved \keyphrase{55.7\% pooled directional accuracy} (95\% CI [51.7, 59.6]; nominal $p=0.006$ vs. 50\%).
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{\Large\color{DELCONgold}02}
+        \keyphrase{Risk-aware sizing reduced drawdown} in the separate fixed-signal test, at the cost of lower exposure and potential upside.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{\Large\color{DELCONgold}03}
+        FINDEC integrates three lightweight agents and runs on CPU hardware; \keyphrase{profitability and generalizability are not established}.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.12cm}
+  \begin{alertblock}{Future research}
+    Expand the asset universe and evaluation period, improve sentiment with \keyphrase{transformer models}, and test \keyphrase{regime-aware position sizing} with dependence-aware inference.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{References}
+  \framesubtitle{REFERENCES [1]--[7]}
+  \setbeamertemplate{enumerate item}{[\insertenumlabel]}
+  \fontsize{8}{9.2}\selectfont
+  \begin{enumerate}\setlength{\itemsep}{3pt}
+    \item I. Aldasoro, L. Gambacorta, A. Korinek, V. Shreeti, and M. Stein, ``Intelligent financial system: How AI is transforming finance,'' \emph{J. Financ. Stability}, Art. no. 101472, 2025.
+    \item A. T. Khan, S. Li, and X. Cao, ``Bridging finance and AI: A comprehensive survey of large language models in financial system,'' \emph{Digit. Finance}, vol. 7, no. 4, 2025.
+    \item H. Yang et al., ``FinRobot: An open-source AI agent platform for financial applications using LLMs,'' arXiv:2405.14767, 2024.
+    \item Y. Xiao, E. Sun, D. Luo, and W. Wang, ``TradingAgents: Multi-agents LLM financial trading framework,'' arXiv:2412.20138, 2024.
+    \item H. Yang, X.-Y. Liu, and C. D. Wang, ``FinGPT: Open-source financial large language models,'' arXiv:2306.06031, 2023.
+    \item Y. Qin et al., ``ToolLLM: Facilitating large language models to master 16000+ real-world APIs,'' in \emph{Proc. Int. Conf. Learn. Represent. (ICLR)}, 2024.
+    \item A. Sinha, C. Agarwal, and P. Malo, ``FinBloom: Knowledge-grounding large language model with real-time financial data,'' \emph{Knowl.-Based Syst.}, Art. no. 115559, 2026.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{References (continued)}
+  \framesubtitle{REFERENCES [8]--[14]}
+  \setbeamertemplate{enumerate item}{[\insertenumlabel]}
+  \fontsize{8}{9.2}\selectfont
+  \begin{enumerate}\setlength{\itemsep}{3pt}\setcounter{enumi}{7}
+    \item X. Chen and A. Shen, ``Smart decision framework for financial planning and investment optimization,'' \emph{Sci. Rep.}, 2026.
+    \item L. A. Mantshimuli and J. W. Muteba Mwamba, ``Toward a unified agentic framework for regime-aware portfolio optimization with LLM signals,'' \emph{Int. J. Data Sci. Anal.}, vol. 22, no. 1, 2026.
+    \item D. Araci, ``FinBERT: Financial sentiment analysis with pre-trained language models,'' arXiv:1908.10063, 2019.
+    \item Y. Sun, H. Yuan, and F. Xu, ``Financial sentiment analysis for pretrained language models incorporating dictionary knowledge and neutral features,'' \emph{NLP J.}, vol. 11, 2025.
+    \item A. Hassanniakalager, P. L. Baker, and E. Platanakis, ``A false discovery rate approach to optimal volatility forecasting model selection,'' \emph{Int. J. Forecast.}, vol. 40, no. 3, 2024.
+    \item V. Gagneja, M. Gupta, S. Batish, P. Saini, and S. Rani, ``ES-LSTM: A hybrid model for accurate time series forecasting in financial markets,'' \emph{Digit. Finance}, vol. 8, no. 1, 2026.
+    \item C. Jiang et al., ``Multimodal retrieval-augmented generation for financial documents,'' \emph{Vis. Comput.}, vol. 41, no. 10, 2025.
+  \end{enumerate}
+\end{frame}
+
+{
+\usebackgroundtemplate{\includegraphics[width=\paperwidth,height=\paperheight]{delcon-template-cover.png}}
+\begin{frame}[plain]
+  \vspace{0.08cm}
+  \noindent\hspace*{0.39\paperwidth}%
+  \begin{minipage}[t]{0.52\paperwidth}
+    \hfill\includegraphics[height=0.72cm]{bits-pilani-logo.png}\hspace{0.22cm}\includegraphics[width=1.65cm]{ieee-delhi-section-logo.png}\par
+    \vspace{0.42cm}
+    {\color{DELCONblue}\small\bfseries QUESTIONS \& DISCUSSION\par}
+    \vspace{0.25cm}
+    {\color{DELCONnavy}\bfseries\fontsize{30}{34}\selectfont Thank You\par}
+    \vspace{0.38cm}
+    {\color{DELCONgray}\large Questions?\par}
+    \vspace{0.35cm}
+    {\color{DELCONmuted}\small Mansi, Sudesh Rani, and Kanu Goel\par}
+    {\color{DELCONmuted}\small Punjab Engineering College (Deemed to be University), Chandigarh, India\par}
+    \vspace{0.3cm}
+    {\color{DELCONblue}\small\bfseries Paper ID: 1348\hfill IEEE DELCON 2026\par}
+    \vfill
+    \hfill{\color{DELCONmuted}\scriptsize \insertframenumber/\inserttotalframenumber}
+  \end{minipage}
+\end{frame}
+\usebackgroundtemplate{}
+}
+
+\end{document}
